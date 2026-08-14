@@ -1,0 +1,64 @@
+name: Release
+
+# Manual, lockstep release. Pick a bump; the job verifies, bumps every package
+# to one version, renders the changelog, tags, publishes with provenance, and
+# cuts a GitHub Release. Pushing the release commit to the default branch also
+# triggers docs.yml, which redeploys the docs site — so no docs step here.
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Semver bump
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+
+permissions:
+  contents: write # push the release commit + tag, create the Release
+  id-token: write # npm provenance via OIDC
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      - run: npm ci
+      - name: Verify (lint + typecheck + tests)
+        run: npm run verify
+      - name: Build all packages
+        run: npm run build --workspaces --if-present
+      - name: Bump versions and render the changelog
+        run: node scripts/release.mjs ${{ inputs.bump }}
+      - name: Read the new version
+        id: ver
+        run: echo "version=$(node -p "require('./packages/tree/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Commit and tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore(release): v${{ steps.ver.outputs.version }}"
+          git tag "v${{ steps.ver.outputs.version }}"
+          git push origin "HEAD:${GITHUB_REF_NAME}" --follow-tags
+      - name: Publish public packages with provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          for dir in packages/*/; do
+            if [ -f "$dir/package.json" ] && ! grep -q '"private": true' "$dir/package.json"; then
+              (cd "$dir" && npm publish --provenance --access public)
+            fi
+          done
+      - name: Extract the latest changelog section
+        run: node -e "const fs=require('node:fs');const after=(fs.readFileSync('CHANGELOG.md','utf8').split('<!-- releases -->')[1]||'');const first=after.split(/\n(?=## )/).map(s=>s.trim()).filter(Boolean)[0]||'';fs.writeFileSync('RELEASE_NOTES.md',first+'\n')"
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "v${{ steps.ver.outputs.version }}" --title "v${{ steps.ver.outputs.version }}" --notes-file RELEASE_NOTES.md

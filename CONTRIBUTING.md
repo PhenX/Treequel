@@ -101,9 +101,10 @@ Every third-party dependency needs a justified row in `DEPENDENCIES.md` in the s
 
 ## Releases
 
-Lockstep, via `scripts/release.mjs` from a manually dispatched workflow (patch/minor/major): it bumps every package to
-the same version, rewrites internal `"*"` ranges, updates `CHANGELOG.md` from the commit history, tags, and publishes
-each public package to npm with provenance.
+Lockstep, from the manually dispatched **Release** workflow (patch/minor/major). `scripts/release.mjs` does the
+deterministic part — bump every package to one version, rewrite internal `"*"` ranges, and prepend a `CHANGELOG.md`
+section rendered from the commit history — and the workflow commits, tags, pushes, and publishes each public package to
+npm with provenance (provenance can only be produced from CI). Pushing the release commit also redeploys the docs.
 
 ## Security
 

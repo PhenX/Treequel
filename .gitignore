@@ -144,3 +144,7 @@ vite.config.ts.timestamp-*
 
 # Local working docs — design plan, roadmap, exploration findings (see AGENTS.md)
 plans/
+
+# Generated docs pages (from scripts/gen-docs.mjs)
+apps/docs/errors.md
+apps/docs/reference/tree-schema.md

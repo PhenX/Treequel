@@ -1,0 +1,16 @@
+{
+  "name": "@treequel-docs/site",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Treequel documentation site (VitePress).",
+  "type": "module",
+  "scripts": {
+    "docs:generate": "node ../../scripts/gen-docs.mjs",
+    "docs:dev": "npm run docs:generate && vitepress dev",
+    "docs:build": "npm run docs:generate && vitepress build",
+    "docs:preview": "vitepress preview"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.0"
+  }
+}

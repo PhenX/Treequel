@@ -1,0 +1,40 @@
+{
+  "name": "@treequel/provider-sql",
+  "version": "0.1.0",
+  "description": "Treequel SQL provider — compiles expression trees to parameterized Postgres.",
+  "keywords": [
+    "treequel",
+    "linq",
+    "provider",
+    "sql",
+    "postgres"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "dependencies": {
+    "@treequel/core": "*",
+    "@treequel/linq": "*"
+  },
+  "scripts": {
+    "build": "tsdown src/index.ts --format esm --dts",
+    "dev": "tsdown src/index.ts --format esm --dts --watch",
+    "test": "vitest run"
+  }
+}

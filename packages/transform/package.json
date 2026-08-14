@@ -1,0 +1,40 @@
+{
+  "name": "@treequel/transform",
+  "version": "0.1.0",
+  "description": "Treequel's pure per-module build transform: import tracing, expression-position detection, tree splicing.",
+  "keywords": [
+    "treequel",
+    "transform",
+    "oxc",
+    "magic-string"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "dependencies": {
+    "@treequel/capture": "*",
+    "magic-string": "^0.30.0",
+    "oxc-parser": "^0.144.0"
+  },
+  "scripts": {
+    "build": "tsdown src/index.ts --format esm --dts",
+    "dev": "tsdown src/index.ts --format esm --dts --watch",
+    "test": "vitest run"
+  }
+}

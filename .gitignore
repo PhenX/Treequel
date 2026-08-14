@@ -148,3 +148,6 @@ plans/
 # Generated docs pages (from scripts/gen-docs.mjs)
 apps/docs/errors.md
 apps/docs/reference/tree-schema.md
+
+# Playground built into the docs site
+apps/docs/public/playground

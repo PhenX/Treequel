@@ -24,8 +24,10 @@ jobs:
           cache: npm
       - run: npm ci
       # Build packages first so the docs generator can import @treequel/tree and
-      # @treequel/capture to emit the tree-schema and error-reference pages.
+      # @treequel/capture to emit the tree-schema and error-reference pages, and
+      # so the playground can bundle the real packages.
       - run: npx tsc -b
+      - run: npm run build -w @treequel-playground/app
       - run: npm run docs:build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

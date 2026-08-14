@@ -10,10 +10,13 @@ export default defineConfig({
   base: "/Treequel/",
   cleanUrls: true,
   lastUpdated: true,
+  // The playground is a separate app copied into the site, not a VitePress page.
+  ignoreDeadLinks: [/^\/playground\//],
   themeConfig: {
     nav: [
       { text: "Guide", link: "/guide/getting-started" },
       { text: "Reference", link: "/errors" },
+      { text: "Playground", link: "/playground/", target: "_self" },
       { text: "GitHub", link: "https://github.com/PhenX/Treequel" },
     ],
     sidebar: {

@@ -9,11 +9,11 @@ hero:
       text: Get started
       link: /guide/getting-started
     - theme: alt
+      text: Try the playground
+      link: /playground/
+    - theme: alt
       text: The subset
       link: /guide/the-subset
-    - theme: alt
-      text: Error reference
-      link: /errors
 features:
   - title: One lambda, two lives
     details: The same query file runs against fixture arrays in your tests and compiles to a parameterized SQL WHERE clause in production. The in-memory provider is the reference semantics; the SQL provider is property-tested against it.

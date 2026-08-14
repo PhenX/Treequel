@@ -1,0 +1,39 @@
+{
+  "name": "@treequel/provider-memory",
+  "version": "0.1.0",
+  "description": "Treequel reference/oracle provider — runs queries in memory via compiled lambdas.",
+  "keywords": [
+    "treequel",
+    "linq",
+    "provider",
+    "in-memory"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "dependencies": {
+    "@treequel/core": "*",
+    "@treequel/linq": "*"
+  },
+  "scripts": {
+    "build": "tsdown src/index.ts --format esm --dts",
+    "dev": "tsdown src/index.ts --format esm --dts --watch",
+    "test": "vitest run"
+  }
+}

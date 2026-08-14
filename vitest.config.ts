@@ -38,7 +38,11 @@ export default defineConfig({
     },
   },
   test: {
-    include: ["packages/**/*.{test,spec}.ts", "examples/**/*.{test,spec}.ts"],
+    include: [
+      "packages/**/*.{test,spec}.ts",
+      "examples/**/*.{test,spec}.ts",
+      "scripts/**/*.{test,spec}.ts",
+    ],
     exclude: ["**/dist/**", "**/node_modules/**"],
     coverage: {
       provider: "v8",

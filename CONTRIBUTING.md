@@ -55,6 +55,18 @@ type(scope): subject
 Mark a break of the tree wire format or of a package's public API with `!` after the type/scope, or a
 `BREAKING CHANGE:` footer.
 
+### Checking locally
+
+`node scripts/check-commit.mjs --last` lints the message on `HEAD`; `npm run check-commit` is the same. To have Git
+reject a bad message before it is written, point Git at a committed hook once (no extra dependency):
+
+```bash
+git config core.hooksPath .githooks
+```
+
+The `commit-msg` hook under `.githooks/` runs the same check on every commit. CI lints the whole PR range regardless,
+so the hook is a convenience, not the gate.
+
 ### Examples
 
 ```
@@ -80,5 +92,5 @@ each public package to npm with provenance.
 
 ## Security
 
-Please report vulnerabilities privately — see [SECURITY.md](SECURITY.md) once it lands; until then, use GitHub's
-private vulnerability reporting on this repository rather than a public issue.
+Please report vulnerabilities privately — see [SECURITY.md](SECURITY.md). Use GitHub's private vulnerability reporting
+on this repository rather than a public issue.

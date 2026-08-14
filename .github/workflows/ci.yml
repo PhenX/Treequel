@@ -36,6 +36,20 @@ jobs:
       - name: Test (vitest workspace; property + conformance on PGlite)
         run: npx vitest run
 
+  commitlint:
+    # Lint the Conventional Commits range of a pull request (never main history).
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Lint commit messages (PR range)
+        run: node scripts/check-commit.mjs --range "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+
   pkg-health:
     runs-on: ubuntu-latest
     steps:

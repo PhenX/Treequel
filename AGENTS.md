@@ -6,9 +6,9 @@
 Root guide for any AI agent (Claude Code, opencode, Copilot, Cursor, …) and for human contributors. It covers the whole
 monorepo: what lives where, how to verify things, and the conventions that apply everywhere.
 
-**The build follows a design & implementation plan kept locally at `plans/DESIGN.md`** — gitignored, never committed,
-like everything under `plans/`. If you are working in this repository and the plan is missing, ask the project owner
-for it. With the plan in hand, read the section covering the area you are editing, in addition to this file:
+**The build follows a design & implementation plan at `plans/DESIGN.md`** — committed to the repository so a later
+agent can pick the work up (the rest of `plans/`, e.g. roadmap and exploration notes, stays local and gitignored).
+Read the section covering the area you are editing, in addition to this file:
 
 | Editing… | Read first |
 |---|---|
@@ -60,7 +60,7 @@ The split is deliberate, keep it consistent:
   disguise.
 - `tooling/*` — shared tsconfig and Vitest presets, private workspace packages.
 - `scripts/*` — plain Node `.mjs`, zero dependencies (`release.mjs`, `check-graph.mjs`).
-- `plans/*` — local working docs, gitignored, never committed.
+- `plans/*` — working docs, gitignored, except `plans/DESIGN.md` which is committed for agent handoff.
 - `docs/adr/*` — committed ADRs: one numbered file per significant decision or departure from the plan.
 
 The dependency graph is law and enforced by `scripts/check-graph.mjs` in CI: `tree` has zero runtime deps forever,

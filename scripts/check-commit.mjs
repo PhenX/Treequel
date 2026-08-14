@@ -11,6 +11,7 @@
 
 import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
+import { pathToFileURL } from "node:url";
 
 export const TYPES = [
   "feat",
@@ -139,6 +140,6 @@ function run(argv) {
   console.log(`✓ ${messages.length} commit message(s) OK.`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   run(process.argv.slice(2));
 }

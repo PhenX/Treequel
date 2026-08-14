@@ -32,6 +32,7 @@ Runtime packages (`tree`, `core`, `linq`, `provider-memory`, `provider-sql`) car
 | `vitest`, `@vitest/coverage-v8` | Test runner + coverage. |
 | `fast-check` | Property tests: serialize round-trip, partial-eval invariants, and the SQL≡memory oracle. |
 | `@electric-sql/pglite` | Real-Postgres conformance in CI without a service container. |
+| `tinybench` | The `bench/` transform microbenchmark and its CI regression gate. |
 | `eslint`, `@typescript-eslint/parser` | Scoped to `@treequel/eslint-plugin` tests (RuleTester). |
 
 ## Deliberately not used
@@ -42,5 +43,6 @@ dependency-cruiser (`check-graph.mjs`), Verdaccio (pack-and-install smoke test).
 
 ## Planned, not yet wired
 
-Named in the toolchain but not yet installed; tracked for later milestones: `publint` + `tinybench` (package-health +
-benches). Each lands with the milestone that needs it, and gets a row above when it does.
+Named in the toolchain but not yet installed: `publint` (package-health). It is invoked on demand via `npx --yes
+publint` in the `pkg-health` CI job rather than pinned as a dependency; it gets a row above if it is ever added to
+`package.json`.

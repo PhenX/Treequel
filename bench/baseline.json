@@ -1,0 +1,9 @@
+{
+  "note": "Machine-independent gate: 'ratio' (miss/hit) is normative; raw ops/s are informational.",
+  "threshold": 0.3,
+  "ratio": 559.657,
+  "informational": {
+    "hitOpsPerSec": 3242,
+    "missOpsPerSec": 1814566
+  }
+}

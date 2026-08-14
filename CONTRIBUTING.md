@@ -34,6 +34,21 @@ From the repo root:
 | `npm run build --workspaces --if-present` | Build all packages |
 | `npx vitest run` | All tests — `--project unit` for the fast loop |
 
+## Benchmarks
+
+`bench/` holds a tinybench microbenchmark of the per-module build transform. It imports the built packages, so build
+first:
+
+```bash
+npm run build --workspaces --if-present
+npm run bench          # print a table
+npm run bench:check    # compare against bench/baseline.json
+```
+
+The gate is a machine-independent ratio (a matching-module transform vs a pre-scan bail), so absolute ops/sec never
+enter the comparison. Regenerate the baseline with `node bench/transform.bench.mjs --update` when an intentional change
+moves it. CI runs `bench:check` on pull requests as an advisory job.
+
 ## Commit messages & PR titles
 
 This repo uses [Conventional Commits](https://www.conventionalcommits.org/), enforced by a commit-msg check locally

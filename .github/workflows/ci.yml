@@ -50,6 +50,25 @@ jobs:
       - name: Lint commit messages (PR range)
         run: node scripts/check-commit.mjs --range "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
 
+  bench:
+    # Transform perf regression gate. The check compares a machine-independent
+    # ratio to bench/baseline.json; it is advisory (continue-on-error) because
+    # shared runners are noisy — a real regression still shows a red ✗ to review.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build packages (bench imports the built transform)
+        run: npm run build --workspaces --if-present
+      - name: Transform benchmark vs baseline
+        run: npm run bench:check
+
   pkg-health:
     runs-on: ubuntu-latest
     steps:

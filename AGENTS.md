@@ -33,9 +33,12 @@ departure from the plan gets an ADR (`docs/adr/NNNN-*.md`) recording what change
 
 ## Repo status
 
-**Pre-M0.** Only these instruction files exist — no code, toolchain or CI yet. Milestones land in order (plan §16):
-M0 scaffold → M1 tree+core → M2 capture → M3 transform → M4 linq+memory → M5 sql → M6 DX surface → M7 docs & 0.1.
-**Update this paragraph as milestones complete.**
+**M0–M6 landed.** All eleven `@treequel/*` packages are implemented, typechecked (`tsc -b`) and tested (Vitest,
+`tree`+`core`+`capture` at high coverage; the SQL provider is oracle-tested against the memory provider on PGlite).
+The toolchain (npm workspaces, tsdown, project references), `check-graph.mjs`, `release.mjs`, CI matrix, and the two
+integration examples are in place. **Remaining for M7 (plan §16):** the VitePress docs site (`apps/docs`), the
+playground (`apps/playground`), generated diagnostics + tree-schema pages, `oxlint`/`oxfmt` wiring, and the 0.1
+release. **Update this paragraph as milestones complete.**
 
 ## Project overview
 

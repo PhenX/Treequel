@@ -1,0 +1,23 @@
+{
+  "name": "@treequel-playground/app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Treequel playground — paste a query lambda, see the tree, the emitted host, and the SQL.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@treequel/core": "*",
+    "@treequel/fallback": "*",
+    "@treequel/linq": "*",
+    "@treequel/provider-sql": "*",
+    "@treequel/transform": "*",
+    "@treequel/tree": "*"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  }
+}

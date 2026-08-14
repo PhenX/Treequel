@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "files": [],
+  "references": [
+    { "path": "packages/tree" },
+    { "path": "packages/core" },
+    { "path": "packages/capture" },
+    { "path": "packages/fallback" },
+    { "path": "packages/transform" },
+    { "path": "packages/vite" },
+    { "path": "packages/linq" },
+    { "path": "packages/provider-memory" },
+    { "path": "packages/provider-sql" },
+    { "path": "packages/ts-plugin" },
+    { "path": "packages/eslint-plugin" }
+  ]
+}

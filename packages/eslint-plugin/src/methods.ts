@@ -1,0 +1,21 @@
+/** LINQ methods whose lambda arguments are expression positions. */
+export const LINQ_METHODS: ReadonlySet<string> = new Set([
+  "where",
+  "select",
+  "orderBy",
+  "orderByDescending",
+  "thenBy",
+  "thenByDescending",
+  "groupBy",
+  "count",
+  "any",
+  "all",
+  "first",
+  "firstOrNull",
+  "single",
+  "sum",
+  "min",
+  "max",
+  "avg",
+  "join",
+]);

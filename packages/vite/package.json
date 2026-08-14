@@ -1,0 +1,39 @@
+{
+  "name": "@treequel/vite",
+  "version": "0.1.0",
+  "description": "Vite/Rollup/Rolldown plugin that reifies Treequel query lambdas into expression trees.",
+  "keywords": [
+    "plugin",
+    "rolldown",
+    "rollup",
+    "treequel",
+    "vite"
+  ],
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsdown src/index.ts --format esm --dts",
+    "dev": "tsdown src/index.ts --format esm --dts --watch",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@treequel/transform": "*"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

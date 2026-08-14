@@ -1,0 +1,42 @@
+{
+  "name": "@treequel/ts-plugin",
+  "version": "0.1.0",
+  "description": "TypeScript language-service plugin: in-editor Treequel subset diagnostics (shares the capture validator).",
+  "keywords": [
+    "language-service",
+    "treequel",
+    "tsserver",
+    "typescript"
+  ],
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsdown src/index.ts --format esm --dts",
+    "dev": "tsdown src/index.ts --format esm --dts --watch",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@treequel/capture": "*",
+    "oxc-parser": "^0.144.0"
+  },
+  "peerDependencies": {
+    "typescript": ">=5"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "name": "@treequel/eslint-plugin",
+  "version": "0.1.0",
+  "description": "ESLint rules enforcing the Treequel expression subset (shares the capture validator).",
+  "keywords": [
+    "eslint",
+    "eslint-plugin",
+    "linq",
+    "treequel"
+  ],
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsdown src/index.ts --format esm --dts",
+    "dev": "tsdown src/index.ts --format esm --dts --watch",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@treequel/capture": "*"
+  },
+  "devDependencies": {
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.0.0"
+  },
+  "peerDependencies": {
+    "eslint": ">=8"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

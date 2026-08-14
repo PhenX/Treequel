@@ -1,0 +1,38 @@
+{
+  "name": "@treequel/core",
+  "version": "0.1.0",
+  "description": "Treequel runtime core: Expr, visitor/rewriter, partial evaluation, printer, WellKnown registry.",
+  "keywords": [
+    "expression-tree",
+    "linq",
+    "partial-evaluation",
+    "treequel"
+  ],
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsdown src/index.ts --format esm --dts",
+    "dev": "tsdown src/index.ts --format esm --dts --watch",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@treequel/tree": "*"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

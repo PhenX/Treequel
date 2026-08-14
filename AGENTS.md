@@ -6,9 +6,9 @@
 Root guide for any AI agent (Claude Code, opencode, Copilot, Cursor, …) and for human contributors. It covers the whole
 monorepo: what lives where, how to verify things, and the conventions that apply everywhere.
 
-**The build follows a design & implementation plan kept locally at `plans/DESIGN.md`** — gitignored, never committed,
-like everything under `plans/`. If you are working in this repository and the plan is missing, ask the project owner
-for it. With the plan in hand, read the section covering the area you are editing, in addition to this file:
+**The build follows a design & implementation plan at `plans/DESIGN.md`** — committed to the repository so a later
+agent can pick the work up (the rest of `plans/`, e.g. roadmap and exploration notes, stays local and gitignored).
+Read the section covering the area you are editing, in addition to this file:
 
 | Editing… | Read first |
 |---|---|
@@ -33,9 +33,13 @@ departure from the plan gets an ADR (`docs/adr/NNNN-*.md`) recording what change
 
 ## Repo status
 
-**Pre-M0.** Only these instruction files exist — no code, toolchain or CI yet. Milestones land in order (plan §16):
-M0 scaffold → M1 tree+core → M2 capture → M3 transform → M4 linq+memory → M5 sql → M6 DX surface → M7 docs & 0.1.
-**Update this paragraph as milestones complete.**
+**M0–M6 landed.** All eleven `@treequel/*` packages are implemented, typechecked (`tsc -b`) and tested (Vitest,
+including fast-check property tests — serialize round-trip, partial-eval invariants, and a generative SQL≡memory
+oracle on PGlite — and `tsc`-checked `F | Expr<F>` type tests under `type-tests/`).
+The toolchain (npm workspaces, tsdown, project references, oxlint + oxfmt gated in `npm run verify`), `check-graph.mjs`,
+`release.mjs`, CI matrix, and the two integration examples are in place. **Remaining for M7 (plan §16):** the VitePress
+docs site (`apps/docs`), the playground (`apps/playground`), generated diagnostics + tree-schema pages, and the 0.1
+release. **Update this paragraph as milestones complete.**
 
 ## Project overview
 
@@ -57,7 +61,7 @@ The split is deliberate, keep it consistent:
   disguise.
 - `tooling/*` — shared tsconfig and Vitest presets, private workspace packages.
 - `scripts/*` — plain Node `.mjs`, zero dependencies (`release.mjs`, `check-graph.mjs`).
-- `plans/*` — local working docs, gitignored, never committed.
+- `plans/*` — working docs, gitignored, except `plans/DESIGN.md` which is committed for agent handoff.
 - `docs/adr/*` — committed ADRs: one numbered file per significant decision or departure from the plan.
 
 The dependency graph is law and enforced by `scripts/check-graph.mjs` in CI: `tree` has zero runtime deps forever,

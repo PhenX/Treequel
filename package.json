@@ -1,0 +1,44 @@
+{
+  "name": "treequel-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Expression trees & LINQ for TypeScript — trees in, queries out.",
+  "license": "MIT",
+  "author": "Fabien Ménager",
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "examples/*",
+    "tooling/*"
+  ],
+  "type": "module",
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "test:types": "tsc --noEmit -p type-tests/tsconfig.json",
+    "test:watch": "vitest",
+    "lint": "oxlint",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
+    "docs:dev": "npm run docs:dev -w @treequel-docs/site",
+    "docs:build": "npm run docs:build -w @treequel-docs/site",
+    "site:build": "tsc -b && npm run build -w @treequel-playground/app && npm run docs:build",
+    "check-graph": "node scripts/check-graph.mjs",
+    "verify": "npm run check-graph && npm run lint && npm run format:check && npm run typecheck && npm run test:types && npm run test"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.2.17",
+    "@vitest/coverage-v8": "^2.1.0",
+    "fast-check": "^3.23.2",
+    "oxfmt": "^0.63.0",
+    "oxlint": "^1.78.0",
+    "tsdown": "^0.9.9",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "npm@10.9.7"
+}

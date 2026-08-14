@@ -1,0 +1,5 @@
+# Normalize all text to LF on checkout so oxfmt --check passes on Windows CI too.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary

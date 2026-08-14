@@ -1,0 +1,42 @@
+{
+  "name": "@treequel/linq",
+  "version": "0.1.0",
+  "description": "Treequel query layer: Queryable, QueryPlan, provider protocol, createContext, and the in-memory oracle engine.",
+  "keywords": [
+    "iqueryable",
+    "linq",
+    "queryable",
+    "treequel"
+  ],
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "default": "./dist/testing.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsdown src/index.ts src/testing.ts --format esm --dts",
+    "dev": "tsdown src/index.ts src/testing.ts --format esm --dts --watch",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@treequel/core": "*"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

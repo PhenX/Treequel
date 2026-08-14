@@ -18,6 +18,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./emit": {
+      "types": "./dist/emit.d.ts",
+      "default": "./dist/emit.js"
     }
   },
   "publishConfig": {
@@ -25,8 +29,8 @@
     "provenance": true
   },
   "scripts": {
-    "build": "tsdown src/index.ts --format esm --dts",
-    "dev": "tsdown src/index.ts --format esm --dts --watch",
+    "build": "tsdown src/index.ts src/emit.ts --format esm --dts",
+    "dev": "tsdown src/index.ts src/emit.ts --format esm --dts --watch",
     "test": "vitest run"
   },
   "dependencies": {

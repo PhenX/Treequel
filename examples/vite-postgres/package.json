@@ -1,0 +1,18 @@
+{
+  "name": "@treequel-example/vite-postgres",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Headline demo: identical query definitions run in-memory (Vitest) and on Postgres (PGlite), property-equal.",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@treequel/linq": "*",
+    "@treequel/provider-memory": "*",
+    "@treequel/provider-sql": "*"
+  },
+  "devDependencies": {
+    "@treequel/vite": "*"
+  }
+}

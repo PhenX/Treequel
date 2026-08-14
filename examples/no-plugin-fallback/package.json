@@ -1,0 +1,16 @@
+{
+  "name": "@treequel-example/no-plugin-fallback",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Graceful degradation: in-memory works fully without the plugin; remote providers fall back to runtime parse with teachable closure errors.",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@treequel/fallback": "*",
+    "@treequel/linq": "*",
+    "@treequel/provider-memory": "*",
+    "@treequel/provider-sql": "*"
+  }
+}

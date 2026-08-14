@@ -1,0 +1,76 @@
+name: Bug report
+description: A query, tree, provider, or transform behaves incorrectly.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. A minimal reproduction — the query lambda plus the schema meta — is worth more than a
+        paragraph of description. Remember the boundary rule: only lambda literals at a traced call site (or wrapped in
+        `expr()`) become trees.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What did you observe, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: The smallest query/tree that shows it. Include the schema meta for SQL-provider issues.
+      render: ts
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which package is at fault (best guess is fine)?
+      options:
+        - tree (wire format / serialization)
+        - core (Expr / visitor / partial eval)
+        - capture (subset validation / free vars)
+        - transform or vite (build plugin)
+        - fallback (runtime toString path)
+        - linq (Queryable / plan)
+        - provider-memory
+        - provider-sql
+        - ts-plugin or eslint-plugin
+        - docs / playground
+        - not sure
+    validations:
+      required: true
+  - type: input
+    id: diagnostic
+    attributes:
+      label: Diagnostic code
+      description: If a treequel error was raised, its code (e.g. R2001). See the error reference.
+      placeholder: R____
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Treequel version, Node version, and bundler (Vite/Rollup/Rolldown) + version.
+    validations:
+      required: true
+  - type: dropdown
+    id: plugin
+    attributes:
+      label: Was the build plugin configured?
+      options:
+        - "Yes — @treequel/vite is in the config"
+        - "No — running without the plugin (fallback path)"
+        - "Not sure"
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before filing
+      options:
+        - label: I searched existing issues for a duplicate.
+          required: true
+        - label: The reproduction is a lambda literal at a traced call site or wrapped in `expr()`.
+          required: false

@@ -34,7 +34,8 @@ departure from the plan gets an ADR (`docs/adr/NNNN-*.md`) recording what change
 ## Repo status
 
 **M0–M6 landed.** All eleven `@treequel/*` packages are implemented, typechecked (`tsc -b`) and tested (Vitest,
-`tree`+`core`+`capture` at high coverage; the SQL provider is oracle-tested against the memory provider on PGlite).
+including fast-check property tests — serialize round-trip, partial-eval invariants, and a generative SQL≡memory
+oracle on PGlite — and `tsc`-checked `F | Expr<F>` type tests under `type-tests/`).
 The toolchain (npm workspaces, tsdown, project references, oxlint + oxfmt gated in `npm run verify`), `check-graph.mjs`,
 `release.mjs`, CI matrix, and the two integration examples are in place. **Remaining for M7 (plan §16):** the VitePress
 docs site (`apps/docs`), the playground (`apps/playground`), generated diagnostics + tree-schema pages, and the 0.1

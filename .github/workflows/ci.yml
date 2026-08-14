@@ -31,7 +31,9 @@ jobs:
         run: npx oxfmt --check .
       - name: Typecheck + build (tsc -b, topological)
         run: npx tsc -b
-      - name: Test (vitest workspace; conformance on PGlite)
+      - name: Type tests (F | Expr<F> inference)
+        run: npx tsc --noEmit -p type-tests/tsconfig.json
+      - name: Test (vitest workspace; property + conformance on PGlite)
         run: npx vitest run
 
   pkg-health:

@@ -3,29 +3,31 @@
   "version": "0.1.0",
   "description": "Treequel's shared subset validator, free-variable analysis and tree serializer (the one shared brain).",
   "keywords": [
-    "treequel",
-    "expression-tree",
     "estree",
+    "expression-tree",
+    "treequel",
     "validator"
   ],
   "license": "MIT",
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "sideEffects": false,
-  "engines": {
-    "node": ">=20"
-  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
   },
-  "files": [
-    "dist"
-  ],
   "publishConfig": {
     "access": "public",
     "provenance": true
+  },
+  "scripts": {
+    "build": "tsdown src/index.ts --format esm --dts",
+    "dev": "tsdown src/index.ts --format esm --dts --watch",
+    "test": "vitest run"
   },
   "dependencies": {
     "@treequel/tree": "*"
@@ -33,9 +35,7 @@
   "devDependencies": {
     "oxc-parser": "^0.144.0"
   },
-  "scripts": {
-    "build": "tsdown src/index.ts --format esm --dts",
-    "dev": "tsdown src/index.ts --format esm --dts --watch",
-    "test": "vitest run"
+  "engines": {
+    "node": ">=20"
   }
 }

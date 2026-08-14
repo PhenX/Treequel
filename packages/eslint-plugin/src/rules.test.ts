@@ -38,11 +38,7 @@ tester.run("valid-expression", validExpression as never, {
 });
 
 tester.run("no-opaque-callback", noOpaqueCallback as never, {
-  valid: [
-    "db.users.where(u => u.active);",
-    "db.users.where(expr(pred));",
-    "db.users.take(n);",
-  ],
+  valid: ["db.users.where(u => u.active);", "db.users.where(expr(pred));", "db.users.take(n);"],
   invalid: [
     { code: "db.users.where(myPredicate);", errors: [{ message: /R2003/ }] },
     { code: "db.users.select(function (u) { return u.id; });", errors: [{ message: /R2003/ }] },

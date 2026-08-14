@@ -56,4 +56,7 @@ for (const { path, json } of pkgs) {
 console.log(
   `\n${dryRun ? "Would" : "Will"} publish ${publishPlan.filter((p) => p.public).length} public package(s) with provenance.`,
 );
-if (dryRun) console.log("Re-run without --dry-run to write versions, then `npm publish --provenance` per package.");
+if (dryRun)
+  console.log(
+    "Re-run without --dry-run to write versions, then `npm publish --provenance` per package.",
+  );

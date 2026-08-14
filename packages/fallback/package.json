@@ -3,18 +3,18 @@
   "version": "0.1.0",
   "description": "Treequel runtime toString() capture fallback (dev-only, lazy-loaded).",
   "keywords": [
-    "treequel",
     "fallback",
-    "meriyah"
+    "meriyah",
+    "treequel"
   ],
   "license": "MIT",
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "sideEffects": [
     "./dist/register.js"
   ],
-  "engines": {
-    "node": ">=20"
-  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -25,21 +25,21 @@
       "default": "./dist/register.js"
     }
   },
-  "files": [
-    "dist"
-  ],
   "publishConfig": {
     "access": "public",
     "provenance": true
+  },
+  "scripts": {
+    "build": "tsdown src/index.ts src/register.ts --format esm --dts",
+    "dev": "tsdown src/index.ts src/register.ts --format esm --dts --watch",
+    "test": "vitest run"
   },
   "dependencies": {
     "@treequel/capture": "*",
     "@treequel/core": "*",
     "meriyah": "^6.0.0"
   },
-  "scripts": {
-    "build": "tsdown src/index.ts src/register.ts --format esm --dts",
-    "dev": "tsdown src/index.ts src/register.ts --format esm --dts --watch",
-    "test": "vitest run"
+  "engines": {
+    "node": ">=20"
   }
 }

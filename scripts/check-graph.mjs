@@ -49,7 +49,9 @@ for (const name of readdirSync(pkgDir)) {
       const target = dep.replace("@treequel/", "");
       internal.push(target);
       if (!spec.internal.includes(target)) {
-        errors.push(`${short}: illegal internal dependency on '${dep}' (not in the allowed edges).`);
+        errors.push(
+          `${short}: illegal internal dependency on '${dep}' (not in the allowed edges).`,
+        );
       }
     } else {
       if (RUNTIME.has(short)) {

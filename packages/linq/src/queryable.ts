@@ -129,11 +129,11 @@ class QueryableImpl<T> implements Ordered<T> {
     return this.next<T>({ op: "inMemory" });
   }
 
-  private async run<R>(kind: ExecKind, expr?: AnyExpr, orNull?: boolean): Promise<R> {
+  private async run<R>(kind: ExecKind, execExpr?: AnyExpr, orNull?: boolean): Promise<R> {
     const exec: PlanOp = {
       op: "exec",
       kind,
-      ...(expr ? { expr } : {}),
+      ...(execExpr ? { expr: execExpr } : {}),
       ...(orNull ? { orNull } : {}),
     };
     const full = withOp(this.plan, exec);

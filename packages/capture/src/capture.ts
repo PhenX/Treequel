@@ -83,7 +83,10 @@ export function capture(
       const r = scopeStack[i]?.get(name);
       if (r) return r(at);
     }
-    if (globals.has(name)) return at ? { kind: "Capture", name, global: true, span: at } : { kind: "Capture", name, global: true };
+    if (globals.has(name))
+      return at
+        ? { kind: "Capture", name, global: true, span: at }
+        : { kind: "Capture", name, global: true };
     if (!seenFree.has(name)) {
       seenFree.add(name);
       freeVars.push(name);
@@ -145,12 +148,22 @@ export function capture(
       case "LogicalExpression": {
         const op = n.operator as string;
         if (op !== "&&" && op !== "||" && op !== "??") return error("R1100", n, op);
-        return withSpan({ kind: "Logical", op, left: build(n.left as EsNode), right: build(n.right as EsNode) }, at);
+        return withSpan(
+          { kind: "Logical", op, left: build(n.left as EsNode), right: build(n.right as EsNode) },
+          at,
+        );
       }
       case "UnaryExpression": {
         const op = n.operator as string;
         if (!UNARY_OPS.has(op)) return error("R1100", n, `unary ${op}`);
-        return withSpan({ kind: "Unary", op: op as "!" | "-" | "+" | "typeof", operand: build(n.argument as EsNode) }, at);
+        return withSpan(
+          {
+            kind: "Unary",
+            op: op as "!" | "-" | "+" | "typeof",
+            operand: build(n.argument as EsNode),
+          },
+          at,
+        );
       }
       case "UpdateExpression":
         return error("R1102", n, n.operator as string);
@@ -235,7 +248,10 @@ export function capture(
     }
     const optional = n.optional === true ? (true as const) : undefined;
     const callee = build(n.callee as EsNode);
-    return withSpan(optional ? { kind: "Call", callee, args, optional } : { kind: "Call", callee, args }, at);
+    return withSpan(
+      optional ? { kind: "Call", callee, args, optional } : { kind: "Call", callee, args },
+      at,
+    );
   }
 
   function binary(n: EsNode, at?: Span): Node {
@@ -243,7 +259,12 @@ export function capture(
     if (op === "==" || op === "!=") return error("R1103", n, op);
     if (!BINARY_OPS.has(op)) return error("R1100", n, op);
     return withSpan(
-      { kind: "Binary", op: op as "===", left: build(n.left as EsNode), right: build(n.right as EsNode) },
+      {
+        kind: "Binary",
+        op: op as "===",
+        left: build(n.left as EsNode),
+        right: build(n.right as EsNode),
+      },
       at,
     );
   }
@@ -287,7 +308,13 @@ export function capture(
       return error("R1101", n.body as EsNode);
     }
     const frame: Frame = new Map();
-    const names = bindParams((n.params as EsNode[]) ?? [], frame, diagnostics, span, /* nested */ true);
+    const names = bindParams(
+      (n.params as EsNode[]) ?? [],
+      frame,
+      diagnostics,
+      span,
+      /* nested */ true,
+    );
     scopeStack.push(frame);
     const bodyN = build(n.body as EsNode);
     scopeStack.pop();

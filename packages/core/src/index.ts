@@ -21,12 +21,7 @@ export {
   rewrite,
 } from "./visitor.js";
 export { type EvalEnv, evaluate } from "./evaluate.js";
-export {
-  type PartialEvalInput,
-  partialEval,
-  foldConstants,
-  isClosed,
-} from "./partial-eval.js";
+export { type PartialEvalInput, partialEval, foldConstants, isClosed } from "./partial-eval.js";
 export { print } from "./printer.js";
 export { b } from "./builders.js";
 export {

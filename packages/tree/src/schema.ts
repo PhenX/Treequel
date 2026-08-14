@@ -100,7 +100,22 @@ export const treeJsonSchema: Readonly<Record<string, unknown>> = Object.freeze({
       properties: {
         kind: { const: "Binary" },
         op: {
-          enum: ["===", "!==", "<", "<=", ">", ">=", "+", "-", "*", "/", "%", "**", "instanceof", "in"],
+          enum: [
+            "===",
+            "!==",
+            "<",
+            "<=",
+            ">",
+            ">=",
+            "+",
+            "-",
+            "*",
+            "/",
+            "%",
+            "**",
+            "instanceof",
+            "in",
+          ],
         },
         left: { $ref: "#/$defs/Node" },
         right: { $ref: "#/$defs/Node" },

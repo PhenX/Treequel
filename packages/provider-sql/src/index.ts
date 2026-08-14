@@ -4,7 +4,13 @@
  * emit `{ text, values }` (constants become `$n` params, never interpolated).
  * Driver-agnostic: you supply an `executor` over `pg` / `postgres.js` / PGlite.
  */
-import { type AnyExpr, type PlanOp, type QueryPlan, type QueryProvider, capabilities } from "@treequel/linq";
+import {
+  type AnyExpr,
+  type PlanOp,
+  type QueryPlan,
+  type QueryProvider,
+  capabilities,
+} from "@treequel/linq";
 import { type Node, TreequelError, partialEval } from "@treequel/core";
 import { type SchemaMeta, type TableMeta } from "./schema.js";
 import { TranslateContext, quoteIdent, translate } from "./translate.js";
@@ -13,7 +19,10 @@ export type { SchemaMeta, TableMeta } from "./schema.js";
 export { TranslateContext, quoteIdent, translate } from "./translate.js";
 
 /** A driver-agnostic query runner. */
-export type SqlExecutor = (text: string, values: unknown[]) => Promise<{ rows: Array<Record<string, unknown>> }>;
+export type SqlExecutor = (
+  text: string,
+  values: unknown[],
+) => Promise<{ rows: Array<Record<string, unknown>> }>;
 
 export interface SqlProviderOptions {
   readonly name?: string;
@@ -52,13 +61,11 @@ function renderSelect(p: SelectParts, selectList?: string): string {
   return sql;
 }
 
-function buildProjection(
-  body: Node,
-  ctx: TranslateContext,
-): { sql: string; scalar: boolean } {
+function buildProjection(body: Node, ctx: TranslateContext): { sql: string; scalar: boolean } {
   if (body.kind === "ObjectLit") {
     const cols = body.props.map((prop) => {
-      if ("spread" in prop) ctx.fail("R2001", "Spread in a select projection is not supported (v1).");
+      if ("spread" in prop)
+        ctx.fail("R2001", "Spread in a select projection is not supported (v1).");
       return `${translate(prop.value, ctx)} AS ${quoteIdent(prop.key)}`;
     });
     return { sql: cols.join(", "), scalar: false };

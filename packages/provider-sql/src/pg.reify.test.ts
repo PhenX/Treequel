@@ -51,7 +51,13 @@ beforeAll(async () => {
     CREATE TABLE orders (id int primary key, user_id int, total float8);
   `);
   for (const u of users) {
-    await pg.query(`INSERT INTO users VALUES ($1,$2,$3,$4,$5)`, [u.id, u.name, u.age, u.active, u.city]);
+    await pg.query(`INSERT INTO users VALUES ($1,$2,$3,$4,$5)`, [
+      u.id,
+      u.name,
+      u.age,
+      u.active,
+      u.city,
+    ]);
   }
   for (const o of orders) {
     await pg.query(`INSERT INTO orders VALUES ($1,$2,$3)`, [o.id, o.userId, o.total]);

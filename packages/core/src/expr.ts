@@ -103,7 +103,9 @@ export function __setFallbackHost(host: FallbackHost): void {
  * closure-capturing lambdas still work in memory).
  */
 export function expr<F extends (...a: never[]) => unknown>(f: F): Expr<F> {
-  let cache: { params: readonly string[]; body: Node; scope: () => Record<string, unknown> } | undefined;
+  let cache:
+    | { params: readonly string[]; body: Node; scope: () => Record<string, unknown> }
+    | undefined;
   const derive = (): NonNullable<typeof cache> => {
     if (cache) return cache;
     if (!fallbackHost) {

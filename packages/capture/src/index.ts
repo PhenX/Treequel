@@ -5,18 +5,8 @@
  * language-service plugin and the ESLint rule so they never disagree about what
  * is legal. Depends only on `@treequel/tree`.
  */
-export {
-  type AstAdapter,
-  type EsNode,
-  adapterOxc,
-  adapterTsestree,
-} from "./adapter.js";
-export {
-  type CaptureOptions,
-  type CaptureResult,
-  capture,
-  GLOBALS_SAFELIST,
-} from "./capture.js";
+export { type AstAdapter, type EsNode, adapterOxc, adapterTsestree } from "./adapter.js";
+export { type CaptureOptions, type CaptureResult, capture, GLOBALS_SAFELIST } from "./capture.js";
 export {
   type Diagnostic,
   type DiagnosticSpec,

@@ -9,9 +9,7 @@ const cap = (src: string, opts?: Parameters<typeof capture>[2]): CaptureResult =
 
 /** Strip spans so structural assertions stay readable. */
 function stripSpans(n: Node): Node {
-  const clone = JSON.parse(
-    JSON.stringify(n, (k, v) => (k === "span" ? undefined : v)),
-  ) as Node;
+  const clone = JSON.parse(JSON.stringify(n, (k, v) => (k === "span" ? undefined : v))) as Node;
   return clone;
 }
 

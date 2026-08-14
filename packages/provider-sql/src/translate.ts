@@ -205,11 +205,18 @@ function translateLike(
   }
   const escaped = escapeLike(arg.value);
   const pattern =
-    method === "startsWith" ? `${escaped}%` : method === "endsWith" ? `%${escaped}` : `%${escaped}%`;
+    method === "startsWith"
+      ? `${escaped}%`
+      : method === "endsWith"
+        ? `%${escaped}`
+        : `%${escaped}%`;
   return `(${translate(recv, ctx)} LIKE ${ctx.param(pattern)} ESCAPE '\\')`;
 }
 
-function translateTemplate(node: Extract<Node, { kind: "Template" }>, ctx: TranslateContext): string {
+function translateTemplate(
+  node: Extract<Node, { kind: "Template" }>,
+  ctx: TranslateContext,
+): string {
   const parts: string[] = [];
   node.quasis.forEach((q, i) => {
     if (q !== "") parts.push(ctx.param(q));

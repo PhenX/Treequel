@@ -17,13 +17,7 @@ export interface Span {
 }
 
 /** A JSON-native value. `Constant` may also hold JSON-unsafe values (Date, …) at runtime. */
-export type Json =
-  | null
-  | boolean
-  | number
-  | string
-  | Json[]
-  | { [key: string]: Json };
+export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 
 /** Binary operators with cross-provider semantics. Note: `==`/`!=` are banned (R1103). */
 export type BinaryOp =
@@ -135,9 +129,7 @@ export interface Template extends Base {
   readonly exprs: readonly Node[];
 }
 
-export type ObjectProp =
-  | { readonly key: string; readonly value: Node }
-  | { readonly spread: Node };
+export type ObjectProp = { readonly key: string; readonly value: Node } | { readonly spread: Node };
 
 export interface ObjectLit extends Base {
   readonly kind: "ObjectLit";

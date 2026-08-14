@@ -50,7 +50,10 @@ describe("transformModule — reification", () => {
   });
 
   it("reifies expr() calls regardless of taint", async () => {
-    const code = ['import { expr } from "@treequel/linq";', "const p = expr(u => u.age > 18);"].join("\n");
+    const code = [
+      'import { expr } from "@treequel/linq";',
+      "const p = expr(u => u.age > 18);",
+    ].join("\n");
     const out = await run(code);
     expect(out!.count).toBe(1);
     expect(out!.code).toContain("__tql_expr$({v:1,compiled:u => u.age > 18");

@@ -92,9 +92,9 @@ describe("serialize / deserialize", () => {
     });
 
     it("rejects a newer major format (R1901)", () => {
-      expect(() => deserialize({ v: FORMAT_VERSION + 1, root: { kind: "Param", name: "u" } })).toThrowError(
-        /newer/,
-      );
+      expect(() =>
+        deserialize({ v: FORMAT_VERSION + 1, root: { kind: "Param", name: "u" } }),
+      ).toThrowError(/newer/);
     });
 
     it("rejects an unknown node kind (R1901)", () => {
@@ -123,10 +123,7 @@ describe("serialize / deserialize", () => {
         },
         else: {
           kind: "ArrayLit",
-          elements: [
-            { kind: "Constant", value: 2 },
-            { spread: { kind: "Capture", name: "more" } },
-          ],
+          elements: [{ kind: "Constant", value: 2 }, { spread: { kind: "Capture", name: "more" } }],
         },
       },
     };

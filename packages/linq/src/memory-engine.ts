@@ -148,7 +148,11 @@ function groupBy(rows: unknown[], keyExpr: AnyExpr): Array<Grouping<unknown, unk
   });
 }
 
-function hashJoin(outer: unknown[], op: Extract<PlanOp, { op: "join" }>, rows: RowSource): unknown[] {
+function hashJoin(
+  outer: unknown[],
+  op: Extract<PlanOp, { op: "join" }>,
+  rows: RowSource,
+): unknown[] {
   const innerRows = applyOps([...rows(op.inner.source)], op.inner.ops, rows) as unknown[];
   const index = new Map<string, unknown[]>();
   for (const ir of innerRows) {
@@ -167,9 +171,11 @@ function hashJoin(outer: unknown[], op: Extract<PlanOp, { op: "join" }>, rows: R
 }
 
 function execute(rows: unknown[], op: Extract<PlanOp, { op: "exec" }>): unknown {
-  const filtered = op.expr && (op.kind === "first" || op.kind === "single" || op.kind === "count" || op.kind === "any")
-    ? rows.filter((r) => Boolean(invoke(op.expr as AnyExpr, r)))
-    : rows;
+  const filtered =
+    op.expr &&
+    (op.kind === "first" || op.kind === "single" || op.kind === "count" || op.kind === "any")
+      ? rows.filter((r) => Boolean(invoke(op.expr as AnyExpr, r)))
+      : rows;
 
   switch (op.kind) {
     case "toArray":
@@ -198,14 +204,21 @@ function execute(rows: unknown[], op: Extract<PlanOp, { op: "exec" }>): unknown 
     case "min":
       return rows.length === 0
         ? null
-        : rows.reduce<number>((m, r) => Math.min(m, Number(invoke(op.expr as AnyExpr, r))), Infinity);
+        : rows.reduce<number>(
+            (m, r) => Math.min(m, Number(invoke(op.expr as AnyExpr, r))),
+            Infinity,
+          );
     case "max":
       return rows.length === 0
         ? null
-        : rows.reduce<number>((m, r) => Math.max(m, Number(invoke(op.expr as AnyExpr, r))), -Infinity);
+        : rows.reduce<number>(
+            (m, r) => Math.max(m, Number(invoke(op.expr as AnyExpr, r))),
+            -Infinity,
+          );
     case "avg":
       return rows.length === 0
         ? null
-        : rows.reduce<number>((acc, r) => acc + Number(invoke(op.expr as AnyExpr, r)), 0) / rows.length;
+        : rows.reduce<number>((acc, r) => acc + Number(invoke(op.expr as AnyExpr, r)), 0) /
+            rows.length;
   }
 }

@@ -50,7 +50,10 @@ describe("visitor primitives", () => {
 });
 
 describe("evaluate", () => {
-  const env = { params: { u: { age: 20, name: "ada", tags: ["x", "ab"] } }, scope: { minAge: 18, prefix: "a" } };
+  const env = {
+    params: { u: { age: 20, name: "ada", tags: ["x", "ab"] } },
+    scope: { minAge: 18, prefix: "a" },
+  };
 
   it("evaluates a captured predicate", () => {
     const tree = b.logical(
@@ -79,7 +82,9 @@ describe("evaluate", () => {
   });
 
   it("evaluates templates, objects and arrays", () => {
-    expect(evaluate(b.template(["Hi ", "!"], [b.member(b.param("u"), "name")]), env)).toBe("Hi ada!");
+    expect(evaluate(b.template(["Hi ", "!"], [b.member(b.param("u"), "name")]), env)).toBe(
+      "Hi ada!",
+    );
     expect(evaluate(b.object([{ key: "n", value: b.member(b.param("u"), "name") }]), env)).toEqual({
       n: "ada",
     });
@@ -94,7 +99,11 @@ describe("partial evaluation", () => {
   });
 
   it("folds closed captured subtrees to constants", () => {
-    const tree = b.binary(">", b.member(b.param("u"), "age"), b.binary("+", b.capture("minAge"), b.const(1)));
+    const tree = b.binary(
+      ">",
+      b.member(b.param("u"), "age"),
+      b.binary("+", b.capture("minAge"), b.const(1)),
+    );
     const folded = foldConstants(tree, { minAge: 17 });
     expect(folded).toEqual(b.binary(">", b.member(b.param("u"), "age"), b.const(18)));
   });
@@ -105,7 +114,10 @@ describe("partial evaluation", () => {
     ]);
     const folded = partialEval({ body: tree, scope: () => ({ prefix: "a" }) });
     // structure preserved; only the capture inside the lambda becomes a constant
-    const lambda = (folded as Extract<Node, { kind: "Call" }>).args[0] as Extract<Node, { kind: "Lambda" }>;
+    const lambda = (folded as Extract<Node, { kind: "Call" }>).args[0] as Extract<
+      Node,
+      { kind: "Lambda" }
+    >;
     expect(lambda.kind).toBe("Lambda");
     const inner = lambda.body as Extract<Node, { kind: "Call" }>;
     expect(inner.args[0]).toEqual(b.const("a"));

@@ -32,12 +32,17 @@ describe("runtime fallback (toString capture)", () => {
   });
 
   it("parses various function source forms", () => {
-    expect(parseFunctionSource("u => u.active").body).toMatchObject({ kind: "Member", prop: "active" });
+    expect(parseFunctionSource("u => u.active").body).toMatchObject({
+      kind: "Member",
+      prop: "active",
+    });
     expect(parseFunctionSource("(a, b) => a + b").params).toEqual(["a", "b"]);
     // A non-arrow function value is rejected (only arrow lambdas are supported).
-    expect(parseFunctionSource("function (x) { return x.y; }").diagnostics.some((d) => d.code === "R1107")).toBe(
-      true,
-    );
+    expect(
+      parseFunctionSource("function (x) { return x.y; }").diagnostics.some(
+        (d) => d.code === "R1107",
+      ),
+    ).toBe(true);
   });
 
   it("reports subset violations through the shared catalog", () => {

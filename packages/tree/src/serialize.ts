@@ -100,11 +100,7 @@ function decodeValue(v: unknown): unknown {
       case "regexp":
         return new RegExp(v.source, v.flags);
       case "number":
-        return v.value === "NaN"
-          ? NaN
-          : v.value === "Infinity"
-            ? Infinity
-            : -Infinity;
+        return v.value === "NaN" ? NaN : v.value === "Infinity" ? Infinity : -Infinity;
     }
   }
   if (Array.isArray(v)) return v.map(decodeValue);
@@ -292,7 +288,12 @@ function deserializeNode(raw: unknown, path: string): Node {
       if (!Array.isArray(r.elements)) fail(`Expected elements array at ${path}.`);
       const elements = (r.elements as unknown[]).map((e, i) => {
         if (e && typeof e === "object" && "spread" in e) {
-          return { spread: deserializeNode((e as { spread: unknown }).spread, `${path}.elements[${i}].spread`) };
+          return {
+            spread: deserializeNode(
+              (e as { spread: unknown }).spread,
+              `${path}.elements[${i}].spread`,
+            ),
+          };
         }
         return deserializeNode(e, `${path}.elements[${i}]`);
       });
@@ -321,7 +322,7 @@ function deserializeNode(raw: unknown, path: string): Node {
 /** Validate and decode a {@link TreeJson} envelope back into a {@link Node}. */
 export function deserialize(json: unknown): Node {
   if (typeof json !== "object" || json === null || !("v" in json) || !("root" in json)) {
-    fail('Expected a { v, root } tree envelope.');
+    fail("Expected a { v, root } tree envelope.");
   }
   const env = json as { v: unknown; root: unknown };
   if (typeof env.v !== "number" || !Number.isInteger(env.v)) {

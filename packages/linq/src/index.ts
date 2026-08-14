@@ -4,24 +4,9 @@
  * `@treequel/core`. The in-memory engine lives here too so it is the single
  * shared oracle semantics.
  */
-export {
-  type AnyExpr,
-  type ExecKind,
-  type PlanOp,
-  type QueryPlan,
-  withOp,
-} from "./plan.js";
-export {
-  type Capabilities,
-  type QueryProvider,
-  capabilities,
-} from "./provider.js";
-export {
-  type Grouping,
-  type RowSource,
-  applyOps,
-  runPlanInMemory,
-} from "./memory-engine.js";
+export { type AnyExpr, type ExecKind, type PlanOp, type QueryPlan, withOp } from "./plan.js";
+export { type Capabilities, type QueryProvider, capabilities } from "./provider.js";
+export { type Grouping, type RowSource, applyOps, runPlanInMemory } from "./memory-engine.js";
 export {
   type Context,
   type Key,

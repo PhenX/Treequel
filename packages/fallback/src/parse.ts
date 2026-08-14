@@ -16,17 +16,27 @@ export function parseFunctionSource(source: string): CaptureResult {
   const stmt = ast.body[0];
   const node = (stmt?.expression ?? stmt) as { type: string };
   if (node.type !== "ArrowFunctionExpression" && node.type !== "FunctionExpression") {
-    throw new TreequelError("R3002", `Could not parse a function from source: ${trimmed.slice(0, 60)}…`);
+    throw new TreequelError(
+      "R3002",
+      `Could not parse a function from source: ${trimmed.slice(0, 60)}…`,
+    );
   }
   return capture(node as never, adapterOxc);
 }
 
 /** Parse and validate, returning `{ params, body }` or throwing the first error. */
-export function reifyFromSource(source: string): { params: readonly string[]; body: Node; freeVars: string[] } {
+export function reifyFromSource(source: string): {
+  params: readonly string[];
+  body: Node;
+  freeVars: string[];
+} {
   const result = parseFunctionSource(source);
   if (hasErrors(result.diagnostics) || result.body === null) {
     const first = result.diagnostics.find((d) => d.severity === "error");
-    throw new TreequelError(first?.code ?? "R3002", first?.message ?? "Unsupported lambda in fallback.");
+    throw new TreequelError(
+      first?.code ?? "R3002",
+      first?.message ?? "Unsupported lambda in fallback.",
+    );
   }
   return { params: result.params, body: result.body, freeVars: result.freeVars };
 }

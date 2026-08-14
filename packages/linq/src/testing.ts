@@ -78,11 +78,19 @@ function equal(expected: unknown, actual: unknown, ordered: boolean): boolean {
 export function defaultCases(): ConformanceCase[] {
   type U = { id: number; name: string; age: number; active: boolean; city: string | null };
   type O = { id: number; userId: number; total: number };
-  const users = (db: Context<Record<string, unknown>>) => db.users as unknown as import("./queryable.js").Queryable<U>;
-  const orders = (db: Context<Record<string, unknown>>) => db.orders as unknown as import("./queryable.js").Queryable<O>;
+  const users = (db: Context<Record<string, unknown>>) =>
+    db.users as unknown as import("./queryable.js").Queryable<U>;
+  const orders = (db: Context<Record<string, unknown>>) =>
+    db.orders as unknown as import("./queryable.js").Queryable<O>;
 
   return [
-    { name: "where numeric", run: (db) => users(db).where((u) => u.age >= 18).toArray() },
+    {
+      name: "where numeric",
+      run: (db) =>
+        users(db)
+          .where((u) => u.age >= 18)
+          .toArray(),
+    },
     {
       name: "where + select projection",
       run: (db) =>
@@ -91,7 +99,13 @@ export function defaultCases(): ConformanceCase[] {
           .select((u) => ({ id: u.id, name: u.name }))
           .toArray(),
     },
-    { name: "where startsWith", run: (db) => users(db).where((u) => u.name.startsWith("A")).toArray() },
+    {
+      name: "where startsWith",
+      run: (db) =>
+        users(db)
+          .where((u) => u.name.startsWith("A"))
+          .toArray(),
+    },
     {
       name: "orderBy then take",
       ordered: true,
@@ -110,11 +124,26 @@ export function defaultCases(): ConformanceCase[] {
           .thenBy((u) => u.name)
           .toArray(),
     },
-    { name: "skip", ordered: true, run: (db) => users(db).orderBy((u) => u.id).skip(2).toArray() },
+    {
+      name: "skip",
+      ordered: true,
+      run: (db) =>
+        users(db)
+          .orderBy((u) => u.id)
+          .skip(2)
+          .toArray(),
+    },
     { name: "count with predicate", run: (db) => users(db).count((u) => u.age > 30) },
     { name: "any", run: (db) => users(db).any((u) => u.age > 90) },
     { name: "sum", run: (db) => orders(db).sum((o) => o.total) },
-    { name: "select distinct city", run: (db) => users(db).select((u) => u.city).distinct().toArray() },
+    {
+      name: "select distinct city",
+      run: (db) =>
+        users(db)
+          .select((u) => u.city)
+          .distinct()
+          .toArray(),
+    },
   ];
 }
 
@@ -133,7 +162,12 @@ export async function runConformance(
     const expected = await c.run(oracleCtx);
     try {
       const actual = await c.run(providerCtx);
-      results.push({ name: c.name, expected, actual, equal: equal(expected, actual, c.ordered ?? false) });
+      results.push({
+        name: c.name,
+        expected,
+        actual,
+        equal: equal(expected, actual, c.ordered ?? false),
+      });
     } catch (error) {
       results.push({ name: c.name, expected, actual: undefined, equal: false, error });
     }

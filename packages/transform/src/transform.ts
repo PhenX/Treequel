@@ -198,7 +198,7 @@ export async function transformModule(
   };
 
   // Fixpoint so `const a = db.users; const q = a.where(...)` both taint.
-  for (let changed = true; changed; ) {
+  for (let changed = true; changed;) {
     changed = false;
     for (const d of declarators) {
       if (!taint.has(d.name) && isTainted(d.init)) {
@@ -230,10 +230,19 @@ export async function transformModule(
     for (const stmt of program.body) {
       const decl =
         stmt.type === "ExportNamedDeclaration" ? (stmt.declaration as AnyNode | null) : null;
-      const varDecl = decl?.type === "VariableDeclaration" ? decl : stmt.type === "VariableDeclaration" ? stmt : null;
+      const varDecl =
+        decl?.type === "VariableDeclaration"
+          ? decl
+          : stmt.type === "VariableDeclaration"
+            ? stmt
+            : null;
       if (!varDecl) continue;
       for (const d of (varDecl.declarations as AnyNode[]) ?? []) {
-        if ((d.id as AnyNode)?.type === "Identifier" && d.init && isCreateContextCall(d.init as AnyNode)) {
+        if (
+          (d.id as AnyNode)?.type === "Identifier" &&
+          d.init &&
+          isCreateContextCall(d.init as AnyNode)
+        ) {
           names.add((d.id as { name: string }).name);
         }
       }
@@ -265,7 +274,10 @@ export async function transformModule(
 
     if (isExprCall) {
       const first = args[0];
-      if (first && (first.type === "ArrowFunctionExpression" || first.type === "FunctionExpression")) {
+      if (
+        first &&
+        (first.type === "ArrowFunctionExpression" || first.type === "FunctionExpression")
+      ) {
         targets.push({ arrow: first, exprCall: n });
       }
       return;
@@ -288,7 +300,10 @@ export async function transformModule(
 
   // Keep only outermost arrows (drop any nested inside another target).
   const outer = targets.filter(
-    (t) => !targets.some((o) => o.arrow !== t.arrow && o.arrow.start <= t.arrow.start && o.arrow.end >= t.arrow.end),
+    (t) =>
+      !targets.some(
+        (o) => o.arrow !== t.arrow && o.arrow.start <= t.arrow.start && o.arrow.end >= t.arrow.end,
+      ),
   );
   outer.sort((a, b) => a.arrow.start - b.arrow.start);
 

@@ -78,7 +78,13 @@ describe("Queryable over the memory provider", () => {
   });
 
   it("executors: first / firstOrNull / single / count / any / all / sum / avg", async () => {
-    expect((await db().users.orderBy((u) => u.id).first()).id).toBe(1);
+    expect(
+      (
+        await db()
+          .users.orderBy((u) => u.id)
+          .first()
+      ).id,
+    ).toBe(1);
     expect(await db().users.firstOrNull((u) => u.age > 100)).toBeNull();
     expect((await db().users.single((u) => u.name === "Grace")).id).toBe(3);
     expect(await db().users.count((u) => u.age >= 18)).toBe(3);
@@ -134,7 +140,9 @@ describe("Queryable over the memory provider", () => {
   });
 
   it("explain() renders a plan", async () => {
-    const text = await db().users.where((u) => u.active).explain();
+    const text = await db()
+      .users.where((u) => u.active)
+      .explain();
     expect(text).toContain("memory scan");
   });
 });

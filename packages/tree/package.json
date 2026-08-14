@@ -1,0 +1,35 @@
+{
+  "name": "@treequel/tree",
+  "version": "0.1.0",
+  "description": "The Treequel expression-tree wire format: node types, (de)serialization, JSON schema. Zero dependencies.",
+  "keywords": [
+    "treequel",
+    "expression-tree",
+    "ast",
+    "linq"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsdown src/index.ts --format esm --dts",
+    "dev": "tsdown src/index.ts --format esm --dts --watch",
+    "test": "vitest run"
+  }
+}

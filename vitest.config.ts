@@ -1,0 +1,49 @@
+import { fileURLToPath } from "node:url";
+import { defineConfig } from "vitest/config";
+import { treequel } from "./packages/vite/src/index.js";
+
+const pkg = (name: string, entry = "src/index.ts"): string =>
+  fileURLToPath(new URL(`./packages/${name}/${entry}`, import.meta.url));
+
+/**
+ * Alias every `@treequel/*` specifier to its TypeScript source so the test
+ * suite runs against `src/` directly — no build step required in dev/CI.
+ */
+export default defineConfig({
+  // The Treequel plugin reifies query lambdas into real Expr trees for:
+  //  - `*.reify.test.ts` provider tests (exercise the true build-time path), and
+  //  - example source modules under `examples/**/src` (they ship real queries),
+  // while ordinary unit tests stay plain (opaque lambdas / memory path).
+  plugins: [
+    treequel({
+      include: [
+        /\.reify\.test\.ts$/,
+        // example source modules, but not their `.test.ts` files
+        /[\\/]examples[\\/].+[\\/]src[\\/].+(?<!\.test)\.ts$/,
+      ],
+    }),
+  ],
+  resolve: {
+    alias: {
+      "@treequel/tree": pkg("tree"),
+      "@treequel/core": pkg("core"),
+      "@treequel/capture": pkg("capture"),
+      "@treequel/fallback": pkg("fallback"),
+      "@treequel/transform": pkg("transform"),
+      "@treequel/vite": pkg("vite"),
+      "@treequel/linq/testing": pkg("linq", "src/testing.ts"),
+      "@treequel/linq": pkg("linq"),
+      "@treequel/provider-memory": pkg("provider-memory"),
+      "@treequel/provider-sql": pkg("provider-sql"),
+    },
+  },
+  test: {
+    include: ["packages/**/*.{test,spec}.ts", "examples/**/*.{test,spec}.ts"],
+    exclude: ["**/dist/**", "**/node_modules/**"],
+    coverage: {
+      provider: "v8",
+      include: ["packages/*/src/**"],
+      exclude: ["**/*.test.ts", "**/index.ts"],
+    },
+  },
+});

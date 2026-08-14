@@ -5,8 +5,14 @@
     "suspicious": "warn",
     "perf": "warn"
   },
-  "ignorePatterns": ["**/dist/**", "**/node_modules/**", "docs/**"],
+  "ignorePatterns": ["**/dist/**", "**/node_modules/**", "plans/**"],
   "rules": {
-    "no-console": "off"
+    "no-console": "off",
+    "no-underscore-dangle": "off",
+    "no-await-in-loop": "off",
+    "no-shadow": "off",
+    "unicorn/no-thenable": "off",
+    "unicorn/no-array-sort": "off",
+    "unicorn/consistent-function-scoping": "off"
   }
 }

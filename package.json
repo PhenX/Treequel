@@ -2,35 +2,38 @@
   "name": "treequel-monorepo",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
   "description": "Expression trees & LINQ for TypeScript — trees in, queries out.",
   "license": "MIT",
   "author": "Fabien Ménager",
-  "engines": {
-    "node": ">=20"
-  },
-  "packageManager": "npm@10.9.7",
   "workspaces": [
     "packages/*",
     "apps/*",
     "examples/*",
     "tooling/*"
   ],
+  "type": "module",
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "typecheck": "tsc -b",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "oxlint || true",
-    "format": "oxfmt . || true",
+    "lint": "oxlint",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
     "check-graph": "node scripts/check-graph.mjs",
-    "verify": "npm run check-graph && npm run typecheck && npm run test"
+    "verify": "npm run check-graph && npm run lint && npm run format:check && npm run typecheck && npm run test"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.2.17",
     "@vitest/coverage-v8": "^2.1.0",
+    "oxfmt": "^0.63.0",
+    "oxlint": "^1.78.0",
     "tsdown": "^0.9.9",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
-  }
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "npm@10.9.7"
 }

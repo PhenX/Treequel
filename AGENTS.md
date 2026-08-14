@@ -35,9 +35,9 @@ departure from the plan gets an ADR (`docs/adr/NNNN-*.md`) recording what change
 
 **M0–M6 landed.** All eleven `@treequel/*` packages are implemented, typechecked (`tsc -b`) and tested (Vitest,
 `tree`+`core`+`capture` at high coverage; the SQL provider is oracle-tested against the memory provider on PGlite).
-The toolchain (npm workspaces, tsdown, project references), `check-graph.mjs`, `release.mjs`, CI matrix, and the two
-integration examples are in place. **Remaining for M7 (plan §16):** the VitePress docs site (`apps/docs`), the
-playground (`apps/playground`), generated diagnostics + tree-schema pages, `oxlint`/`oxfmt` wiring, and the 0.1
+The toolchain (npm workspaces, tsdown, project references, oxlint + oxfmt gated in `npm run verify`), `check-graph.mjs`,
+`release.mjs`, CI matrix, and the two integration examples are in place. **Remaining for M7 (plan §16):** the VitePress
+docs site (`apps/docs`), the playground (`apps/playground`), generated diagnostics + tree-schema pages, and the 0.1
 release. **Update this paragraph as milestones complete.**
 
 ## Project overview

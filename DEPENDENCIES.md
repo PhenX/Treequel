@@ -28,6 +28,7 @@ Runtime packages (`tree`, `core`, `linq`, `provider-memory`, `provider-sql`) car
 |---|---|
 | `typescript` | The type system and `tsc -b` project-reference typecheck. |
 | `tsdown` | Library bundler (rolldown/oxc stack) — ESM output + `.d.ts` via `isolatedDeclarations`. |
+| `oxlint`, `oxfmt` | Lint and format (the VoidZero stack); `npm run verify` gates on both. |
 | `vitest`, `@vitest/coverage-v8` | Test runner + coverage. |
 | `@electric-sql/pglite` | Real-Postgres conformance in CI without a service container. |
 | `eslint`, `@typescript-eslint/parser` | Scoped to `@treequel/eslint-plugin` tests (RuleTester). |
@@ -40,6 +41,6 @@ dependency-cruiser (`check-graph.mjs`), Verdaccio (pack-and-install smoke test).
 
 ## Planned, not yet wired
 
-Named in the toolchain but not yet installed; tracked for later milestones: `oxlint` + `oxfmt` (lint/format),
-`publint` + `tinybench` (package-health + benches), `fast-check` (property tests), `vitepress` (docs site). Each lands
-with the milestone that needs it, and gets a row above when it does.
+Named in the toolchain but not yet installed; tracked for later milestones: `publint` + `tinybench` (package-health +
+benches), `fast-check` (property tests), `vitepress` (docs site). Each lands with the milestone that needs it, and gets
+a row above when it does.

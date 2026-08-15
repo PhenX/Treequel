@@ -1,8 +1,8 @@
 /**
- * `@treequel/provider-sql` — translates a plan to parameterized Postgres.
- * Pipeline per plan: partial-eval every expr → translate with the pg dialect →
- * emit `{ text, values }` (constants become `$n` params, never interpolated).
- * Driver-agnostic: you supply an `executor` over `pg` / `postgres.js` / PGlite.
+ * `@treequel/provider-sql` — translates a plan to parameterized SQL.
+ * Pipeline per plan: partial-eval every expr → translate with a dialect
+ * (Postgres or SQLite) → emit `{ text, values }` (constants become bound
+ * params, never interpolated). Driver-agnostic: you supply an `executor`.
  */
 import {
   type AnyExpr,
@@ -14,9 +14,12 @@ import {
 import { type Node, TreequelError, partialEval } from "@treequel/core";
 import { type SchemaMeta, type TableMeta } from "./schema.js";
 import { TranslateContext, quoteIdent, translate } from "./translate.js";
+import { type SqlDialect, pgDialect, sqliteDialect } from "./dialect.js";
 
 export type { SchemaMeta, TableMeta } from "./schema.js";
 export { TranslateContext, quoteIdent, translate } from "./translate.js";
+export type { SqlDialect, StringMatch } from "./dialect.js";
+export { pgDialect, sqliteDialect } from "./dialect.js";
 
 /** A driver-agnostic query runner. */
 export type SqlExecutor = (
@@ -51,12 +54,13 @@ interface SelectParts {
   offset: number | null;
 }
 
-function renderSelect(p: SelectParts, selectList?: string): string {
+function renderSelect(p: SelectParts, dialect: SqlDialect, selectList?: string): string {
   const sel = selectList ?? p.projection ?? `${quoteIdent(p.alias)}.*`;
   let sql = `SELECT ${p.distinct ? "DISTINCT " : ""}${sel} FROM ${quoteIdent(p.table)} ${quoteIdent(p.alias)}`;
   if (p.where.length > 0) sql += ` WHERE ${p.where.join(" AND ")}`;
   if (p.orderBy.length > 0) sql += ` ORDER BY ${p.orderBy.join(", ")}`;
   if (p.limit !== null) sql += ` LIMIT ${p.limit}`;
+  else if (p.offset !== null && dialect.offsetRequiresLimit) sql += ` LIMIT -1`;
   if (p.offset !== null) sql += ` OFFSET ${p.offset}`;
   return sql;
 }
@@ -73,13 +77,13 @@ function buildProjection(body: Node, ctx: TranslateContext): { sql: string; scal
   return { sql: `${translate(body, ctx)} AS "value"`, scalar: true };
 }
 
-function compile(plan: QueryPlan, schema: SchemaMeta): Compiled {
+function compile(plan: QueryPlan, schema: SchemaMeta, dialect: SqlDialect): Compiled {
   const meta: TableMeta | undefined = schema[plan.source];
   if (!meta) {
     throw new TreequelError("R2002", `No schema meta for source '${plan.source}'.`);
   }
   const alias = meta.table;
-  const ctx = new TranslateContext(meta, alias);
+  const ctx = new TranslateContext(meta, alias, dialect);
 
   const parts: SelectParts = {
     table: meta.table,
@@ -107,7 +111,9 @@ function compile(plan: QueryPlan, schema: SchemaMeta): Compiled {
       }
       case "orderBy":
       case "thenBy":
-        parts.orderBy.push(`${translate(fold(op.expr), ctx)} ${op.desc ? "DESC" : "ASC"}`);
+        parts.orderBy.push(
+          `${translate(fold(op.expr), ctx)} ${op.desc ? "DESC" : "ASC"}${dialect.nullsSuffix(op.desc)}`,
+        );
         break;
       case "take":
         parts.limit = op.n;
@@ -122,7 +128,10 @@ function compile(plan: QueryPlan, schema: SchemaMeta): Compiled {
         exec = op;
         break;
       default:
-        throw new TreequelError("R2001", `pg provider does not support op '${op.op}' (v1).`);
+        throw new TreequelError(
+          "R2001",
+          `${dialect.name} provider does not support op '${op.op}' (v1).`,
+        );
     }
   }
 
@@ -131,14 +140,18 @@ function compile(plan: QueryPlan, schema: SchemaMeta): Compiled {
 
   switch (kind) {
     case "toArray":
-      return { text: renderSelect(parts), values: ctx.values, post: (rows) => rows.map(mapRow) };
+      return {
+        text: renderSelect(parts, dialect),
+        values: ctx.values,
+        post: (rows) => rows.map(mapRow),
+      };
 
     case "first":
     case "single": {
       if (exec?.expr) parts.where.push(translate(fold(exec.expr), ctx));
       parts.limit = kind === "first" ? 1 : 2;
       return {
-        text: renderSelect(parts),
+        text: renderSelect(parts, dialect),
         values: ctx.values,
         post: (rows) => {
           if (kind === "single" && rows.length > 1) {
@@ -155,9 +168,9 @@ function compile(plan: QueryPlan, schema: SchemaMeta): Compiled {
 
     case "count": {
       if (exec?.expr) parts.where.push(translate(fold(exec.expr), ctx));
-      const inner = renderSelect(parts, "1");
+      const inner = renderSelect(parts, dialect, "1");
       return {
-        text: `SELECT COUNT(*)::float8 AS value FROM (${inner}) _t`,
+        text: `SELECT ${dialect.floatCast("COUNT(*)")} AS value FROM (${inner}) _t`,
         values: ctx.values,
         post: (rows) => Number(rows[0]?.value ?? 0),
       };
@@ -165,7 +178,7 @@ function compile(plan: QueryPlan, schema: SchemaMeta): Compiled {
 
     case "any": {
       if (exec?.expr) parts.where.push(translate(fold(exec.expr), ctx));
-      const inner = renderSelect(parts, "1");
+      const inner = renderSelect(parts, dialect, "1");
       return {
         text: `SELECT EXISTS(${inner}) AS value`,
         values: ctx.values,
@@ -176,7 +189,7 @@ function compile(plan: QueryPlan, schema: SchemaMeta): Compiled {
     case "all": {
       // ∀ p  ≡  ¬∃ ¬p
       if (exec?.expr) parts.where.push(`(NOT ${translate(fold(exec.expr), ctx)})`);
-      const inner = renderSelect(parts, "1");
+      const inner = renderSelect(parts, dialect, "1");
       return {
         text: `SELECT NOT EXISTS(${inner}) AS value`,
         values: ctx.values,
@@ -189,12 +202,12 @@ function compile(plan: QueryPlan, schema: SchemaMeta): Compiled {
     case "max":
     case "avg": {
       const selector = translate(fold(exec?.expr as AnyExpr), ctx);
-      const inner = renderSelect(parts, `${selector} AS v`);
+      const inner = renderSelect(parts, dialect, `${selector} AS v`);
       const agg =
         kind === "sum"
-          ? "COALESCE(SUM(v), 0)::float8"
+          ? dialect.floatCast("COALESCE(SUM(v), 0)")
           : kind === "avg"
-            ? "AVG(v)::float8"
+            ? dialect.floatCast("AVG(v)")
             : `${kind.toUpperCase()}(v)`;
       return {
         text: `SELECT ${agg} AS value FROM (${inner}) _t`,
@@ -209,24 +222,50 @@ function compile(plan: QueryPlan, schema: SchemaMeta): Compiled {
   }
 }
 
+function makeProvider(
+  dialect: SqlDialect,
+  defaultName: string,
+  executor: SqlExecutor,
+  schema: SchemaMeta,
+  options: SqlProviderOptions,
+): QueryProvider {
+  return {
+    name: options.name ?? defaultName,
+    capabilities() {
+      return capabilities(SUPPORTED_OPS);
+    },
+    async execute<T>(plan: QueryPlan): Promise<T> {
+      const { text, values, post } = compile(plan, schema, dialect);
+      const result = await executor(
+        text,
+        values.map((v) => dialect.coerceValue(v)),
+      );
+      return post(result.rows) as T;
+    },
+    async explain(plan: QueryPlan): Promise<string> {
+      return compile(plan, schema, dialect).text;
+    },
+  };
+}
+
 /** Build a Postgres provider from a driver executor and schema metadata. */
 export function sqlProvider(
   executor: SqlExecutor,
   schema: SchemaMeta,
   options: SqlProviderOptions = {},
 ): QueryProvider {
-  return {
-    name: options.name ?? "postgres",
-    capabilities() {
-      return capabilities(SUPPORTED_OPS);
-    },
-    async execute<T>(plan: QueryPlan): Promise<T> {
-      const { text, values, post } = compile(plan, schema);
-      const result = await executor(text, values);
-      return post(result.rows) as T;
-    },
-    async explain(plan: QueryPlan): Promise<string> {
-      return compile(plan, schema).text;
-    },
-  };
+  return makeProvider(pgDialect, "postgres", executor, schema, options);
+}
+
+/**
+ * Build a SQLite provider from a driver executor and schema metadata. Emits
+ * positional `?` parameters, case-sensitive `GLOB` matching, and Postgres-style
+ * null ordering, so results match the memory reference provider.
+ */
+export function sqliteProvider(
+  executor: SqlExecutor,
+  schema: SchemaMeta,
+  options: SqlProviderOptions = {},
+): QueryProvider {
+  return makeProvider(sqliteDialect, "sqlite", executor, schema, options);
 }

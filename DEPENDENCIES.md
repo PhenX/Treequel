@@ -32,6 +32,7 @@ Runtime packages (`tree`, `core`, `linq`, `provider-memory`, `provider-sql`) car
 | `vitest`, `@vitest/coverage-v8` | Test runner + coverage. |
 | `fast-check` | Property tests: serialize round-trip, partial-eval invariants, and the SQL≡memory oracle. |
 | `@electric-sql/pglite` | Real-Postgres conformance in CI without a service container. |
+| `sql.js` | Real-SQLite conformance in tests (WASM, no native build) — the SQLite counterpart to PGlite. |
 | `tinybench` | The `bench/` transform microbenchmark and its CI regression gate. |
 | `eslint`, `@typescript-eslint/parser` | Scoped to `@treequel/eslint-plugin` tests (RuleTester). |
 

@@ -338,6 +338,21 @@ describe("pg includes (split queries) ≡ memory reference", () => {
     const nobody = await sqlDb.users.include((u) => u.orders).firstOrNull((u) => u.id === 99);
     expect(nobody).toBeNull();
   });
+
+  it("fetches each navigation as one ANY() batch — root plus one query per level", async () => {
+    let statements = 0;
+    const counting: SqlExecutor = (text, values) => {
+      statements++;
+      return executor(text, values);
+    };
+    const counted = createContext<Schema>(postgres(counting, schema), { relations });
+    const rows = await counted.users
+      .include((u) => u.orders)
+      .thenInclude((o) => o.items)
+      .toArray();
+    expect(rows).toHaveLength(6);
+    expect(statements).toBe(3);
+  });
 });
 
 describe("pg provider — SQL shape (explain)", () => {

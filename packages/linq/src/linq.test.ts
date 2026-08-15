@@ -1,6 +1,13 @@
 import { memoryProvider } from "@treequel/provider-memory";
 import { describe, expect, it } from "vitest";
-import { type Context, createContext, defineRelations } from "./index.js";
+import {
+  type Context,
+  type QueryProvider,
+  capabilities,
+  createContext,
+  defineRelations,
+  expr,
+} from "./index.js";
 import { type Fixtures, defaultRelations, runConformance } from "./testing.js";
 
 interface User {
@@ -9,7 +16,10 @@ interface User {
   age: number;
   active: boolean;
   city: string | null;
+  bossId: number | null;
   orders?: Order[];
+  boss?: User | null;
+  reports?: User[];
 }
 interface Order {
   id: number;
@@ -22,6 +32,7 @@ interface Item {
   id: number;
   orderId: number;
   sku: string;
+  order?: Order | null;
 }
 interface Schema {
   users: User;
@@ -30,10 +41,10 @@ interface Schema {
 }
 
 const users: User[] = [
-  { id: 1, name: "Ada", age: 36, active: true, city: "London" },
-  { id: 2, name: "Alan", age: 41, active: false, city: "London" },
-  { id: 3, name: "Grace", age: 45, active: true, city: null },
-  { id: 4, name: "Bob", age: 17, active: true, city: "NYC" },
+  { id: 1, name: "Ada", age: 36, active: true, city: "London", bossId: null },
+  { id: 2, name: "Alan", age: 41, active: false, city: "London", bossId: 1 },
+  { id: 3, name: "Grace", age: 45, active: true, city: null, bossId: 1 },
+  { id: 4, name: "Bob", age: 17, active: true, city: "NYC", bossId: 3 },
 ];
 const orders: Order[] = [
   { id: 1, userId: 1, total: 10 },
@@ -50,10 +61,15 @@ const items: Item[] = [
 const relations = defineRelations<Schema>({
   users: {
     orders: { kind: "many", target: "orders", from: "id", to: "userId" },
+    boss: { kind: "one", target: "users", from: "bossId", to: "id" },
+    reports: { kind: "many", target: "users", from: "id", to: "bossId" },
   },
   orders: {
     user: { kind: "one", target: "users", from: "userId", to: "id" },
     items: { kind: "many", target: "items", from: "id", to: "orderId" },
+  },
+  items: {
+    order: { kind: "one", target: "orders", from: "orderId", to: "id" },
   },
 });
 
@@ -299,7 +315,7 @@ describe("includes", () => {
   });
 
   it("throws R2007 for an undeclared navigation", () => {
-    expect(() => db().users.include((u) => (u as unknown as { boss: User }).boss)).toThrow(
+    expect(() => db().users.include((u) => (u as unknown as { manager: User }).manager)).toThrow(
       /R2007|Unknown navigation/,
     );
   });
@@ -327,6 +343,106 @@ describe("includes", () => {
         .include((u) => (u as unknown as User).orders)
         .toArray(),
     ).rejects.toThrow(/requires the key 'id'/);
+  });
+});
+
+describe("self-referential navigations", () => {
+  it("include() loads a self-referential reference (boss)", async () => {
+    const rows = await db()
+      .users.include((u) => u.boss)
+      .orderBy((u) => u.id)
+      .toArray();
+    expect(rows.map((u) => u.boss?.name ?? null)).toEqual([null, "Ada", "Ada", "Grace"]);
+  });
+
+  it("include() loads a self-referential collection two levels deep", async () => {
+    const rows = await db()
+      .users.include((u) => u.reports)
+      .thenInclude((r) => r.reports)
+      .single((u) => u.id === 1);
+    expect(rows.reports.map((r) => r.name).sort()).toEqual(["Alan", "Grace"]);
+    const grace = rows.reports.find((r) => r.name === "Grace");
+    expect(grace?.reports?.map((r) => r.name)).toEqual(["Bob"]);
+    const alan = rows.reports.find((r) => r.name === "Alan");
+    expect(alan?.reports).toEqual([]);
+  });
+
+  it("thenInclude() chains three levels and back onto the origin source", async () => {
+    const [ada] = await db()
+      .users.include((u) => u.orders)
+      .thenInclude((o) => o.items)
+      .thenInclude((i) => i.order)
+      .where((u) => u.id === 1)
+      .toArray();
+    const item = ada?.orders.flatMap((o) => o.items ?? []).find((i) => i.sku === "apple");
+    expect(item?.order?.id).toBe(item?.orderId);
+  });
+
+  it("sibling nested navigations merge across repeated include chains", async () => {
+    const [order] = await db()
+      .orders.include((o) => o.user)
+      .thenInclude((u) => u.reports)
+      .include((o) => o.user)
+      .thenInclude((u) => u.boss)
+      .where((o) => o.id === 3)
+      .toArray();
+    // One fetch of `user`, carrying both nested branches.
+    expect(order?.user?.name).toBe("Grace");
+    expect(order?.user?.reports?.map((r) => r.name)).toEqual(["Bob"]);
+    expect(order?.user?.boss?.name).toBe("Ada");
+  });
+});
+
+describe("navigation selector forms", () => {
+  it("accepts a block-bodied selector", async () => {
+    const rows = await db()
+      .users.include((u) => {
+        return u.orders;
+      })
+      .single((u) => u.id === 1);
+    expect(rows.orders).toHaveLength(2);
+  });
+
+  it("accepts an expr()-wrapped selector", async () => {
+    const rows = await db()
+      .users.include(expr((u: User) => u.orders))
+      .single((u) => u.id === 1);
+    expect(rows.orders).toHaveLength(2);
+  });
+});
+
+describe("fail-fast behavior", () => {
+  it("prechecks join inner plans against provider capabilities before any I/O", async () => {
+    let executed = 0;
+    const limited: QueryProvider = {
+      name: "limited",
+      capabilities: () => capabilities(["where", "join", "exec"]),
+      execute: async <T>(): Promise<T> => {
+        executed++;
+        return [] as unknown as T;
+      },
+    };
+    const ldb = createContext<Schema>(limited, { relations });
+    await expect(
+      ldb.orders
+        .join(
+          ldb.users.distinct(),
+          (o) => o.userId,
+          (u) => u.id,
+          (o, u) => ({ id: o.id, name: u.name }),
+        )
+        .toArray(),
+    ).rejects.toThrow(/'distinct'/);
+    expect(executed).toBe(0);
+  });
+
+  it("rejects include after the .inMemory() boundary", async () => {
+    await expect(
+      db()
+        .users.inMemory()
+        .include((u) => u.orders)
+        .toArray(),
+    ).rejects.toThrow(/after the boundary/);
   });
 });
 

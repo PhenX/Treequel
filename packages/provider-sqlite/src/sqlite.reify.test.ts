@@ -460,6 +460,117 @@ describe("SQLite provider — SQL shape (explain)", () => {
   });
 });
 
+describe("SQLite joins & includes — shapes and edges", () => {
+  it("self-join uses distinct aliases for the same table", async () => {
+    const text = await sqlDb.users
+      .join(
+        sqlDb.users,
+        (u) => u.city,
+        (v) => v.city,
+        (u, v) => ({ a: u.id, b: v.id }),
+      )
+      .explain();
+    expect(text).toContain('"users" "t0"');
+    expect(text).toContain('INNER JOIN "users" "t1"');
+    expect(text).toContain('ON ("t0"."city" = "t1"."city")');
+  });
+
+  it("a second join wraps the first into a derived table", async () => {
+    const text = await sqlDb.orders
+      .join(
+        sqlDb.users,
+        (o) => o.userId,
+        (u) => u.id,
+        (o, u) => ({ oid: o.id, who: u.name }),
+      )
+      .join(
+        sqlDb.items,
+        (r) => r.oid,
+        (i) => i.orderId,
+        (r, i) => ({ who: r.who, sku: i.sku }),
+      )
+      .explain();
+    const joins = text.match(/INNER JOIN/g) ?? [];
+    expect(joins).toHaveLength(2);
+    expect(text).toMatch(/FROM \(SELECT .* INNER JOIN .*\) "d\d+" INNER JOIN "items"/);
+  });
+
+  it("chained joins return the same rows as the reference", async () => {
+    const sql = await sqlDb.orders
+      .join(
+        sqlDb.users,
+        (o) => o.userId,
+        (u) => u.id,
+        (o, u) => ({ oid: o.id, who: u.name }),
+      )
+      .join(
+        sqlDb.items,
+        (r) => r.oid,
+        (i) => i.orderId,
+        (r, i) => ({ who: r.who, sku: i.sku }),
+      )
+      .toArray();
+    const mem = await memDb.orders
+      .join(
+        memDb.users,
+        (o) => o.userId,
+        (u) => u.id,
+        (o, u) => ({ oid: o.id, who: u.name }),
+      )
+      .join(
+        memDb.items,
+        (r) => r.oid,
+        (i) => i.orderId,
+        (r, i) => ({ who: r.who, sku: i.sku }),
+      )
+      .toArray();
+    expect(multiset(sql)).toEqual(multiset(mem));
+    expect(sql.length).toBeGreaterThan(0);
+  });
+
+  it("include of a reference then its collection cycles back consistently", async () => {
+    const sql = await sqlDb.orders
+      .include((o) => o.user)
+      .thenInclude((u) => u.orders)
+      .single((o) => o.id === 3);
+    expect(sql.user?.name).toBe("Grace");
+    expect(sql.user?.orders?.map((o) => o.id)).toEqual([3]);
+  });
+
+  it("take(0) compiles to LIMIT 0 and returns no rows", async () => {
+    const rows = await sqlDb.users.take(0).toArray();
+    expect(rows).toEqual([]);
+    expect(await sqlDb.users.take(0).explain()).toContain("LIMIT 0");
+  });
+
+  it("rejects a bare-row join projection with R2001", async () => {
+    await expect(
+      sqlDb.orders
+        .join(
+          sqlDb.users,
+          (o) => o.userId,
+          (u) => u.id,
+          (o, u) => u,
+        )
+        .toArray(),
+    ).rejects.toThrow(/R2001/);
+  });
+
+  it("rejects include inside a join inner plan with R2001", async () => {
+    const inner = sqlDb.users.include((u) => u.orders);
+    await expect(
+      sqlDb.orders
+        .join(
+          inner,
+          (o) => o.userId,
+          (u) => u.id,
+          (o, u) => ({ id: o.id, name: u.name }),
+        )
+        .toArray(),
+    ).rejects.toThrow(/'include'/);
+  });
+});
+
 describe("SQLite conformance corpus", () => {
   it("matches the reference on every default case", async () => {
     // Identity column names so full-row canonical comparison is meaningful;

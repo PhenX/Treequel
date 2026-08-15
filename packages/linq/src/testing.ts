@@ -93,6 +93,7 @@ export function defaultCases(): ConformanceCase[] {
   type I = { id: number; orderId: number; sku: string };
   const users = (db: Context<Record<string, unknown>>) => db.users as unknown as Queryable<U>;
   const orders = (db: Context<Record<string, unknown>>) => db.orders as unknown as Queryable<O>;
+  const items = (db: Context<Record<string, unknown>>) => db.items as unknown as Queryable<I>;
 
   return [
     {
@@ -264,6 +265,144 @@ export function defaultCases(): ConformanceCase[] {
           .where(expr((u: U) => u.active))
           .orderBy(expr((u: U) => u.id))
           .take(2)
+          .toArray(),
+    },
+    {
+      name: "chained joins across three sources",
+      run: (db) =>
+        orders(db)
+          .join(
+            users(db),
+            expr((o: O) => o.userId),
+            expr((u: U) => u.id),
+            expr((o: O, u: U) => ({ oid: o.id, who: u.name })),
+          )
+          .join(
+            items(db),
+            expr((r: { oid: number; who: string }) => r.oid),
+            expr((i: I) => i.orderId),
+            expr((r: { oid: number; who: string }, i: I) => ({ who: r.who, sku: i.sku })),
+          )
+          .toArray(),
+    },
+    {
+      name: "self join pairs rows by a shared key",
+      run: (db) =>
+        users(db)
+          .join(
+            users(db),
+            expr((u: U) => u.city),
+            expr((v: U) => v.city),
+            expr((u: U, v: U) => ({ a: u.id, b: v.id })),
+          )
+          .toArray(),
+    },
+    {
+      name: "join with a projected inner query",
+      run: (db) =>
+        orders(db)
+          .join(
+            users(db).select(expr((u: U) => ({ uid: u.id, label: u.name }))),
+            expr((o: O) => o.userId),
+            expr((r: { uid: number; label: string }) => r.uid),
+            expr((o: O, r: { uid: number; label: string }) => ({ order: o.id, label: r.label })),
+          )
+          .toArray(),
+    },
+    {
+      name: "composite join keys with a null member never match",
+      run: (db) =>
+        orders(db)
+          .leftJoin(
+            users(db),
+            expr((o: O) => ({ id: o.userId, tag: "x" })),
+            expr((u: U) => ({ id: u.id, tag: "x" })),
+            expr((o: O, u: U | null) => ({ order: o.id, who: u?.name ?? null })),
+          )
+          .toArray(),
+    },
+    {
+      name: "left join feeds an aggregate with a null default",
+      run: (db) =>
+        orders(db)
+          .leftJoin(
+            users(db),
+            expr((o: O) => o.userId),
+            expr((u: U) => u.id),
+            expr((o: O, u: U | null) => ({ total: o.total, age: u?.age ?? 0 })),
+          )
+          .sum(expr((r: { total: number; age: number }) => r.age)),
+    },
+    {
+      name: "any over a joined projection",
+      run: (db) =>
+        orders(db)
+          .join(
+            users(db),
+            expr((o: O) => o.userId),
+            expr((u: U) => u.id),
+            expr((o: O, u: U) => ({ total: o.total, active: u.active })),
+          )
+          .any(expr((r: { total: number; active: boolean }) => r.total > 15)),
+    },
+    {
+      name: "firstOrNull over an empty joined result",
+      run: (db) =>
+        orders(db)
+          .join(
+            users(db),
+            expr((o: O) => o.userId),
+            expr((u: U) => u.id),
+            expr((o: O, _u: U) => ({ order: o.id, total: o.total })),
+          )
+          .where(expr((r: { order: number; total: number }) => r.total > 9999))
+          .firstOrNull(),
+    },
+    {
+      name: "take zero yields no rows",
+      ordered: true,
+      run: (db) => users(db).take(0).toArray(),
+    },
+    {
+      name: "skip beyond the row count yields no rows",
+      ordered: true,
+      run: (db) =>
+        users(db)
+          .orderBy(expr((u: U) => u.id))
+          .skip(1000)
+          .toArray(),
+    },
+    {
+      name: "distinct then count",
+      run: (db) =>
+        users(db)
+          .select(expr((u: U) => u.city))
+          .distinct()
+          .count(),
+    },
+    {
+      name: "include a reference then its collection (cycle back)",
+      run: (db) =>
+        orders(db)
+          .include((o) => o.user)
+          .thenInclude((u) => u.orders)
+          .toArray(),
+    },
+    {
+      name: "include after a projection that keeps the key",
+      run: (db) =>
+        users(db)
+          .select(expr((u: U) => ({ id: u.id })))
+          .include((u) => (u as unknown as U).orders)
+          .toArray(),
+    },
+    {
+      name: "repeated include of one navigation merges its branches",
+      run: (db) =>
+        orders(db)
+          .include((o) => o.items)
+          .include((o) => o.user)
+          .include((o) => o.items)
           .toArray(),
     },
   ];

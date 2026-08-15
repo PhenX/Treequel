@@ -194,3 +194,13 @@ navDb.orders.leftJoin(
 // `boolean | undefined`, and Pred accepts it.
 navDb.users.where((u) => u.orders?.some((o) => o.total > 10));
 navDb.users.every((u) => u.orders?.every((o) => o.total > 0));
+
+// flatMap: without a selector the element is the navigation's row type;
+// with one, the two-parameter result infers.
+const flattened = navDb.users.flatMap((u) => u.orders);
+type _flat = Expect<Equal<typeof flattened, Queryable<NavOrder>>>;
+const flatShaped = navDb.users.flatMap(
+  (u) => u.orders,
+  (u, o) => ({ who: u.name, total: o.total }),
+);
+type _flatShaped = Expect<Equal<typeof flatShaped, Queryable<{ who: string; total: number }>>>;

@@ -247,6 +247,46 @@ describe("joins", () => {
   });
 });
 
+describe("flatMap", () => {
+  it("expands rows parent-major and skips null keys", async () => {
+    const rows = await db()
+      .users.flatMap(
+        (u) => u.orders,
+        (u, o) => ({ who: u.name, order: o.id }),
+      )
+      .toArray();
+    expect(rows).toEqual([
+      { who: "Ada", order: 1 },
+      { who: "Ada", order: 2 },
+      { who: "Grace", order: 3 },
+    ]);
+  });
+
+  it("without a selector the elements are the related rows, navigations intact", async () => {
+    const rows = await db()
+      .users.flatMap((u) => u.orders)
+      .include((i) => i.items)
+      .where((o) => o.total >= 10)
+      .toArray();
+    expect(rows.map((o) => o.id)).toEqual([1, 2]);
+    expect(rows[0]?.items.map((i) => i.sku).sort()).toEqual(["apple", "pear"]);
+  });
+
+  it("resolves chained navigations against the flattened source", async () => {
+    const skus = await db()
+      .users.flatMap((u) => u.orders)
+      .flatMap((o) => o.items)
+      .toArray();
+    expect(skus.map((i) => i.sku)).toEqual(["apple", "pear", "plum"]);
+  });
+
+  it("rejects an unknown navigation with R2007", () => {
+    expect(() => db().users.flatMap((u) => (u as unknown as { carts: Order[] }).carts)).toThrow(
+      /Unknown navigation/,
+    );
+  });
+});
+
 describe("includes", () => {
   it("include() loads a collection navigation", async () => {
     const rows = await db()

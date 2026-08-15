@@ -132,6 +132,13 @@ export function applyOps(
         cur = hashJoin(cur, op, rows);
         scope = {};
         break;
+      case "flatMap": {
+        cur = flatMap(cur, op, rows);
+        scope = op.result
+          ? {}
+          : { source: op.target, ...(env.relations ? { relations: env.relations } : {}) };
+        break;
+      }
       case "include":
         break; // collected up front; navigations attach to the final rows below
       case "inMemory":
@@ -320,6 +327,34 @@ function hashJoin(
  * `evalRows` is aligned with `rows` and carries navigation-augmented copies
  * when the expr needs them; results always come from the original `rows`.
  */
+/** Expand each row through its navigation — null keys expand to nothing. */
+function flatMap(
+  parents: unknown[],
+  op: Extract<PlanOp, { op: "flatMap" }>,
+  rows: RowSource,
+): unknown[] {
+  const index = new Map<string, unknown[]>();
+  for (const child of rows(op.target)) {
+    const key = rowKey(child, op.to, op.nav);
+    if (key === null || key === undefined) continue;
+    const ck = canonical(key);
+    const bucket = index.get(ck);
+    if (bucket) bucket.push(child);
+    else index.set(ck, [child]);
+  }
+  const out: unknown[] = [];
+  for (const parent of parents) {
+    const key = rowKey(parent, op.from, op.nav);
+    if (key === null || key === undefined) continue;
+    const matches = index.get(canonical(key));
+    if (!matches) continue;
+    for (const child of matches) {
+      out.push(op.result ? invoke(op.result, parent, child) : child);
+    }
+  }
+  return out;
+}
+
 function execute(
   rows: unknown[],
   op: Extract<PlanOp, { op: "exec" }>,

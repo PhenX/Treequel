@@ -574,6 +574,7 @@ Core translation table (pg dialect):
 | `nav.length`, `nav.filter(p).length`, `nav.reduce((acc,o)=>acc+e,0)` | correlated scalar subqueries: `COUNT(*)`, filtered `COUNT(*)`, `COALESCE(SUM(e),0)` — usable in projections, predicates, orderBy keys and aggregate selectors (ADR-0006) |
 | `groupBy(k)` + `select(g => …)` | `GROUP BY` with aggregate projections over `g.key`/`g.items` (`length`→COUNT, filtered counts, reduce sum/min/max idioms, `sum/count` for averages); non-column keys precompute into a derived table; `where` after the projection wraps = HAVING; raw groups stay memory-only (ADR-0007) |
 | `include(nav, q => q.where/orderBy/take/skip)` | refined split fetch: filters/order fold into the batched child query; per-parent slices via `ROW_NUMBER() OVER (PARTITION BY key …)` gated by `dialect.windowFunctions` (ADR-0008) |
+| `flatMap(nav)` / `flatMap(nav, result)` | expand through a navigation (EF `SelectMany`): `INNER JOIN` onto the target; without a selector the layer swaps to the child shape so chained flatMap/include/nav-predicates resolve against the flattened source (ADR-0009) |
 | executors | `count`→`COUNT(*)`, `some`→`EXISTS(...)`, `first`→`LIMIT 1` (+`single` → `LIMIT 2` + runtime cardinality check) |
 
 Schema meta is minimal and explicit in v1: `{ users: { table:"users", columns:{ id:"id", createdAt:"created_at" }, json?: ["meta"] } }`. No introspection in v1 (providers may add it).

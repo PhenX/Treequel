@@ -665,6 +665,69 @@ export function defaultCases(): ConformanceCase[] {
           )
           .toArray(),
     },
+    {
+      name: "flatMap yields the related rows",
+      run: (db) =>
+        users(db)
+          .flatMap((u) => u.orders)
+          .toArray(),
+    },
+    {
+      name: "flatMap with a result selector",
+      run: (db) =>
+        users(db)
+          .flatMap(
+            (u) => u.orders,
+            expr((u: U, o: O) => ({ who: u.name, total: o.total })),
+          )
+          .toArray(),
+    },
+    {
+      name: "flatMap over a reference navigation skips null keys",
+      run: (db) =>
+        orders(db)
+          .flatMap(
+            (o) => o.user,
+            expr((o: O, u: U) => ({ order: o.id, who: u.name })),
+          )
+          .toArray(),
+    },
+    {
+      name: "flatMap chains through two navigations",
+      run: (db) =>
+        users(db)
+          .flatMap((u) => u.orders)
+          .flatMap((o) => o.items)
+          .toArray(),
+    },
+    {
+      name: "flatMap composes with where, orderBy and take",
+      ordered: true,
+      run: (db) =>
+        users(db)
+          .where(expr((u: U) => u.active))
+          .flatMap((u) => u.orders)
+          .orderByDescending(expr((o: O) => o.total))
+          .thenBy(expr((o: O) => o.id))
+          .take(2)
+          .toArray(),
+    },
+    {
+      name: "navigation predicate after a flatMap",
+      run: (db) =>
+        users(db)
+          .flatMap((u) => u.orders)
+          .where(expr((o: O) => o.items?.some((i) => i.sku === "apple")))
+          .toArray(),
+    },
+    {
+      name: "include after a flatMap",
+      run: (db) =>
+        users(db)
+          .flatMap((u) => u.orders)
+          .include((o) => o.items)
+          .toArray(),
+    },
   ];
 }
 

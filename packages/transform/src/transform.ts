@@ -24,6 +24,7 @@ const LINQ_METHODS = new Set([
   "avg",
   "join",
   "leftJoin",
+  "flatMap",
 ]);
 
 const HOST_ALIAS = "__tql_expr$";

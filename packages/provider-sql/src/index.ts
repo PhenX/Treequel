@@ -75,6 +75,7 @@ const SUPPORTED_OPS = [
   "join",
   "leftJoin",
   "include",
+  "flatMap",
   "groupBy",
   "exec",
 ];
@@ -436,6 +437,34 @@ class Compiler {
     return this.wrap(layer);
   }
 
+  /**
+   * Expand rows through a navigation: an `INNER JOIN` onto the target table.
+   * Without a result selector the element *becomes* the child row — the layer
+   * swaps to the child's table shape (its navigations stay resolvable);
+   * with one, the two-parameter projection shapes the pair like a join.
+   */
+  foldFlatMap(layer: Layer, op: Extract<PlanOp, { op: "flatMap" }>): Layer {
+    this.rejectPendingGroup(layer, "flatMap");
+    if (!layer.pristine) layer = this.wrap(layer);
+    const child = this.freshLayer(op.target);
+    const childShape = child.shape;
+    const on = `(${shapeColumn(layer.shape, op.from, this.ctx)} = ${shapeColumn(childShape, op.to, this.ctx)})`;
+    layer.from += ` INNER JOIN ${child.from} ON ${on}`;
+    if (op.result) {
+      const scope = new Map<string, ColumnShape>();
+      if (op.result.params[0]) scope.set(op.result.params[0], layer.shape);
+      if (op.result.params[1]) scope.set(op.result.params[1], childShape);
+      const proj = this.projection(fold(op.result), this.ctx.scoped(scope));
+      layer.projection = proj.sql;
+      layer.projectionColumns = proj.columns;
+      layer.scalar = proj.scalar;
+    } else {
+      layer.shape = childShape;
+    }
+    layer.pristine = false;
+    return layer;
+  }
+
   private joinCondition(
     outerKey: AnyExpr,
     outerShape: ColumnShape,
@@ -531,6 +560,8 @@ class Compiler {
       case "join":
       case "leftJoin":
         return this.foldJoin(layer, op);
+      case "flatMap":
+        return this.foldFlatMap(layer, op);
       default:
         throw new TreequelError(
           "R2001",

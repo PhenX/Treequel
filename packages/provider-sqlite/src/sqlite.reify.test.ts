@@ -610,6 +610,38 @@ describe("SQLite joins & includes — shapes and edges", () => {
   });
 });
 
+describe("SQLite flatMap — SQL shapes", () => {
+  it("compiles to an INNER JOIN that swaps to the child shape", async () => {
+    const text = await sqlDb.users.flatMap((u) => u.orders).explain();
+    expect(text).toMatch(
+      /SELECT "t1"\.\* FROM "users" "t0" INNER JOIN "orders" "t1" ON \("t0"\."id" = "t1"\."user_id"\)/,
+    );
+  });
+
+  it("a result selector projects across both sides", async () => {
+    const text = await sqlDb.users
+      .flatMap(
+        (u) => u.orders,
+        (u, o) => ({ who: u.name, total: o.total }),
+      )
+      .explain();
+    expect(text).toContain('"t0"."name" AS "who"');
+    expect(text).toContain('"t1"."total" AS "total"');
+    expect(text).toContain("INNER JOIN");
+  });
+
+  it("chained flatMaps join through both navigations", async () => {
+    // `sku` is unmapped, so it round-trips; raw rows otherwise carry physical
+    // column names (see the identity-schema conformance corpus for full-row
+    // equality against the reference).
+    const sql = await sqlDb.users
+      .flatMap((u) => u.orders)
+      .flatMap((o) => o.items)
+      .toArray();
+    expect(sql.map((i) => i.sku).sort()).toEqual(["apple", "pear", "plum"]);
+  });
+});
+
 describe("SQLite groupBy — SQL shape and edges", () => {
   it("groups by a column with aggregate projections", async () => {
     const text = await sqlDb.orders

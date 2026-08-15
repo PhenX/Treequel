@@ -60,6 +60,19 @@ export type PlanOp =
       readonly result: AnyExpr;
     }
   | { readonly op: "include"; readonly spec: IncludeSpec }
+  | {
+      /**
+       * Expand each row through a declared navigation (EF `SelectMany`): the
+       * element becomes the related row, or `result(parent, child)` when a
+       * selector is given. Null keys expand to nothing.
+       */
+      readonly op: "flatMap";
+      readonly nav: string;
+      readonly target: string;
+      readonly from: string;
+      readonly to: string;
+      readonly result?: AnyExpr;
+    }
   | { readonly op: "inMemory" }
   | {
       readonly op: "exec";
@@ -81,6 +94,7 @@ export const PLAN_OP_KINDS: readonly string[] = [
   "join",
   "leftJoin",
   "include",
+  "flatMap",
   "inMemory",
   "exec",
 ];
@@ -99,4 +113,25 @@ export interface QueryPlan {
 /** Append an op, returning a new plan (Queryable is immutable). */
 export function withOp(plan: QueryPlan, op: PlanOp): QueryPlan {
   return { ...plan, ops: [...plan.ops, op] };
+}
+
+/**
+ * The source whose rows the plan's elements still are — following `flatMap`
+ * into its target — or `undefined` once a `select`/`groupBy`/`join` reshapes
+ * them. Build-time navigation resolution keys off this.
+ */
+export function elementSource(plan: QueryPlan): string | undefined {
+  let source: string | undefined = plan.source;
+  for (const op of plan.ops) {
+    if (op.op === "flatMap") source = op.result ? undefined : op.target;
+    else if (
+      op.op === "select" ||
+      op.op === "groupBy" ||
+      op.op === "join" ||
+      op.op === "leftJoin"
+    ) {
+      source = undefined;
+    }
+  }
+  return source;
 }

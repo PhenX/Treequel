@@ -43,6 +43,31 @@ const all = await db.orders
 Limits (v1): the join result selector must be an object literal (or a single scalar) when it compiles to SQL — a bare
 row (`(o, u) => u`) is not a projection. `groupBy` after a join stays memory-only.
 
+## flatMap — querying through a navigation
+
+`flatMap` expands each row through a declared navigation, the way `Array.prototype.flatMap` expands arrays (EF Core
+calls it `SelectMany`):
+
+```ts
+// every order of an active user
+const orders = await db.users
+  .where((u) => u.active)
+  .flatMap((u) => u.orders)
+  .orderByDescending((o) => o.total)
+  .toArray();
+
+// shape the (parent, child) pair with a result selector
+const lines = await db.users
+  .flatMap((u) => u.orders, (u, o) => ({ who: u.name, total: o.total }))
+  .toArray();
+```
+
+- **Without a selector the element becomes the related row** — and its own navigations stay usable, so you can chain
+  (`flatMap(u => u.orders).flatMap(o => o.items)`) or `include`/filter on the flattened rows. **With a selector** the
+  two-parameter projection shapes each pair, exactly like a join result.
+- Rows whose key is null expand to nothing (SQL join semantics); the memory reference agrees.
+- On SQL it is an `INNER JOIN` onto the navigation's target — one statement, composing with everything after it.
+
 ## Includes
 
 `include` loads a declared navigation with the query; `thenInclude` goes one level deeper. Related rows attach to the

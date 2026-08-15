@@ -18,4 +18,5 @@ export const LINQ_METHODS: ReadonlySet<string> = new Set([
   "avg",
   "join",
   "leftJoin",
+  "flatMap",
 ]);

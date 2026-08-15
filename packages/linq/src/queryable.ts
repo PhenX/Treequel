@@ -7,6 +7,7 @@ import {
   type IncludeSpec,
   type PlanOp,
   type QueryPlan,
+  elementSource,
   withOp,
 } from "./plan.js";
 import type { QueryProvider } from "./provider.js";
@@ -164,6 +165,17 @@ export interface Queryable<T> {
     nav: NavSelector<T, R>,
     refine?: IncludeRefine<NavElement<R>>,
   ): Includable<Loaded<T, KeysWithValue<T, R>>, NavElement<R>>;
+  /**
+   * Expand each row through a declared navigation — `Array.prototype.flatMap`
+   * for queries (EF `SelectMany`). Without a result selector the elements
+   * become the related rows (and their own navigations stay usable); with one,
+   * `result(parent, child)` shapes each pair. Rows whose key is null expand to
+   * nothing.
+   */
+  flatMap<R, S = NavElement<R>>(
+    nav: NavSelector<T, R>,
+    result?: Result2<T, NavElement<R>, S>,
+  ): Queryable<S>;
   /** Explicit client-eval boundary: rows cross here; the suffix runs in memory. */
   inMemory(): Queryable<T>;
 
@@ -298,17 +310,36 @@ class QueryableImpl<T> implements Ordered<T> {
       result: toExpr(result),
     });
   }
+  /** Where build-time navigation resolution happens (follows flatMap). */
+  private navSource(): string {
+    return elementSource(this.plan) ?? this.plan.source;
+  }
   include<R>(
     nav: NavSelector<T, R>,
     refine?: IncludeRefine<NavElement<R>>,
   ): Includable<Loaded<T, KeysWithValue<T, R>>, NavElement<R>> {
     const name = navName(nav);
-    const rel = resolveRelation(this.relations, this.plan.source, name);
+    const rel = resolveRelation(this.relations, this.navSource(), name);
     const spec = refineSpec({ nav: name, ...rel }, refine as IncludeRefine<never> | undefined);
     return this.next({ op: "include", spec }) as unknown as Includable<
       Loaded<T, KeysWithValue<T, R>>,
       NavElement<R>
     >;
+  }
+  flatMap<R, S = NavElement<R>>(
+    nav: NavSelector<T, R>,
+    result?: Result2<T, NavElement<R>, S>,
+  ): Queryable<S> {
+    const name = navName(nav);
+    const rel = resolveRelation(this.relations, this.navSource(), name);
+    return this.next<S>({
+      op: "flatMap",
+      nav: name,
+      target: rel.target,
+      from: rel.from,
+      to: rel.to,
+      ...(result ? { result: toExpr(result) } : {}),
+    });
   }
   thenInclude(
     nav: NavSelector<unknown, unknown>,

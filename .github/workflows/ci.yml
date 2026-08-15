@@ -25,12 +25,12 @@ jobs:
       - run: npm ci
       - name: Dependency graph
         run: node scripts/check-graph.mjs
-      - name: Lint
+      - name: Typecheck + build (tsc -b, topological)
+        run: npx tsc -b
+      - name: Lint (jsPlugins loads the built eslint-plugin, so lint follows tsc -b)
         run: npx oxlint
       - name: Format check
         run: npx oxfmt --check .
-      - name: Typecheck + build (tsc -b, topological)
-        run: npx tsc -b
       - name: Type tests (F | Expr<F> inference)
         run: npx tsc --noEmit -p type-tests/tsconfig.json
       - name: Test (vitest workspace; property + conformance on PGlite)

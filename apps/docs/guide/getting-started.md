@@ -104,6 +104,37 @@ than returning a wrong result. Enable it with:
 import "@treequel/fallback/register";
 ```
 
+## Lint
+
+`@treequel/eslint-plugin` runs the same subset validator as the build and the editor, so an invalid lambda fails at
+lint time with the same coded message. It is an ESLint plugin, and oxlint loads ESLint plugins through `jsPlugins`
+(alpha, not semver-guarded) — one package covers both linters.
+
+::: code-group
+
+```js [eslint.config.js]
+import treequel from "@treequel/eslint-plugin";
+
+export default [treequel.configs.recommended];
+```
+
+```json [.oxlintrc.json]
+{
+  "jsPlugins": [{ "name": "treequel", "specifier": "@treequel/eslint-plugin" }],
+  "rules": {
+    "treequel/valid-expression": "error",
+    "treequel/no-opaque-callback": "warn"
+  }
+}
+```
+
+:::
+
+The rules match query methods by name, without type information — `treequel/no-opaque-callback` is a warning because a
+bare identifier can also hold an `expr()`-built tree, and an unrelated API can share an operator name. Scope the rules
+to your query modules with overrides if that happens; the build transform and the editor plugin are not affected, since
+they trace your context imports instead of matching names.
+
 ## Coming from somewhere else?
 
 - From C#: LINQ and EF Core are this design's ancestors, and the concepts map one-to-one —

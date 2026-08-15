@@ -26,9 +26,25 @@ export interface Rule {
   create(context: RuleContext): Record<string, (node: AstNode) => void>;
 }
 
+/** Global namespaces whose static methods collide with query-operator names (`Math.min`, `Object.groupBy`). */
+const GLOBAL_NAMESPACES: ReadonlySet<string> = new Set([
+  "Math",
+  "Object",
+  "JSON",
+  "Number",
+  "Date",
+  "Promise",
+  "Reflect",
+  "Symbol",
+  "Intl",
+  "Atomics",
+]);
+
 function calleeMethodName(call: AstNode): string | null {
   const callee = call.callee as AstNode | undefined;
   if (callee?.type === "MemberExpression") {
+    const obj = callee.object as AstNode;
+    if (obj?.type === "Identifier" && GLOBAL_NAMESPACES.has(obj.name as string)) return null;
     const prop = callee.property as AstNode;
     if (prop?.type === "Identifier") return prop.name as string;
   }

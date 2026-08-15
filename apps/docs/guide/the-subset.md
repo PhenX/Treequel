@@ -2,7 +2,7 @@
 
 A query lambda is not arbitrary JavaScript. It is an **expression-bodied arrow** over a small, closed grammar — the
 set of forms that have a defined meaning across every provider. Anything outside the subset is rejected with a coded,
-located diagnostic, and you get the same message in your editor, in ESLint, and at build time.
+located diagnostic, and you get the same message in your editor, in ESLint or oxlint, and at build time.
 
 ## Allowed
 

@@ -630,8 +630,12 @@ db.users
 - Rule `treequel/valid-expression`: same validator over TSESTree via the shared adapter; autofix for R1103 (`==`→`===`).
 - Rule `treequel/no-opaque-callback`: flags function *references* passed to traced LINQ methods (the boundary rule, at lint time instead of runtime).
 - Preset `plugin:treequel/recommended`.
+- The same package is an oxlint plugin: oxlint's `jsPlugins` runs ESLint-API plugins on oxc's TS-ESTree-compatible AST,
+  so consumers on either linter load `@treequel/eslint-plugin` unchanged. The repo dogfoods this — root
+  `.oxlintrc.json` loads the built plugin (alias `treequel`) and enforces both rules repo-wide (tests and type-tests
+  opted out by override; they exercise the opaque/memory path deliberately).
 
-Definition of done for this section: the same invalid lambda produces the same code + message in editor squiggle, eslint output, and build error (golden-file test asserts all three).
+Definition of done for this section: the same invalid lambda produces the same code + message in editor squiggle, eslint output (asserted for the ESLint and oxlint hosts), and build error (golden-file test asserts all three).
 
 ---
 
@@ -686,7 +690,7 @@ Philosophy, stated as policy: **native-first, minimal dependencies.** npm-native
 | Task running | **npm scripts + `tsc -b`** — no task runner | Typecheck: project references give native topological ordering and incremental caching. Builds: internal deps are *externalized* by tsdown (they're runtime deps, never bundled), so per-package JS builds are order-independent → plain `npm run build --workspaces --if-present`. Apps/examples that need built libs run after via explicit root scripts. Cold full build target < 15 s; at that scale Turborepo's two benefits (remote cache, orchestration) buy nothing — revisit only if the repo outgrows this, and record it as a new ADR. |
 | Compiler/bundler (libs) | **tsdown** | Rolldown/oxc-based — same stack as Vite; d.ts via `isolatedDeclarations`; treeshake-friendly ESM. |
 | TypeScript | 5.x, `strict`, `verbatimModuleSyntax`, `isolatedDeclarations` on public packages; project-references solution `tsconfig.json` | |
-| Lint | **oxlint** (root `.oxlintrc.json`) | categories: correctness + suspicious + perf; adopt type-aware rules as they stabilize. The `eslint-plugin` package still ships for *consumers* (its ESLint deps are peer/dev-local to that package and its tests — they never touch the rest of the repo). |
+| Lint | **oxlint** (root `.oxlintrc.json`) | categories: correctness + suspicious + perf; adopt type-aware rules as they stabilize. The `eslint-plugin` package still ships for *consumers* (its ESLint deps are peer/dev-local to that package and its tests — they never touch the rest of the repo) — and is loaded back into oxlint via `jsPlugins` from its built `dist/`, so lint runs after `tsc -b` in `verify` and CI. |
 | Format | **oxfmt** | `oxfmt --check` in CI; no formatter config debates. |
 | Tests | **Vitest 3** workspace | coverage via v8 provider; thresholds on `tree`/`core`/`capture` at 95%. |
 | Versioning/release | **Lockstep** — all `@treequel/*` share one version (the oxc/vite-ecosystem model) | `scripts/release.mjs` (plain Node, zero deps): bump all package.json versions, rewrite internal `"*"` ranges to the concrete version at publish time, update root `CHANGELOG.md` from git log (Conventional Commits enforced by a 15-line commit-msg check), tag `vX.Y.Z`, `npm publish --provenance` per public package. Changesets deliberately omitted; adopt later only if per-package versioning becomes a real contributor need (ADR-9). |
@@ -711,8 +715,9 @@ jobs:
         with: { node-version: ${{ matrix.node }}, cache: npm }
       - run: npm ci
       - run: node scripts/check-graph.mjs          # §3.1 edges + no duplicated tool deps
-      - run: npx oxlint && npx oxfmt --check .
       - run: npx tsc -b                             # topological, incremental
+      - run: npx oxlint && npx oxfmt --check .      # jsPlugins loads the built eslint-plugin
+
       - run: npm run build --workspaces --if-present
       - run: npx vitest run                         # workspace projects; conformance uses PGlite
   types-next:                                       # TS nightly — allowed to fail, visible

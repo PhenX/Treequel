@@ -1,5 +1,5 @@
 import { type Node, TreequelError } from "@treequel/core";
-import type { RelationsMeta } from "@treequel/linq";
+import type { Relation, RelationsMeta } from "@treequel/linq";
 import { type SchemaMeta, type TableMeta, physicalColumn } from "./schema.js";
 import { type SqlDialect } from "./dialect.js";
 
@@ -216,8 +216,12 @@ function paramShape(node: Node, ctx: TranslateContext): ColumnShape {
 }
 
 function translateMember(node: Extract<Node, { kind: "Member" }>, ctx: TranslateContext): string {
-  // string/array .length
+  // Navigation count / string length
   if (node.prop === "length") {
+    const chain = matchNavChain(node.object, ctx);
+    if (chain) {
+      return navSubquery(chain, ctx, (d) => d.floatCast("COUNT(*)"));
+    }
     return `LENGTH(${translate(node.object, ctx)})`;
   }
   // Direct column: Member(Param, col)
@@ -274,6 +278,8 @@ function translateCall(node: Extract<Node, { kind: "Call" }>, ctx: TranslateCont
     case "some":
     case "every":
       return translateNavQuantifier(method, recv, args, ctx);
+    case "reduce":
+      return translateNavReduce(recv, args, ctx);
     case "startsWith":
     case "endsWith":
     case "includes":
@@ -301,11 +307,79 @@ function translateCall(node: Extract<Node, { kind: "Call" }>, ctx: TranslateCont
 }
 
 /**
+ * A navigation reference inside an expression: `param.nav`, optionally
+ * extended by `.filter(l)` steps, resolved against the outer row's shape.
+ */
+interface NavChain {
+  readonly rel: Relation;
+  readonly outer: Extract<ColumnShape, { kind: "table" }>;
+  readonly filters: ReadonlyArray<Extract<Node, { kind: "Lambda" }>>;
+}
+
+function matchNavChain(n: Node, ctx: TranslateContext): NavChain | null {
+  if (n.kind === "Member" && n.object.kind === "Param") {
+    const shape = ctx.shapeOf(n.object.name);
+    if (shape?.kind !== "table" || shape.source === undefined) return null;
+    const rel = ctx.env.relations?.[shape.source]?.[n.prop];
+    return rel ? { rel, outer: shape, filters: [] } : null;
+  }
+  if (
+    n.kind === "Call" &&
+    n.callee.kind === "Member" &&
+    n.callee.prop === "filter" &&
+    n.args[0]?.kind === "Lambda"
+  ) {
+    const base = matchNavChain(n.callee.object, ctx);
+    if (!base) return null;
+    return { ...base, filters: [...base.filters, n.args[0]] };
+  }
+  return null;
+}
+
+/**
+ * `(SELECT <agg> FROM child WHERE key AND filters…)` for a navigation chain.
+ * Each nested lambda translates in a child scope whose lexical parent is the
+ * current scope, so inner predicates can still reference the outer row.
+ */
+function navSubquery(
+  chain: NavChain,
+  ctx: TranslateContext,
+  selectFor: (dialect: SqlDialect, childCtx: TranslateContext, childShape: ColumnShape) => string,
+  extraCond?: (childCtx: TranslateContext, childShape: ColumnShape) => string,
+): string {
+  const { schema, alias } = ctx.env;
+  if (!schema || !alias) {
+    return ctx.fail("R2001", "Navigation subqueries need schema metadata on the translate env.");
+  }
+  const childMeta = schema[chain.rel.target];
+  if (!childMeta) {
+    return ctx.fail("R2002", `No schema meta for source '${chain.rel.target}'.`);
+  }
+  const childAlias = alias();
+  const childShape: ColumnShape = {
+    kind: "table",
+    alias: childAlias,
+    meta: childMeta,
+    source: chain.rel.target,
+  };
+  const conds = [
+    `${shapeColumn(childShape, chain.rel.to, ctx)} = ${shapeColumn(chain.outer, chain.rel.from, ctx)}`,
+  ];
+  for (const f of chain.filters) {
+    const inner = ctx.scoped(new Map([[f.params[0] as string, childShape]]));
+    conds.push(`(${translate(f.body, inner)})`);
+  }
+  if (extraCond) conds.push(extraCond(ctx, childShape));
+  const sel = selectFor(ctx.dialect, ctx, childShape);
+  return `(SELECT ${sel} FROM ${quoteIdent(childMeta.table)} ${quoteIdent(childAlias)} WHERE ${conds.join(" AND ")})`;
+}
+
+/**
  * `parent.nav.some(c => …)` → `EXISTS (SELECT 1 FROM child WHERE key AND …)`;
  * `every` → `NOT EXISTS (… AND NOT …)`, which is vacuously true over an empty
- * navigation, matching `Array.prototype.every`. The nested lambda translates
- * in a child scope whose lexical parent is the current scope, so it can still
- * reference the outer row.
+ * navigation, matching `Array.prototype.every`. Filter steps in the chain
+ * (`nav.filter(p).every(q)`) stay positive conditions; only the quantifier's
+ * own predicate negates.
  */
 function translateNavQuantifier(
   method: "some" | "every",
@@ -313,46 +387,73 @@ function translateNavQuantifier(
   args: readonly Node[],
   ctx: TranslateContext,
 ): string {
-  const { relations, schema, alias } = ctx.env;
-  if (recv.kind !== "Member" || recv.object.kind !== "Param") {
+  const chain = matchNavChain(recv, ctx);
+  if (!chain) {
     return ctx.fail(
       "R2001",
-      `.${method}() translates only over a declared navigation collection (\`u.orders?.${method}(…)\`).`,
-    );
-  }
-  const shape = ctx.shapeOf(recv.object.name);
-  const rel =
-    shape?.kind === "table" && shape.source !== undefined
-      ? relations?.[shape.source]?.[recv.prop]
-      : undefined;
-  if (shape?.kind !== "table" || !rel || !schema || !alias) {
-    return ctx.fail(
-      "R2001",
-      `'${recv.prop}' is not a declared navigation here — .${method}() needs a relations map on the context.`,
+      `.${method}() translates only over a declared navigation collection (\`u.orders?.${method}(…)\`) — check the relations map on the context.`,
     );
   }
   const lambda = args[0];
   if (lambda?.kind !== "Lambda" || lambda.params.length === 0) {
     return ctx.fail("R2001", `.${method}() over a navigation requires an inline predicate lambda.`);
   }
-  const childMeta = schema[rel.target];
-  if (!childMeta) {
-    return ctx.fail("R2002", `No schema meta for source '${rel.target}'.`);
+  const exists = navSubquery(
+    chain,
+    ctx,
+    () => "1",
+    (childCtx, childShape) => {
+      const inner = childCtx.scoped(new Map([[lambda.params[0] as string, childShape]]));
+      const body = translate(lambda.body, inner);
+      return method === "some" ? `(${body})` : `(NOT (${body}))`;
+    },
+  );
+  return method === "some" ? `EXISTS ${exists}` : `NOT EXISTS ${exists}`;
+}
+
+/**
+ * The recognized JS sum idiom over a navigation:
+ * `nav.reduce((acc, o) => acc + expr, init)` with a constant numeric `init` →
+ * `(init +) COALESCE((SELECT SUM(expr) FROM child WHERE key…), 0)`.
+ */
+function translateNavReduce(recv: Node, args: readonly Node[], ctx: TranslateContext): string {
+  const chain = matchNavChain(recv, ctx);
+  if (!chain) {
+    return ctx.fail(
+      "R2001",
+      ".reduce() translates only over a declared navigation collection — check the relations map on the context.",
+    );
   }
-  const childAlias = alias();
-  const childShape: ColumnShape = {
-    kind: "table",
-    alias: childAlias,
-    meta: childMeta,
-    source: rel.target,
-  };
-  const inner = ctx.scoped(new Map([[lambda.params[0] as string, childShape]]));
-  const key = `${shapeColumn(childShape, rel.to, ctx)} = ${shapeColumn(shape, rel.from, ctx)}`;
-  const body = translate(lambda.body, inner);
-  const from = `FROM ${quoteIdent(childMeta.table)} ${quoteIdent(childAlias)}`;
-  return method === "some"
-    ? `EXISTS (SELECT 1 ${from} WHERE (${key}) AND (${body}))`
-    : `NOT EXISTS (SELECT 1 ${from} WHERE (${key}) AND (NOT (${body})))`;
+  const shapeError = (): never =>
+    ctx.fail(
+      "R2001",
+      "Only the sum idiom `nav.reduce((acc, o) => acc + expr, 0)` (a constant numeric seed, " +
+        "`acc` on one side of a `+`) translates to SQL.",
+    );
+  const lambda = args[0];
+  const init = args[1];
+  if (
+    lambda?.kind !== "Lambda" ||
+    lambda.params.length < 2 ||
+    init?.kind !== "Constant" ||
+    typeof init.value !== "number"
+  ) {
+    return shapeError();
+  }
+  const acc = lambda.params[0] as string;
+  const element = lambda.params[1] as string;
+  const body = lambda.body;
+  if (body.kind !== "Binary" || body.op !== "+") return shapeError();
+  const isAcc = (n: Node): boolean => n.kind === "Param" && n.name === acc;
+  const selector = isAcc(body.left) ? body.right : isAcc(body.right) ? body.left : null;
+  if (!selector) return shapeError();
+
+  const sum = navSubquery(chain, ctx, (dialect, childCtx, childShape) => {
+    const inner = childCtx.scoped(new Map([[element, childShape]]));
+    return dialect.floatCast(`SUM(${translate(selector, inner)})`);
+  });
+  const coalesced = `COALESCE(${sum}, 0)`;
+  return init.value === 0 ? coalesced : `(${ctx.param(init.value)} + ${coalesced})`;
 }
 
 function translateLike(

@@ -561,6 +561,54 @@ describe("SQLite joins & includes — shapes and edges", () => {
     expect(sql.map((u) => u.name)).toEqual(["Ada"]);
   });
 
+  it("a navigation count compiles to a correlated COUNT subquery", async () => {
+    const text = await sqlDb.users
+      .select((u) => ({ name: u.name, n: u.orders?.length ?? 0 }))
+      .explain();
+    expect(text).toMatch(/COALESCE\(\(SELECT CAST\(COUNT\(\*\) AS REAL\) FROM "orders" "s\d+"/);
+    expect(text).toMatch(/"s\d+"\."user_id" = "t\d+"\."id"/);
+  });
+
+  it("a filtered count folds the filter into the subquery WHERE", async () => {
+    const text = await sqlDb.users
+      .select((u) => ({ big: u.orders?.filter((o) => o.total >= 10).length ?? 0 }))
+      .explain();
+    expect(text).toMatch(/COUNT\(\*\).*WHERE.*AND \(\("s\d+"\."total" >= \?\)\)/);
+  });
+
+  it("the reduce sum idiom compiles to COALESCE(SUM(...), 0)", async () => {
+    const text = await sqlDb.users
+      .select((u) => ({ spent: u.orders?.reduce((acc, o) => acc + o.total, 0) ?? 0 }))
+      .explain();
+    expect(text).toMatch(/COALESCE\(\(SELECT CAST\(SUM\("s\d+"\."total"\) AS REAL\)/);
+  });
+
+  it("correlated projections match the reference", async () => {
+    const sql = await sqlDb.users
+      .select((u) => ({
+        name: u.name,
+        n: u.orders?.length ?? 0,
+        spent: u.orders?.reduce((acc, o) => acc + o.total, 0) ?? 0,
+      }))
+      .toArray();
+    const mem = await memDb.users
+      .select((u) => ({
+        name: u.name,
+        n: u.orders?.length ?? 0,
+        spent: u.orders?.reduce((acc, o) => acc + o.total, 0) ?? 0,
+      }))
+      .toArray();
+    expect(multiset(sql)).toEqual(multiset(mem));
+  });
+
+  it("rejects a reduce outside the recognized sum idiom", async () => {
+    await expect(
+      sqlDb.users
+        .select((u) => ({ x: u.orders?.reduce((acc, o) => acc * o.total, 1) ?? 0 }))
+        .toArray(),
+    ).rejects.toThrow(/sum idiom/);
+  });
+
   it("rejects a bare-row join projection with R2001", async () => {
     await expect(
       sqlDb.orders

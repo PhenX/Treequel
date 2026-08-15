@@ -90,21 +90,23 @@ export function applyOps(
         cur = cur.filter((_r, j) => Boolean(invoke(op.expr, ev[j])));
         break;
       }
-      case "select":
-        cur = cur.map((r) => invoke(op.expr, r));
+      case "select": {
+        const ev = navEvalRows(cur, op.expr, env, rows) ?? cur;
+        cur = cur.map((_r, j) => invoke(op.expr, ev[j]));
         break;
+      }
       case "orderBy": {
         const keys: Array<{ expr: AnyExpr; desc: boolean }> = [{ expr: op.expr, desc: op.desc }];
         while (i + 1 < ops.length && (ops[i + 1] as PlanOp).op === "thenBy") {
           const next = ops[++i] as Extract<PlanOp, { op: "orderBy" | "thenBy" }>;
           keys.push({ expr: next.expr, desc: next.desc });
         }
-        cur = sortBy(cur, keys);
+        cur = sortBy(cur, keys, env, rows);
         break;
       }
       case "thenBy":
         // Only reached if a thenBy appears without a preceding orderBy; treat as a fresh sort.
-        cur = sortBy(cur, [{ expr: op.expr, desc: op.desc }]);
+        cur = sortBy(cur, [{ expr: op.expr, desc: op.desc }], env, rows);
         break;
       case "take":
         cur = cur.slice(0, Math.max(0, op.n));
@@ -115,9 +117,11 @@ export function applyOps(
       case "distinct":
         cur = distinct(cur);
         break;
-      case "groupBy":
-        cur = groupBy(cur, op.expr) as unknown[];
+      case "groupBy": {
+        const ev = navEvalRows(cur, op.expr, env, rows) ?? cur;
+        cur = groupBy(cur, op.expr, ev) as unknown[];
         break;
+      }
       case "join":
       case "leftJoin":
         cur = hashJoin(cur, op, rows);
@@ -166,15 +170,29 @@ function applyIncludes(
   return cur;
 }
 
-function sortBy(rows: unknown[], keys: Array<{ expr: AnyExpr; desc: boolean }>): unknown[] {
-  // Array.prototype.sort is stable in modern engines; that gives thenBy for free.
-  return [...rows].sort((a, b) => {
-    for (const k of keys) {
-      const cmp = compare(invoke(k.expr, a), invoke(k.expr, b));
-      if (cmp !== 0) return k.desc ? -cmp : cmp;
-    }
-    return 0;
-  });
+function sortBy(
+  rows: unknown[],
+  keys: Array<{ expr: AnyExpr; desc: boolean }>,
+  env: PlanEnv,
+  src: RowSource,
+): unknown[] {
+  // Key values are computed once per row (navigation keys evaluate against
+  // augmented copies); Array.prototype.sort is stable in modern engines, which
+  // gives thenBy for free.
+  const decorated = rows.map((r) => ({ r, k: [] as unknown[] }));
+  for (const key of keys) {
+    const ev = navEvalRows(rows, key.expr, env, src) ?? rows;
+    decorated.forEach((d, i) => d.k.push(invoke(key.expr, ev[i])));
+  }
+  return decorated
+    .sort((a, b) => {
+      for (let i = 0; i < keys.length; i++) {
+        const cmp = compare(a.k[i], b.k[i]);
+        if (cmp !== 0) return (keys[i] as { desc: boolean }).desc ? -cmp : cmp;
+      }
+      return 0;
+    })
+    .map((d) => d.r);
 }
 
 /**
@@ -209,11 +227,16 @@ function distinct(rows: unknown[]): unknown[] {
   return out;
 }
 
-function groupBy(rows: unknown[], keyExpr: AnyExpr): Array<Grouping<unknown, unknown>> {
+function groupBy(
+  rows: unknown[],
+  keyExpr: AnyExpr,
+  evalRows: unknown[],
+): Array<Grouping<unknown, unknown>> {
   const map = new Map<string, { key: unknown; items: unknown[] }>();
   const order: string[] = [];
-  for (const r of rows) {
-    const key = invoke(keyExpr, r);
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    const key = invoke(keyExpr, evalRows[i]);
     const ck = canonical(key);
     let bucket = map.get(ck);
     if (!bucket) {

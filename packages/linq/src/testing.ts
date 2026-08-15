@@ -444,6 +444,67 @@ export function defaultCases(): ConformanceCase[] {
       name: "navigation some in an executor position",
       run: (db) => users(db).count(expr((u: U) => u.orders?.some((o) => o.total > 5))),
     },
+    {
+      name: "projection counts a navigation",
+      run: (db) =>
+        users(db)
+          .select(expr((u: U) => ({ name: u.name, orderCount: u.orders?.length ?? 0 })))
+          .toArray(),
+    },
+    {
+      name: "projection counts a filtered navigation",
+      run: (db) =>
+        users(db)
+          .select(
+            expr((u: U) => ({
+              id: u.id,
+              big: u.orders?.filter((o) => o.total >= 10).length ?? 0,
+            })),
+          )
+          .toArray(),
+    },
+    {
+      name: "projection sums a navigation via the reduce idiom",
+      run: (db) =>
+        users(db)
+          .select(
+            expr((u: U) => ({
+              name: u.name,
+              spent: u.orders?.reduce((acc, o) => acc + o.total, 0) ?? 0,
+            })),
+          )
+          .toArray(),
+    },
+    {
+      name: "where compares a navigation count",
+      run: (db) =>
+        users(db)
+          .where(expr((u: U) => (u.orders?.length ?? 0) > 1))
+          .toArray(),
+    },
+    {
+      name: "orderBy a navigation count",
+      ordered: true,
+      run: (db) =>
+        users(db)
+          .orderByDescending(expr((u: U) => u.orders?.length ?? 0))
+          .thenBy(expr((u: U) => u.id))
+          .toArray(),
+    },
+    {
+      name: "aggregate over a correlated sum",
+      run: (db) =>
+        users(db).sum(expr((u: U) => u.orders?.reduce((acc, o) => acc + o.total, 0) ?? 0)),
+    },
+    {
+      name: "membership against a captured array",
+      run: (db) => {
+        const cities: Array<string | null> = ["London", "NYC"];
+        return users(db)
+          .where(expr((u: U) => cities.includes(u.city)))
+          .toArray();
+      },
+    },
   ];
 }
 

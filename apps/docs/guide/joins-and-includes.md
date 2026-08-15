@@ -115,6 +115,32 @@ const allPaid = await db.users
 - `include` **loads** related rows; `some`/`every` **filter** by them. An `include` is not visible to `where` — same
   rule as EF Core.
 
+### Counting and summing navigations
+
+Projections, predicates, `orderBy` keys and aggregate selectors can also *measure* a navigation — again with the
+methods arrays already have:
+
+```ts
+const stats = await db.users
+  .select((u) => ({
+    name: u.name,
+    orderCount: u.orders?.length ?? 0,                              // correlated COUNT(*)
+    big: u.orders?.filter((o) => o.total > 100).length ?? 0,        // filtered COUNT(*)
+    spent: u.orders?.reduce((acc, o) => acc + o.total, 0) ?? 0,     // COALESCE(SUM(total), 0)
+  }))
+  .toArray();
+
+db.users.where((u) => (u.orders?.length ?? 0) > 1);
+db.users.orderByDescending((u) => u.orders?.length ?? 0);
+```
+
+- Each measurement compiles to one correlated scalar subquery; the memory provider attaches the navigation and runs
+  the same JS, so results match row for row (`length` of an empty navigation is 0, an empty sum is 0).
+- `filter` steps chain (`nav.filter(p).length`, `nav.filter(p).some(q)`), and their predicates may reference nested
+  navigations.
+- **The sum is a recognized idiom, not general `reduce`:** exactly `reduce((acc, o) => acc + expr, seed)` with a
+  constant numeric seed and `acc` on one side of the `+`. Anything else is refused (R2001) rather than guessed.
+
 ### The rules
 
 - **Selectors are navigation paths, not expressions.** `include(u => u.orders)` — a single property access. It is

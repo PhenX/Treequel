@@ -109,3 +109,69 @@ describe("navigation predicates (memory, runtime-parsed trees)", () => {
     expect("orders" in (users[0] as object)).toBe(false);
   });
 });
+
+describe("correlated projections and aggregates (memory, runtime-parsed trees)", () => {
+  it("projects a navigation count and a filtered count", async () => {
+    const rows = await db()
+      .users.select((u) => ({
+        name: u.name,
+        n: u.orders?.length ?? 0,
+        big: u.orders?.filter((o) => o.total >= 10).length ?? 0,
+      }))
+      .toArray();
+    expect(rows).toEqual([
+      { name: "Ada", n: 2, big: 2 },
+      { name: "Alan", n: 0, big: 0 },
+      { name: "Grace", n: 1, big: 0 },
+    ]);
+  });
+
+  it("sums a navigation via the reduce idiom", async () => {
+    const rows = await db()
+      .users.select((u) => ({
+        name: u.name,
+        spent: u.orders?.reduce((acc, o) => acc + o.total, 0) ?? 0,
+      }))
+      .toArray();
+    expect(rows).toEqual([
+      { name: "Ada", spent: 30 },
+      { name: "Alan", spent: 0 },
+      { name: "Grace", spent: 5 },
+    ]);
+  });
+
+  it("orders by a navigation count", async () => {
+    const rows = await db()
+      .users.orderByDescending((u) => u.orders?.length ?? 0)
+      .thenBy((u) => u.id)
+      .toArray();
+    expect(rows.map((u) => u.name)).toEqual(["Ada", "Grace", "Alan"]);
+  });
+
+  it("filters inside a chain may reference child navigations", async () => {
+    const rows = await db()
+      .users.select((u) => ({
+        name: u.name,
+        withItems: u.orders?.filter((o) => o.items?.some((i) => i.sku === "apple")).length ?? 0,
+      }))
+      .toArray();
+    expect(rows).toEqual([
+      { name: "Ada", withItems: 1 },
+      { name: "Alan", withItems: 0 },
+      { name: "Grace", withItems: 0 },
+    ]);
+  });
+
+  it("aggregates over a correlated sum", async () => {
+    const total = await db().users.sum((u) => u.orders?.reduce((acc, o) => acc + o.total, 0) ?? 0);
+    expect(total).toBe(35);
+  });
+
+  it("groups by a navigation count", async () => {
+    const groups = await db()
+      .users.groupBy((u) => u.orders?.length ?? 0)
+      .toArray();
+    const byCount = Object.fromEntries(groups.map((g) => [String(g.key), g.items.length]));
+    expect(byCount).toEqual({ "0": 1, "1": 1, "2": 1 });
+  });
+});

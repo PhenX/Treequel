@@ -119,11 +119,49 @@ export function collectKeys(rows: readonly unknown[], prop: string, nav: string)
 }
 
 /**
+ * A navigation reference inside an expression: `param.nav` optionally extended
+ * by `.filter(l)` steps. Terminal calls (`some`/`every`/`reduce`/`.length`)
+ * are matched by the callers; the chain carries every nested lambda together
+ * with its *element* parameter name so child navigations resolve recursively.
+ */
+export interface NavChain {
+  readonly nav: string;
+  readonly rel: Relation;
+  readonly lambdas: ReadonlyArray<{ readonly body: Node; readonly param: string | undefined }>;
+}
+
+/** Match `param.nav` or `param.nav.filter(l)…` rooted at `param`. */
+export function matchNavChain(
+  n: Node,
+  param: string,
+  source: string,
+  relations: RelationsMeta,
+): NavChain | null {
+  if (n.kind === "Member" && n.object.kind === "Param" && n.object.name === param) {
+    const rel = relations[source]?.[n.prop];
+    return rel ? { nav: n.prop, rel, lambdas: [] } : null;
+  }
+  if (
+    n.kind === "Call" &&
+    n.callee.kind === "Member" &&
+    n.callee.prop === "filter" &&
+    n.args[0]?.kind === "Lambda"
+  ) {
+    const base = matchNavChain(n.callee.object, param, source, relations);
+    if (!base) return null;
+    const l = n.args[0];
+    return { ...base, lambdas: [...base.lambdas, { body: l.body, param: l.params[0] }] };
+  }
+  return null;
+}
+
+/**
  * Navigations referenced by a predicate/selector tree, as include specs: a
- * `Member(param, nav)` hit becomes a spec, and a `.some(…)`/`.every(…)` call
- * over it descends into the nested lambda against the navigation's target.
- * Rows augmented with these specs make the compiled lambda evaluable in
- * memory — the exact rows SQL reasons about with correlated subqueries.
+ * navigation chain (`u.orders`, `u.orders.filter(…)`) becomes a spec, and
+ * every nested lambda — quantifier predicates, filter steps, the reduce
+ * accumulator — descends against the navigation's target. Rows augmented with
+ * these specs make the compiled lambda evaluable in memory — the exact rows
+ * SQL reasons about with correlated subqueries.
  */
 export function predicateSpecs(
   body: Node,
@@ -133,32 +171,42 @@ export function predicateSpecs(
 ): IncludeSpec[] {
   if (!param || !relations) return [];
   const specs: IncludeSpec[] = [];
-  const navOf = (n: Node): Relation | undefined =>
-    n.kind === "Member" && n.object.kind === "Param" && n.object.name === param
-      ? relations[source]?.[n.prop]
-      : undefined;
+
+  const push = (
+    chain: NavChain,
+    extra: ReadonlyArray<{ readonly body: Node; readonly param: string | undefined }> = [],
+  ): void => {
+    const nested = [...chain.lambdas, ...extra].flatMap((l) =>
+      predicateSpecs(l.body, l.param, chain.rel.target, relations),
+    );
+    specs.push({ nav: chain.nav, ...chain.rel, children: mergeIncludeSpecs(nested) });
+  };
 
   const walk = (n: Node): void => {
     if (n.kind === "Call" && n.callee.kind === "Member") {
-      const rel = navOf(n.callee.object);
+      const method = n.callee.prop;
       const lambda = n.args[0];
-      if (
-        rel &&
-        (n.callee.prop === "some" || n.callee.prop === "every") &&
-        lambda?.kind === "Lambda"
-      ) {
-        specs.push({
-          nav: (n.callee.object as Extract<Node, { kind: "Member" }>).prop,
-          ...rel,
-          children: predicateSpecs(lambda.body, lambda.params[0], rel.target, relations),
-        });
-        for (const arg of n.args.slice(1)) walk(arg);
-        return;
+      if ((method === "some" || method === "every") && lambda?.kind === "Lambda") {
+        const chain = matchNavChain(n.callee.object, param, source, relations);
+        if (chain) {
+          push(chain, [{ body: lambda.body, param: lambda.params[0] }]);
+          for (const arg of n.args.slice(1)) walk(arg);
+          return;
+        }
+      }
+      if (method === "reduce" && lambda?.kind === "Lambda") {
+        const chain = matchNavChain(n.callee.object, param, source, relations);
+        if (chain) {
+          // The element is the lambda's SECOND parameter: (acc, o) => …
+          push(chain, [{ body: lambda.body, param: lambda.params[1] }]);
+          for (const arg of n.args.slice(1)) walk(arg);
+          return;
+        }
       }
     }
-    const rel = navOf(n);
-    if (rel) {
-      specs.push({ nav: (n as Extract<Node, { kind: "Member" }>).prop, ...rel });
+    const chain = matchNavChain(n, param, source, relations);
+    if (chain) {
+      push(chain);
       return;
     }
     for (const child of children(n)) walk(child);

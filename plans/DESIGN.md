@@ -571,6 +571,7 @@ Core translation table (pg dialect):
 | ops `where/orderBy/take/skip/distinct/join/leftJoin` | `WHERE` (ANDed), `ORDER BY`, `LIMIT/OFFSET`, `DISTINCT`, `INNER/LEFT JOIN ON` — compiled as a layer stack: an op that would change meaning under SQL clause order wraps the current SELECT into a derived table (ADR-0004); `groupBy` stays memory-only in v1 |
 | `include` | split queries: per navigation one batched fetch (`= ANY($n)` pg / chunked `IN` sqlite via `dialect.maxBatchKeys`), stitched by the shared helpers in `linq`; attaches to final rows only |
 | `nav.some(p)` / `nav.every(p)` in predicates | correlated `EXISTS (SELECT 1 …)` / `NOT EXISTS (… NOT p)` against the navigation's target (relations ride on the plan; the nested lambda translates in a lexical child scope) |
+| `nav.length`, `nav.filter(p).length`, `nav.reduce((acc,o)=>acc+e,0)` | correlated scalar subqueries: `COUNT(*)`, filtered `COUNT(*)`, `COALESCE(SUM(e),0)` — usable in projections, predicates, orderBy keys and aggregate selectors (ADR-0006) |
 | executors | `count`→`COUNT(*)`, `some`→`EXISTS(...)`, `first`→`LIMIT 1` (+`single` → `LIMIT 2` + runtime cardinality check) |
 
 Schema meta is minimal and explicit in v1: `{ users: { table:"users", columns:{ id:"id", createdAt:"created_at" }, json?: ["meta"] } }`. No introspection in v1 (providers may add it).

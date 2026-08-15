@@ -69,6 +69,8 @@ export const WellKnown: Readonly<Record<string, WellKnownEntry>> = Object.freeze
   // Array (relational)
   some: { on: "array", kind: "method" },
   every: { on: "array", kind: "method" },
+  filter: { on: "array", kind: "method" },
+  reduce: { on: "array", kind: "method" },
   // Date
   getFullYear: { on: "date", kind: "method" },
   getMonth: { on: "date", kind: "method" },

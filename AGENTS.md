@@ -41,8 +41,10 @@ the Conventional-Commits `check-commit.mjs` (CI lints the PR range), `release.mj
 transform benchmark (`bench/`, advisory regression gate), the CI matrix + weekly TS/oxc canary, and the two integration
 examples are in place. The **M7** surface exists too: the VitePress docs site (`apps/docs`) with generated diagnostics +
 tree-schema pages, the playground (`apps/playground`), the manually dispatched **Release** workflow, and the community
-health files (code of conduct, issue forms, CODEOWNERS). **The one remaining step is dispatching the Release workflow to
-publish `0.1.0`.** **Update this paragraph as milestones complete.**
+health files (code of conduct, issue forms, CODEOWNERS). Pulled ahead of the plan's post-0.1 backlog,
+`@treequel/provider-sql` ships both **Postgres and SQLite** dialects behind a `SqlDialect` seam (ADR-0003). **The one
+remaining step is dispatching the Release workflow to publish `0.1.0`.** **Update this paragraph as milestones
+complete.**
 
 ## Project overview
 

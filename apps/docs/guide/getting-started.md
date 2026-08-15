@@ -71,6 +71,25 @@ await db.users.where((u) => u.age >= 18 && u.active).toArray();
 Constants become bound `$n` parameters — values are never interpolated into the SQL string. Call `explain()` on any
 query to see the text a provider would run.
 
+## The same query, on SQLite
+
+`sqliteProvider` is the same story with a SQLite `executor` (`better-sqlite3`, `node:sqlite`, sql.js, …). It emits
+positional `?` parameters, case-sensitive `GLOB` matching, and Postgres-style null ordering, so its results match the
+memory reference row for row.
+
+```ts
+import { sqliteProvider } from "@treequel/provider-sql";
+
+const db = createContext<{ users: User }>(
+  sqliteProvider(executor, { users: { table: "users" } }),
+);
+
+await db.users.where((u) => u.age >= 18 && u.name.startsWith("A")).toArray();
+// SELECT "users".* FROM "users" WHERE ("users"."age" >= ? AND ("users"."name" GLOB ?))
+```
+
+SQLite has no boolean type, so model boolean columns as `0`/`1`.
+
 ## Without the plugin
 
 In-memory paths work with no plugin: the memory provider calls your compiled lambda directly and never needs the tree.

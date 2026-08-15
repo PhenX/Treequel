@@ -27,6 +27,26 @@ const schema: SchemaMeta = {
   items: { table: "items", columns: { orderId: "order_id" } },
 };
 
+// A bespoke table with a date column: the sample corpus has none because raw
+// date values round-trip differently per backend (SQLite text vs a JS Date), so
+// date cases compare extracted integers, never the stored value itself.
+interface Event {
+  id: number;
+  at: Date;
+}
+interface EventsSchema {
+  events: Event;
+}
+const eventsSchema: SchemaMeta = { events: { table: "events" } };
+// Instants whose UTC calendar fields are unambiguous; the suite runs under
+// TZ=UTC (vitest config) so the memory getters read the same fields SQL does.
+const events: Event[] = [
+  { id: 1, at: new Date("2019-12-31T00:00:00Z") },
+  { id: 2, at: new Date("2020-01-01T00:00:00Z") },
+  { id: 3, at: new Date("2020-06-15T12:00:00Z") },
+  { id: 4, at: new Date("2021-03-08T00:00:00Z") },
+];
+
 interface SqlJsDb {
   run(sql: string, params?: unknown[]): void;
   prepare(sql: string): {
@@ -70,6 +90,10 @@ const sqlDb: Context<Schema> = createContext<Schema>(
 const memDb: Context<Schema> = createContext<Schema>(memoryProvider({ users, orders, items }), {
   relations,
 });
+const eventsSql: Context<EventsSchema> = createContext<EventsSchema>(
+  sqlite((text, values) => executor(text, values), eventsSchema),
+);
+const eventsMem: Context<EventsSchema> = createContext<EventsSchema>(memoryProvider({ events }));
 
 beforeAll(async () => {
   const db = await openDb();
@@ -86,10 +110,17 @@ beforeAll(async () => {
   for (const i of items) {
     db.run("INSERT INTO items VALUES (?,?,?)", [i.id, i.orderId, i.sku]);
   }
+  // Dates store as ISO-8601 UTC text — what the dialect's coerceValue produces
+  // for a bound Date, and what strftime reads.
+  db.run("CREATE TABLE events (id int, at text);");
+  for (const e of events) {
+    db.run("INSERT INTO events VALUES (?,?)", [e.id, e.at.toISOString()]);
+  }
   executor = makeExecutor(db);
 });
 
 const ids = (rs: User[]): number[] => rs.map((u) => u.id).sort((a, b) => a - b);
+const evIds = (rs: Event[]): number[] => rs.map((e) => e.id).sort((a, b) => a - b);
 
 describe("SQLite provider ≡ memory reference (reified trees on sql.js)", () => {
   it("where: numeric predicate", async () => {
@@ -206,6 +237,49 @@ describe("SQLite provider ≡ memory reference (reified trees on sql.js)", () =>
     expect((await sqlDb.users.orderBy(id).firstOrThrow()).id).toBe(1);
     const grace = expr((u: User) => u.name === "Grace");
     expect((await sqlDb.users.single(grace)).id).toBe(3);
+  });
+});
+
+describe("SQLite date extraction ≡ memory reference", () => {
+  it("projects getFullYear/getMonth/getDate the same as the JS getters", async () => {
+    const s = expr((e: Event) => ({
+      id: e.id,
+      y: e.at.getFullYear(),
+      m: e.at.getMonth(),
+      d: e.at.getDate(),
+    }));
+    expect(multiset(await eventsSql.events.select(s).toArray())).toEqual(
+      multiset(await eventsMem.events.select(s).toArray()),
+    );
+  });
+
+  it("filters on getFullYear and the 0-based getMonth match the reference", async () => {
+    const in2020 = expr((e: Event) => e.at.getFullYear() === 2020);
+    const inJune = expr((e: Event) => e.at.getMonth() === 5); // 5 = June (0-based)
+    expect(evIds(await eventsSql.events.where(in2020).toArray())).toEqual([2, 3]);
+    expect(evIds(await eventsSql.events.where(in2020).toArray())).toEqual(
+      evIds(await eventsMem.events.where(in2020).toArray()),
+    );
+    expect(evIds(await eventsSql.events.where(inJune).toArray())).toEqual(
+      evIds(await eventsMem.events.where(inJune).toArray()),
+    );
+  });
+
+  it("binds a captured Date comparison as a coerced ISO parameter", async () => {
+    const cutoff = new Date("2020-01-01T00:00:00Z");
+    const p = expr((e: Event) => e.at >= cutoff);
+    expect(evIds(await eventsSql.events.where(p).toArray())).toEqual([2, 3, 4]);
+    expect(evIds(await eventsSql.events.where(p).toArray())).toEqual(
+      evIds(await eventsMem.events.where(p).toArray()),
+    );
+  });
+
+  it("compiles to strftime with the 0-based month adjustment", async () => {
+    const text = await eventsSql.events
+      .select(expr((e: Event) => ({ m: e.at.getMonth() })))
+      .explain();
+    expect(text).toContain("strftime('%m'");
+    expect(text).toContain("- 1)");
   });
 });
 

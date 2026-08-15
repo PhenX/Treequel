@@ -44,6 +44,10 @@ export default defineConfig({
     },
   },
   test: {
+    // Date getters (getFullYear/getMonth/getDate) read local-time fields; SQL
+    // date extraction reads UTC. Pin the run to UTC so the two agree and date
+    // assertions stay deterministic across CI runners. Node re-reads TZ per call.
+    env: { TZ: "UTC" },
     include: [
       "packages/**/*.{test,spec}.ts",
       "examples/**/*.{test,spec}.ts",

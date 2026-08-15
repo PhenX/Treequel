@@ -41,3 +41,19 @@ db.users
 ```
 
 The capability check runs on the prefix only; opaque functions and unknown calls are legal after the boundary.
+
+## Dates
+
+Most date logic never reaches a provider: compute it in ordinary JavaScript above the query and capture the result,
+and partial evaluation folds it to a constant before translation. A captured `Date` binds as one parameter.
+
+```ts
+const since = startOfWeek(new Date()); // any JS date library
+db.events.where((e) => e.at >= since); // → `at >= $1`
+```
+
+For fields of a **column**, the SQL providers translate `getFullYear()`, `getMonth()`, and `getDate()` — to `EXTRACT`
+on Postgres, `strftime` on SQLite. `getMonth()` stays 0-based, matching JavaScript. These fields are read in **UTC**, so
+they match the in-memory reference when your process runs in UTC; if it does not, cross `.inMemory()` and let the
+getters run in JS. Any other `Date` method (`getHours()`, `getDay()`, `toISOString()`, …) is untranslatable — a
+located [R2001](/errors#R2001), pointing you at the boundary.

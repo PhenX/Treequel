@@ -22,6 +22,11 @@ export const sqliteDialect: SqlDialect = {
     const placeholders = values.map((v) => ctx.param(v)).join(", ");
     return `(${needle} IN (${placeholders}))`;
   },
+  dateExtract(part, expr) {
+    // strftime returns text ('2020', '01', …) and reads the value as UTC.
+    const format = part === "year" ? "%Y" : part === "month" ? "%m" : "%d";
+    return `CAST(strftime('${format}', ${expr}) AS INTEGER)`;
+  },
   power(base, exponent) {
     return `POWER(${base}, ${exponent})`;
   },
@@ -35,6 +40,11 @@ export const sqliteDialect: SqlDialect = {
   // historical 999-variable default.
   maxBatchKeys: 500,
   coerceValue(value) {
-    return typeof value === "boolean" ? (value ? 1 : 0) : value;
+    // SQLite has no boolean or date type: booleans store as 0/1, and Dates store
+    // as ISO-8601 text (UTC, with a trailing `Z`) that `strftime` and ordering
+    // both understand.
+    if (typeof value === "boolean") return value ? 1 : 0;
+    if (value instanceof Date) return value.toISOString();
+    return value;
   },
 };

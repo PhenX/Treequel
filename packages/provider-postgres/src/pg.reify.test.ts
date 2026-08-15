@@ -25,6 +25,24 @@ const schema: SchemaMeta = {
   items: { table: "items", columns: { orderId: "order_id" } },
 };
 
+// A bespoke table with a date column: the sample corpus has none. The suite runs
+// under TZ=UTC (vitest config) and PGlite defaults to UTC, so the memory getters
+// (local time) read the same calendar fields EXTRACT does.
+interface Event {
+  id: number;
+  at: Date;
+}
+interface EventsSchema {
+  events: Event;
+}
+const eventsSchema: SchemaMeta = { events: { table: "events" } };
+const events: Event[] = [
+  { id: 1, at: new Date("2019-12-31T00:00:00Z") },
+  { id: 2, at: new Date("2020-01-01T00:00:00Z") },
+  { id: 3, at: new Date("2020-06-15T12:00:00Z") },
+  { id: 4, at: new Date("2021-03-08T00:00:00Z") },
+];
+
 // The contexts are module-level consts so the build plugin traces them and
 // reifies inline lambdas; the executor is bound once PGlite is ready.
 let executor: SqlExecutor;
@@ -35,6 +53,10 @@ const sqlDb: Context<Schema> = createContext<Schema>(
 const memDb: Context<Schema> = createContext<Schema>(memoryProvider({ users, orders, items }), {
   relations,
 });
+const eventsSql: Context<EventsSchema> = createContext<EventsSchema>(
+  postgres((text, values) => executor(text, values), eventsSchema),
+);
+const eventsMem: Context<EventsSchema> = createContext<EventsSchema>(memoryProvider({ events }));
 
 beforeAll(async () => {
   const pg = await PGlite.create();
@@ -58,6 +80,10 @@ beforeAll(async () => {
   }
   for (const i of items) {
     await pg.query(`INSERT INTO items VALUES ($1,$2,$3)`, [i.id, i.orderId, i.sku]);
+  }
+  await pg.exec(`CREATE TABLE events (id int primary key, at timestamptz);`);
+  for (const e of events) {
+    await pg.query(`INSERT INTO events VALUES ($1,$2)`, [e.id, e.at]);
   }
   executor = (text, values) => pg.query(text, values) as ReturnType<SqlExecutor>;
 });
@@ -174,6 +200,51 @@ describe("pg provider ≡ memory reference (reified trees run on PGlite)", () =>
     expect((await sqlDb.users.orderBy(id).firstOrThrow()).id).toBe(1);
     const grace = expr((u: User) => u.name === "Grace");
     expect((await sqlDb.users.single(grace)).id).toBe(3);
+  });
+});
+
+describe("pg date extraction ≡ memory reference", () => {
+  const eid = (rs: Event[]): number[] => rs.map((e) => e.id).sort((a, b) => a - b);
+
+  it("projects getFullYear/getMonth/getDate the same as the JS getters", async () => {
+    const s = expr((e: Event) => ({
+      id: e.id,
+      y: e.at.getFullYear(),
+      m: e.at.getMonth(),
+      d: e.at.getDate(),
+    }));
+    expect(multiset(await eventsSql.events.select(s).toArray())).toEqual(
+      multiset(await eventsMem.events.select(s).toArray()),
+    );
+  });
+
+  it("filters on getFullYear and the 0-based getMonth match the reference", async () => {
+    const in2020 = expr((e: Event) => e.at.getFullYear() === 2020);
+    const inJune = expr((e: Event) => e.at.getMonth() === 5); // 5 = June (0-based)
+    expect(eid(await eventsSql.events.where(in2020).toArray())).toEqual([2, 3]);
+    expect(eid(await eventsSql.events.where(in2020).toArray())).toEqual(
+      eid(await eventsMem.events.where(in2020).toArray()),
+    );
+    expect(eid(await eventsSql.events.where(inJune).toArray())).toEqual(
+      eid(await eventsMem.events.where(inJune).toArray()),
+    );
+  });
+
+  it("binds a captured Date comparison against the reference", async () => {
+    const cutoff = new Date("2020-01-01T00:00:00Z");
+    const p = expr((e: Event) => e.at >= cutoff);
+    expect(eid(await eventsSql.events.where(p).toArray())).toEqual([2, 3, 4]);
+    expect(eid(await eventsSql.events.where(p).toArray())).toEqual(
+      eid(await eventsMem.events.where(p).toArray()),
+    );
+  });
+
+  it("compiles to EXTRACT with the 0-based month adjustment", async () => {
+    const text = await eventsSql.events
+      .select(expr((e: Event) => ({ m: e.at.getMonth() })))
+      .explain();
+    expect(text).toContain("EXTRACT(MONTH FROM");
+    expect(text).toContain("- 1)");
   });
 });
 

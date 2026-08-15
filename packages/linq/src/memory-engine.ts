@@ -70,7 +70,7 @@ function navEvalRows(cur: unknown[], e: AnyExpr, env: PlanEnv, rows: RowSource):
   }
   const specs = predicateSpecs(body, e.params[0], env.source as string, env.relations);
   if (specs.length === 0) return null;
-  return applyIncludes(cur, specs, rows);
+  return applyIncludes(cur, specs, rows, env.relations);
 }
 
 /** Apply a sequence of ops to an array; an `exec` op returns the final result. */
@@ -82,17 +82,21 @@ export function applyOps(
 ): unknown {
   const includes = collectIncludes(ops);
   let cur = start;
+  // Navigations resolve on source-shaped rows only: once a select/groupBy/join
+  // reshapes the element, later expressions run over what they were given.
+  let scope = env;
   for (let i = 0; i < ops.length; i++) {
     const op = ops[i] as PlanOp;
     switch (op.op) {
       case "where": {
-        const ev = navEvalRows(cur, op.expr, env, rows) ?? cur;
+        const ev = navEvalRows(cur, op.expr, scope, rows) ?? cur;
         cur = cur.filter((_r, j) => Boolean(invoke(op.expr, ev[j])));
         break;
       }
       case "select": {
-        const ev = navEvalRows(cur, op.expr, env, rows) ?? cur;
+        const ev = navEvalRows(cur, op.expr, scope, rows) ?? cur;
         cur = cur.map((_r, j) => invoke(op.expr, ev[j]));
+        scope = {};
         break;
       }
       case "orderBy": {
@@ -101,12 +105,12 @@ export function applyOps(
           const next = ops[++i] as Extract<PlanOp, { op: "orderBy" | "thenBy" }>;
           keys.push({ expr: next.expr, desc: next.desc });
         }
-        cur = sortBy(cur, keys, env, rows);
+        cur = sortBy(cur, keys, scope, rows);
         break;
       }
       case "thenBy":
         // Only reached if a thenBy appears without a preceding orderBy; treat as a fresh sort.
-        cur = sortBy(cur, [{ expr: op.expr, desc: op.desc }], env, rows);
+        cur = sortBy(cur, [{ expr: op.expr, desc: op.desc }], scope, rows);
         break;
       case "take":
         cur = cur.slice(0, Math.max(0, op.n));
@@ -118,26 +122,28 @@ export function applyOps(
         cur = distinct(cur);
         break;
       case "groupBy": {
-        const ev = navEvalRows(cur, op.expr, env, rows) ?? cur;
+        const ev = navEvalRows(cur, op.expr, scope, rows) ?? cur;
         cur = groupBy(cur, op.expr, ev) as unknown[];
+        scope = {};
         break;
       }
       case "join":
       case "leftJoin":
         cur = hashJoin(cur, op, rows);
+        scope = {};
         break;
       case "include":
         break; // collected up front; navigations attach to the final rows below
       case "inMemory":
         break; // boundary marker — a no-op inside a pure memory run
       case "exec": {
-        if (rowResult(op.kind)) cur = applyIncludes(cur, includes, rows);
-        const ev = op.expr ? navEvalRows(cur, op.expr, env, rows) : null;
+        if (rowResult(op.kind)) cur = applyIncludes(cur, includes, rows, env.relations);
+        const ev = op.expr ? navEvalRows(cur, op.expr, scope, rows) : null;
         return execute(cur, op, ev ?? cur);
       }
     }
   }
-  return applyIncludes(cur, includes, rows);
+  return applyIncludes(cur, includes, rows, env.relations);
 }
 
 const rowResult = (kind: Extract<PlanOp, { op: "exec" }>["kind"]): boolean =>
@@ -145,13 +151,15 @@ const rowResult = (kind: Extract<PlanOp, { op: "exec" }>["kind"]): boolean =>
 
 /**
  * Attach each navigation's related rows to the final rows. Parents are copied
- * on attach; related rows are fetched by key from the row source and stitched
- * with the shared engine so every provider agrees on the result shape.
+ * on attach; related rows are fetched by key from the row source, refined by
+ * the spec's ops (filter/order — slices apply per parent at attach), and
+ * stitched with the shared engine so every provider agrees on the shape.
  */
 function applyIncludes(
   parents: unknown[],
   specs: readonly IncludeSpec[],
   rows: RowSource,
+  relations?: RelationsMeta,
 ): unknown[] {
   let cur = parents;
   for (const spec of specs) {
@@ -162,10 +170,17 @@ function applyIncludes(
       const key = rowKey(child, spec.to, spec.nav);
       return key !== null && key !== undefined && wanted.has(canonical(key));
     });
-    if (spec.children && spec.children.length > 0) {
-      children = applyIncludes(children, spec.children, rows);
+    if (spec.ops && spec.ops.length > 0) {
+      children = applyOps(children, spec.ops, rows, {
+        source: spec.target,
+        ...(relations ? { relations } : {}),
+      }) as unknown[];
     }
-    cur = attachChildren(cur, spec, children, spec.from, spec.to);
+    if (spec.children && spec.children.length > 0) {
+      children = applyIncludes(children, spec.children, rows, relations);
+    }
+    const ordered = spec.ops?.some((o) => o.op === "orderBy") ?? false;
+    cur = attachChildren(cur, spec, children, spec.from, spec.to, ordered);
   }
   return cur;
 }

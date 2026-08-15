@@ -505,6 +505,166 @@ export function defaultCases(): ConformanceCase[] {
           .toArray();
       },
     },
+    {
+      name: "group and count per key",
+      run: (db) =>
+        orders(db)
+          .groupBy(expr((o: O) => o.userId))
+          .select(
+            expr((g: { key: number | null; items: readonly O[] }) => ({
+              userId: g.key,
+              n: g.items.length,
+            })),
+          )
+          .toArray(),
+    },
+    {
+      name: "group by a composite key",
+      run: (db) =>
+        orders(db)
+          .groupBy(expr((o: O) => ({ uid: o.userId })))
+          .select(
+            expr((g: { key: { uid: number | null }; items: readonly O[] }) => ({
+              uid: g.key.uid,
+              n: g.items.length,
+            })),
+          )
+          .toArray(),
+    },
+    {
+      name: "group aggregates: sum, min, max, average",
+      run: (db) =>
+        orders(db)
+          .groupBy(expr((o: O) => o.userId))
+          .select(
+            expr((g: { key: number | null; items: readonly O[] }) => ({
+              userId: g.key,
+              total: g.items.reduce((acc, o) => acc + o.total, 0),
+              low: g.items.reduce((m, o) => Math.min(m, o.total), Infinity),
+              high: g.items.reduce((m, o) => Math.max(m, o.total), -Infinity),
+              avg: g.items.reduce((acc, o) => acc + o.total, 0) / g.items.length,
+            })),
+          )
+          .toArray(),
+    },
+    {
+      name: "filtered count per group",
+      run: (db) =>
+        orders(db)
+          .groupBy(expr((o: O) => o.userId))
+          .select(
+            expr((g: { key: number | null; items: readonly O[] }) => ({
+              userId: g.key,
+              big: g.items.filter((o) => o.total >= 10).length,
+            })),
+          )
+          .toArray(),
+    },
+    {
+      name: "having via where over the group projection",
+      run: (db) =>
+        orders(db)
+          .groupBy(expr((o: O) => o.userId))
+          .select(
+            expr((g: { key: number | null; items: readonly O[] }) => ({
+              userId: g.key,
+              n: g.items.length,
+            })),
+          )
+          .where(expr((r: { userId: number | null; n: number }) => r.n > 1))
+          .toArray(),
+    },
+    {
+      name: "group projection ordered and sliced",
+      ordered: true,
+      run: (db) =>
+        orders(db)
+          .groupBy(expr((o: O) => o.userId))
+          .select(
+            expr((g: { key: number | null; items: readonly O[] }) => ({
+              userId: g.key,
+              total: g.items.reduce((acc, o) => acc + o.total, 0),
+            })),
+          )
+          .orderByDescending(expr((r: { userId: number | null; total: number }) => r.total))
+          .take(2)
+          .toArray(),
+    },
+    {
+      name: "count of groups",
+      run: (db) =>
+        orders(db)
+          .groupBy(expr((o: O) => o.userId))
+          .count(),
+    },
+    {
+      name: "group by a navigation count",
+      run: (db) =>
+        users(db)
+          .groupBy(expr((u: U) => u.orders?.length ?? 0))
+          .select(
+            expr((g: { key: number; items: readonly U[] }) => ({
+              orders: g.key,
+              people: g.items.length,
+            })),
+          )
+          .toArray(),
+    },
+    {
+      name: "filtered include",
+      run: (db) =>
+        users(db)
+          .include(
+            (u) => u.orders,
+            (q) => q.where(expr((o: O) => o.total >= 10)),
+          )
+          .toArray(),
+    },
+    {
+      name: "ordered include",
+      run: (db) =>
+        users(db)
+          .include(
+            (u) => u.orders,
+            (q) => q.orderByDescending(expr((o: O) => o.total)),
+          )
+          .toArray(),
+    },
+    {
+      name: "top-one-per-parent include",
+      run: (db) =>
+        users(db)
+          .include(
+            (u) => u.orders,
+            (q) =>
+              q
+                .orderByDescending(expr((o: O) => o.total))
+                .thenBy(expr((o: O) => o.id))
+                .take(1),
+          )
+          .toArray(),
+    },
+    {
+      name: "filtered include with a navigation predicate",
+      run: (db) =>
+        users(db)
+          .include(
+            (u) => u.orders,
+            (q) => q.where(expr((o: O) => o.items?.some((i) => i.sku === "apple"))),
+          )
+          .toArray(),
+    },
+    {
+      name: "refined thenInclude",
+      run: (db) =>
+        users(db)
+          .include((u) => u.orders)
+          .thenInclude(
+            (o) => o.items,
+            (q) => q.where(expr((i: I) => i.sku !== "pear")),
+          )
+          .toArray(),
+    },
   ];
 }
 

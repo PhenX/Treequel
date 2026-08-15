@@ -445,6 +445,36 @@ describe("fail-fast behavior", () => {
     ).rejects.toThrow(/after the boundary/);
   });
 
+  it("rejects an include slice without an order", () => {
+    expect(() =>
+      db().users.include(
+        (u) => u.orders,
+        (q) => q.take(2),
+      ),
+    ).toThrow(/requires an orderBy/);
+  });
+
+  it("rejects refining an include after slicing it", () => {
+    expect(() =>
+      db().users.include(
+        (u) => u.orders,
+        (q) => q.take(2).where((o) => o.total > 0),
+      ),
+    ).toThrow(/before slicing/);
+  });
+
+  it("rejects a refined include stated twice for one navigation", async () => {
+    await expect(
+      db()
+        .users.include(
+          (u) => u.orders,
+          (q) => q.where((o) => o.total > 0),
+        )
+        .include((u) => u.orders)
+        .toArray(),
+    ).rejects.toThrow(/stated once/);
+  });
+
   it("refuses a navigation predicate when no expression tree is available", async () => {
     // No build plugin and no fallback registered in this file: evaluating the
     // lambda against rows without `orders` would be silently wrong, so it must

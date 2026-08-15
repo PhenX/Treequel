@@ -18,7 +18,13 @@ export type ColumnShape =
       readonly source?: string;
     }
   | { readonly kind: "derived"; readonly alias: string; readonly columns: readonly string[] | null }
-  | { readonly kind: "scalar"; readonly alias: string };
+  | { readonly kind: "scalar"; readonly alias: string }
+  | {
+      /** The `g` of a group projection: `key` parts plus the pre-group row shape. */
+      readonly kind: "group";
+      readonly keyParts: ReadonlyArray<{ readonly name: string | null; readonly sql: string }>;
+      readonly item: ColumnShape;
+    };
 
 /** Statement-wide surroundings for navigation subqueries (`EXISTS`). */
 export interface TranslateEnv {
@@ -124,6 +130,8 @@ export function shapeColumn(shape: ColumnShape, prop: string, ctx: TranslateCont
       return `${quoteIdent(shape.alias)}.${quoteIdent(prop)}`;
     case "scalar":
       return ctx.fail("R2002", `A scalar row has no column '${prop}'.`);
+    case "group":
+      return ctx.fail("R2002", `A group has no column '${prop}' — project from g.key and g.items.`);
   }
 }
 
@@ -216,17 +224,49 @@ function paramShape(node: Node, ctx: TranslateContext): ColumnShape {
 }
 
 function translateMember(node: Extract<Node, { kind: "Member" }>, ctx: TranslateContext): string {
-  // Navigation count / string length
+  // Group count / navigation count / string length
   if (node.prop === "length") {
+    const items = matchGroupItems(node.object, ctx);
+    if (items) {
+      return ctx.dialect.floatCast(groupCount(items, ctx));
+    }
     const chain = matchNavChain(node.object, ctx);
     if (chain) {
       return navSubquery(chain, ctx, (d) => d.floatCast("COUNT(*)"));
     }
     return `LENGTH(${translate(node.object, ctx)})`;
   }
-  // Direct column: Member(Param, col)
+  // Group key: `g.key` (scalar) or `g.key.prop` (composite)
   if (node.object.kind === "Param") {
-    return shapeColumn(paramShape(node.object, ctx), node.prop, ctx);
+    const shape = paramShape(node.object, ctx);
+    if (shape.kind === "group") {
+      if (node.prop !== "key") {
+        return ctx.fail("R2002", `A group has no property '${node.prop}' — use g.key or g.items.`);
+      }
+      const scalar = shape.keyParts.length === 1 && shape.keyParts[0]?.name === null;
+      if (!scalar) {
+        return ctx.fail(
+          "R2001",
+          "A composite group key projects one property at a time (g.key.prop).",
+        );
+      }
+      return (shape.keyParts[0] as { sql: string }).sql;
+    }
+    return shapeColumn(shape, node.prop, ctx);
+  }
+  if (
+    node.object.kind === "Member" &&
+    node.object.prop === "key" &&
+    node.object.object.kind === "Param"
+  ) {
+    const shape = ctx.shapeOf(node.object.object.name);
+    if (shape?.kind === "group") {
+      const part = shape.keyParts.find((p) => p.name === node.prop);
+      if (!part) {
+        return ctx.fail("R2002", `'${node.prop}' is not a property of the group key.`);
+      }
+      return part.sql;
+    }
   }
   // One level of JSONB path: Member(Member(Param, jsonCol), key)
   if (node.object.kind === "Member" && node.object.object.kind === "Param") {
@@ -278,8 +318,11 @@ function translateCall(node: Extract<Node, { kind: "Call" }>, ctx: TranslateCont
     case "some":
     case "every":
       return translateNavQuantifier(method, recv, args, ctx);
-    case "reduce":
+    case "reduce": {
+      const items = matchGroupItems(recv, ctx);
+      if (items) return translateGroupReduce(items, args, ctx);
       return translateNavReduce(recv, args, ctx);
+    }
     case "startsWith":
     case "endsWith":
     case "includes":
@@ -412,23 +455,31 @@ function translateNavQuantifier(
 }
 
 /**
- * The recognized JS sum idiom over a navigation:
- * `nav.reduce((acc, o) => acc + expr, init)` with a constant numeric `init` →
- * `(init +) COALESCE((SELECT SUM(expr) FROM child WHERE key…), 0)`.
+ * The recognized reduce idioms — real JS whose SQL meaning is unambiguous:
+ *  - sum: `reduce((acc, o) => acc + expr, seed)` with a constant numeric seed
+ *  - min: `reduce((m, o) => Math.min(m, expr), Infinity)`
+ *  - max: `reduce((m, o) => Math.max(m, expr), -Infinity)`
+ * Anything else is refused, never guessed.
  */
-function translateNavReduce(recv: Node, args: readonly Node[], ctx: TranslateContext): string {
-  const chain = matchNavChain(recv, ctx);
-  if (!chain) {
-    return ctx.fail(
-      "R2001",
-      ".reduce() translates only over a declared navigation collection — check the relations map on the context.",
-    );
-  }
+interface ReduceIdiom {
+  readonly agg: "SUM" | "MIN" | "MAX";
+  readonly selector: Node;
+  readonly element: string;
+  readonly seed: number;
+}
+
+function isMathGlobal(n: Node): boolean {
+  if (n.kind === "Capture" && n.name === "Math") return true;
+  return n.kind === "Constant" && n.value === Math;
+}
+
+function reduceIdiom(args: readonly Node[], ctx: TranslateContext): ReduceIdiom {
   const shapeError = (): never =>
     ctx.fail(
       "R2001",
-      "Only the sum idiom `nav.reduce((acc, o) => acc + expr, 0)` (a constant numeric seed, " +
-        "`acc` on one side of a `+`) translates to SQL.",
+      "Only the reduce idioms translate to SQL: the sum idiom " +
+        "`reduce((acc, o) => acc + expr, 0)` (constant numeric seed, `acc` on one side of `+`), " +
+        "`reduce((m, o) => Math.min(m, expr), Infinity)`, and the `Math.max`/`-Infinity` twin.",
     );
   const lambda = args[0];
   const init = args[1];
@@ -442,18 +493,127 @@ function translateNavReduce(recv: Node, args: readonly Node[], ctx: TranslateCon
   }
   const acc = lambda.params[0] as string;
   const element = lambda.params[1] as string;
-  const body = lambda.body;
-  if (body.kind !== "Binary" || body.op !== "+") return shapeError();
   const isAcc = (n: Node): boolean => n.kind === "Param" && n.name === acc;
-  const selector = isAcc(body.left) ? body.right : isAcc(body.right) ? body.left : null;
-  if (!selector) return shapeError();
+  const body = lambda.body;
 
+  if (body.kind === "Binary" && body.op === "+") {
+    const selector = isAcc(body.left) ? body.right : isAcc(body.right) ? body.left : null;
+    if (!selector || !Number.isFinite(init.value)) return shapeError();
+    return { agg: "SUM", selector, element, seed: init.value };
+  }
+  if (
+    body.kind === "Call" &&
+    body.callee.kind === "Member" &&
+    (body.callee.prop === "min" || body.callee.prop === "max") &&
+    isMathGlobal(body.callee.object) &&
+    body.args.length === 2
+  ) {
+    const agg = body.callee.prop === "min" ? "MIN" : "MAX";
+    const wanted = agg === "MIN" ? Infinity : -Infinity;
+    const [a, b] = body.args as [Node, Node];
+    const selector = isAcc(a) ? b : isAcc(b) ? a : null;
+    if (!selector || init.value !== wanted) return shapeError();
+    return { agg, selector, element, seed: init.value };
+  }
+  return shapeError();
+}
+
+/**
+ * `reduce` over a navigation chain: the sum idiom only — an empty navigation
+ * must yield the seed, which `COALESCE(SUM…, 0)` matches; `MIN`/`MAX` over an
+ * empty set is `NULL`, not the JS seed, so those idioms stay group-only.
+ */
+function translateNavReduce(recv: Node, args: readonly Node[], ctx: TranslateContext): string {
+  const chain = matchNavChain(recv, ctx);
+  if (!chain) {
+    return ctx.fail(
+      "R2001",
+      ".reduce() translates only over a declared navigation collection or a group's items.",
+    );
+  }
+  const idiom = reduceIdiom(args, ctx);
+  if (idiom.agg !== "SUM") {
+    return ctx.fail(
+      "R2001",
+      "Min/max reduce idioms apply to group items; over a navigation an empty set would be NULL, not the seed.",
+    );
+  }
   const sum = navSubquery(chain, ctx, (dialect, childCtx, childShape) => {
-    const inner = childCtx.scoped(new Map([[element, childShape]]));
-    return dialect.floatCast(`SUM(${translate(selector, inner)})`);
+    const inner = childCtx.scoped(new Map([[idiom.element, childShape]]));
+    return dialect.floatCast(`SUM(${translate(idiom.selector, inner)})`);
   });
   const coalesced = `COALESCE(${sum}, 0)`;
-  return init.value === 0 ? coalesced : `(${ctx.param(init.value)} + ${coalesced})`;
+  return idiom.seed === 0 ? coalesced : `(${ctx.param(idiom.seed)} + ${coalesced})`;
+}
+
+/** `g.items` (optionally `.filter(l)`-extended) under a group shape. */
+interface GroupItemsChain {
+  readonly group: Extract<ColumnShape, { kind: "group" }>;
+  readonly filters: ReadonlyArray<Extract<Node, { kind: "Lambda" }>>;
+}
+
+function matchGroupItems(n: Node, ctx: TranslateContext): GroupItemsChain | null {
+  if (n.kind === "Member" && n.prop === "items" && n.object.kind === "Param") {
+    const shape = ctx.shapeOf(n.object.name);
+    return shape?.kind === "group" ? { group: shape, filters: [] } : null;
+  }
+  if (
+    n.kind === "Call" &&
+    n.callee.kind === "Member" &&
+    n.callee.prop === "filter" &&
+    n.args[0]?.kind === "Lambda"
+  ) {
+    const base = matchGroupItems(n.callee.object, ctx);
+    if (!base) return null;
+    return { ...base, filters: [...base.filters, n.args[0]] };
+  }
+  return null;
+}
+
+/** A filter chain becomes a CASE guard inside the aggregate. */
+function groupGuard(
+  items: GroupItemsChain,
+  ctx: TranslateContext,
+  value: string,
+  elseSql: string | null,
+): string {
+  if (items.filters.length === 0) return value;
+  const conds = items.filters.map((f) => {
+    const inner = ctx.scoped(new Map([[f.params[0] as string, items.group.item]]));
+    return `(${translate(f.body, inner)})`;
+  });
+  const elsePart = elseSql === null ? "" : ` ELSE ${elseSql}`;
+  return `CASE WHEN ${conds.join(" AND ")} THEN ${value}${elsePart} END`;
+}
+
+function groupCount(items: GroupItemsChain, ctx: TranslateContext): string {
+  return items.filters.length === 0 ? "COUNT(*)" : `COUNT(${groupGuard(items, ctx, "1", null)})`;
+}
+
+/** `g.items.reduce(…)` → `SUM`/`MIN`/`MAX` over the grouped rows. */
+function translateGroupReduce(
+  items: GroupItemsChain,
+  args: readonly Node[],
+  ctx: TranslateContext,
+): string {
+  const idiom = reduceIdiom(args, ctx);
+  const inner = ctx.scoped(new Map([[idiom.element, items.group.item]]));
+  const sel = translate(idiom.selector, inner);
+  if (idiom.agg === "SUM") {
+    const guarded = groupGuard(items, ctx, sel, "0");
+    const sum = ctx.dialect.floatCast(`COALESCE(SUM(${guarded}), 0)`);
+    return idiom.seed === 0 ? sum : `(${ctx.param(idiom.seed)} + ${sum})`;
+  }
+  // Groups are never empty, so MIN/MAX always see a row. A filter could empty
+  // one, where SQL yields NULL but the JS reduce yields its seed — refuse
+  // rather than diverge.
+  if (items.filters.length > 0) {
+    return ctx.fail(
+      "R2001",
+      "Min/max reduce idioms do not compose with .filter() — an emptied group would be NULL in SQL but the seed in JS.",
+    );
+  }
+  return ctx.dialect.floatCast(`${idiom.agg}(${sel})`);
 }
 
 function translateLike(

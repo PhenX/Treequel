@@ -70,10 +70,15 @@ export function chainTail(spec: IncludeSpec): IncludeSpec {
   return cur;
 }
 
+const isRefined = (s: IncludeSpec): boolean =>
+  (s.ops !== undefined && s.ops.length > 0) || s.take !== undefined || s.skip !== undefined;
+
 /**
  * Merge include specs by navigation name, per level: repeating
  * `.include(u => u.orders)` to reach sibling nested navigations yields one
- * fetch of `orders` with the children of every mention.
+ * fetch of `orders` with the children of every mention. A *refined* include
+ * (filter/order/slice) must be stated exactly once per navigation — merging
+ * two refinements silently would guess at semantics.
  */
 export function mergeIncludeSpecs(specs: readonly IncludeSpec[]): IncludeSpec[] {
   const byNav = new Map<string, IncludeSpec>();
@@ -82,6 +87,12 @@ export function mergeIncludeSpecs(specs: readonly IncludeSpec[]): IncludeSpec[] 
     if (!prev) {
       byNav.set(spec.nav, spec);
     } else {
+      if (isRefined(prev) || isRefined(spec)) {
+        throw new TreequelError(
+          "R2008",
+          `The refined include('${spec.nav}') may be stated once; chain thenInclude() from that single statement.`,
+        );
+      }
       byNav.set(spec.nav, {
         ...prev,
         children: mergeIncludeSpecs([...(prev.children ?? []), ...(spec.children ?? [])]),
@@ -277,7 +288,10 @@ export function rowKey(row: unknown, prop: string, nav: string): unknown {
 /**
  * Attach `children` to each parent under `spec.nav`, matching `parentProp` to
  * `childProp`. Parents are copied, never mutated. Children attach in canonical
- * order — deterministic across providers, since SQL row order is undefined.
+ * order — deterministic across providers, since SQL row order is undefined —
+ * unless the spec carries an explicit order (`preserveOrder`), in which case
+ * the given sequence is kept. A spec's `take`/`skip` slice each parent's
+ * bucket, after ordering.
  */
 export function attachChildren(
   parents: readonly unknown[],
@@ -285,13 +299,16 @@ export function attachChildren(
   children: readonly unknown[],
   parentProp: string,
   childProp: string,
+  preserveOrder = false,
 ): unknown[] {
   const buckets = new Map<string, unknown[]>();
-  const ordered = [...children].sort((a, b) => {
-    const ca = canonical(a);
-    const cb = canonical(b);
-    return ca < cb ? -1 : ca > cb ? 1 : 0;
-  });
+  const ordered = preserveOrder
+    ? children
+    : [...children].sort((a, b) => {
+        const ca = canonical(a);
+        const cb = canonical(b);
+        return ca < cb ? -1 : ca > cb ? 1 : 0;
+      });
   for (const child of ordered) {
     const key = rowKey(child, childProp, spec.nav);
     if (key === null || key === undefined) continue;
@@ -300,10 +317,13 @@ export function attachChildren(
     if (bucket) bucket.push(child);
     else buckets.set(ck, [child]);
   }
+  const from = spec.skip ?? 0;
+  const to = spec.take !== undefined ? from + spec.take : undefined;
   return parents.map((parent) => {
     const key = rowKey(parent, parentProp, spec.nav);
     const matches = key === null || key === undefined ? undefined : buckets.get(canonical(key));
-    const value = spec.kind === "many" ? (matches ?? []) : (matches?.[0] ?? null);
+    const sliced = matches && (from > 0 || to !== undefined) ? matches.slice(from, to) : matches;
+    const value = spec.kind === "many" ? (sliced ?? []) : (sliced?.[0] ?? null);
     return Object.assign({}, parent, { [spec.nav]: value });
   });
 }

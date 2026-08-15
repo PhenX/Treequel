@@ -30,6 +30,100 @@ export type KeysWithValue<T, R> = keyof {
   [P in keyof T as [R] extends [T[P]] ? ([T[P]] extends [R] ? P : never) : never]: 0;
 };
 
+/**
+ * Refinement of an include's loaded rows: filter, order, and slice them
+ * per parent (`take`/`skip` require an order, so results are deterministic).
+ */
+export interface IncludeQuery<T> {
+  where(p: Pred<T>): IncludeQuery<T>;
+  orderBy<K>(k: Key<T, K>): IncludeQuery<T>;
+  orderByDescending<K>(k: Key<T, K>): IncludeQuery<T>;
+  thenBy<K>(k: Key<T, K>): IncludeQuery<T>;
+  thenByDescending<K>(k: Key<T, K>): IncludeQuery<T>;
+  take(n: number): IncludeQuery<T>;
+  skip(n: number): IncludeQuery<T>;
+}
+
+export type IncludeRefine<T> = (q: IncludeQuery<T>) => IncludeQuery<T>;
+
+interface IncludeRefinement {
+  readonly ops: readonly PlanOp[];
+  readonly take?: number;
+  readonly skip?: number;
+}
+
+class IncludeQueryBuilder<T> implements IncludeQuery<T> {
+  constructor(
+    readonly ops: readonly PlanOp[] = [],
+    readonly takeN: number | undefined = undefined,
+    readonly skipN: number | undefined = undefined,
+  ) {}
+
+  private op(op: PlanOp): IncludeQueryBuilder<T> {
+    if (this.takeN !== undefined || this.skipN !== undefined) {
+      throw new TreequelError("R2008", "Refine an include before slicing it with take()/skip().");
+    }
+    return new IncludeQueryBuilder<T>([...this.ops, op], this.takeN, this.skipN);
+  }
+
+  where(p: Pred<T>): IncludeQuery<T> {
+    return this.op({ op: "where", expr: toExpr(p) });
+  }
+  orderBy<K>(k: Key<T, K>): IncludeQuery<T> {
+    return this.op({ op: "orderBy", expr: toExpr(k), desc: false });
+  }
+  orderByDescending<K>(k: Key<T, K>): IncludeQuery<T> {
+    return this.op({ op: "orderBy", expr: toExpr(k), desc: true });
+  }
+  thenBy<K>(k: Key<T, K>): IncludeQuery<T> {
+    return this.op({ op: "thenBy", expr: toExpr(k), desc: false });
+  }
+  thenByDescending<K>(k: Key<T, K>): IncludeQuery<T> {
+    return this.op({ op: "thenBy", expr: toExpr(k), desc: true });
+  }
+  take(n: number): IncludeQuery<T> {
+    const m = Math.max(0, n);
+    const cur = this.takeN;
+    const next = cur === undefined ? m : Math.min(cur, m);
+    return new IncludeQueryBuilder<T>(this.ops, next, this.skipN);
+  }
+  skip(n: number): IncludeQuery<T> {
+    const m = Math.max(0, n);
+    const nextTake = this.takeN === undefined ? undefined : Math.max(0, this.takeN - m);
+    return new IncludeQueryBuilder<T>(this.ops, nextTake, (this.skipN ?? 0) + m);
+  }
+
+  finish(): IncludeRefinement | undefined {
+    if (this.ops.length === 0 && this.takeN === undefined && this.skipN === undefined) {
+      return undefined;
+    }
+    if (
+      (this.takeN !== undefined || this.skipN !== undefined) &&
+      !this.ops.some((o) => o.op === "orderBy")
+    ) {
+      throw new TreequelError(
+        "R2008",
+        "take()/skip() on an include requires an orderBy — per-parent slices must be deterministic.",
+      );
+    }
+    return {
+      ops: this.ops,
+      ...(this.takeN !== undefined ? { take: this.takeN } : {}),
+      ...(this.skipN !== undefined ? { skip: this.skipN } : {}),
+    };
+  }
+}
+
+function refineSpec(spec: IncludeSpec, refine: IncludeRefine<never> | undefined): IncludeSpec {
+  if (!refine) return spec;
+  const built = refine(new IncludeQueryBuilder<never>());
+  if (!(built instanceof IncludeQueryBuilder)) {
+    throw new TreequelError("R2008", "An include refinement must return the builder it was given.");
+  }
+  const refinement = built.finish();
+  return refinement ? { ...spec, ...refinement } : spec;
+}
+
 /** `T` with the navigation properties `K` marked loaded (required, non-null). */
 export type Loaded<T, K> = T & { [P in K & keyof T]-?: NonNullable<T[P]> };
 
@@ -62,9 +156,14 @@ export interface Queryable<T> {
   /**
    * Load a declared navigation with the query (`db.users.include(u => u.orders)`).
    * Related rows attach to the final result rows; chain `.thenInclude()` for
-   * nested navigations. Requires a relations map on the context.
+   * nested navigations. Requires a relations map on the context. The optional
+   * `refine` filters, orders and slices the loaded rows per parent:
+   * `include(u => u.orders, q => q.orderByDescending(o => o.total).take(3))`.
    */
-  include<R>(nav: NavSelector<T, R>): Includable<Loaded<T, KeysWithValue<T, R>>, NavElement<R>>;
+  include<R>(
+    nav: NavSelector<T, R>,
+    refine?: IncludeRefine<NavElement<R>>,
+  ): Includable<Loaded<T, KeysWithValue<T, R>>, NavElement<R>>;
   /** Explicit client-eval boundary: rows cross here; the suffix runs in memory. */
   inMemory(): Queryable<T>;
 
@@ -96,7 +195,10 @@ export interface Ordered<T> extends Queryable<T> {
 
 /** A `Queryable` whose last operator was `include`; adds `thenInclude`. */
 export interface Includable<T, TNav> extends Queryable<T> {
-  thenInclude<R>(nav: NavSelector<TNav, R>): Includable<T, NavElement<R>>;
+  thenInclude<R>(
+    nav: NavSelector<TNav, R>,
+    refine?: IncludeRefine<NavElement<R>>,
+  ): Includable<T, NavElement<R>>;
 }
 
 function toExpr(fn: unknown): AnyExpr {
@@ -196,16 +298,22 @@ class QueryableImpl<T> implements Ordered<T> {
       result: toExpr(result),
     });
   }
-  include<R>(nav: NavSelector<T, R>): Includable<Loaded<T, KeysWithValue<T, R>>, NavElement<R>> {
+  include<R>(
+    nav: NavSelector<T, R>,
+    refine?: IncludeRefine<NavElement<R>>,
+  ): Includable<Loaded<T, KeysWithValue<T, R>>, NavElement<R>> {
     const name = navName(nav);
     const rel = resolveRelation(this.relations, this.plan.source, name);
-    const spec: IncludeSpec = { nav: name, ...rel };
+    const spec = refineSpec({ nav: name, ...rel }, refine as IncludeRefine<never> | undefined);
     return this.next({ op: "include", spec }) as unknown as Includable<
       Loaded<T, KeysWithValue<T, R>>,
       NavElement<R>
     >;
   }
-  thenInclude(nav: NavSelector<unknown, unknown>): Includable<T, unknown> {
+  thenInclude(
+    nav: NavSelector<unknown, unknown>,
+    refine?: IncludeRefine<never>,
+  ): Includable<T, unknown> {
     const last = this.plan.ops[this.plan.ops.length - 1];
     if (!last || last.op !== "include") {
       throw new TreequelError("R2008", ".thenInclude() must directly follow .include().");
@@ -213,7 +321,7 @@ class QueryableImpl<T> implements Ordered<T> {
     const name = navName(nav);
     const parent = chainTail(last.spec);
     const rel = resolveRelation(this.relations, parent.target, name);
-    const spec = appendChild(last.spec, { nav: name, ...rel });
+    const spec = appendChild(last.spec, refineSpec({ nav: name, ...rel }, refine));
     const plan: QueryPlan = {
       ...this.plan,
       ops: [...this.plan.ops.slice(0, -1), { op: "include", spec }],

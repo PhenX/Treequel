@@ -141,6 +141,29 @@ db.users.orderByDescending((u) => u.orders?.length ?? 0);
 - **The sum is a recognized idiom, not general `reduce`:** exactly `reduce((acc, o) => acc + expr, seed)` with a
   constant numeric seed and `acc` on one side of the `+`. Anything else is refused (R2001) rather than guessed.
 
+### Refining includes
+
+The second argument of `include`/`thenInclude` filters, orders and slices the loaded rows — the slice applies **per
+parent**:
+
+```ts
+const users = await db.users.include(
+  (u) => u.orders,
+  (q) => q.where((o) => o.paid).orderByDescending((o) => o.total).take(3),
+);
+// each user carries their top three paid orders
+```
+
+- A refinement supports `where`, `orderBy`/`orderByDescending`, `thenBy`/`thenByDescending`, `take`, `skip` — nothing
+  else. Filters may use navigation predicates (`o.items?.some(…)`).
+- An explicit order replaces the canonical attachment order; `take`/`skip` **require** one (per-parent slices must be
+  deterministic — R2008 otherwise), and slice each parent's rows, not the total.
+- On SQL, filters and ordering fold into the batched fetch, and slices compile to
+  `ROW_NUMBER() OVER (PARTITION BY key ORDER BY …)` — one statement per navigation, still. A dialect without window
+  functions (`windowFunctions: false`) refuses slices instead of miscompiling.
+- A refined include may be stated **once** per navigation; chain every `thenInclude` from that single statement
+  (merging two refinements would guess at semantics — R2008).
+
 ### The rules
 
 - **Selectors are navigation paths, not expressions.** `include(u => u.orders)` — a single property access. It is
@@ -150,7 +173,7 @@ db.users.orderByDescending((u) => u.orders?.length ?? 0);
 - **The parent key must survive.** After a `select`, the rows must still carry the `from` property or the include
   fails with R2002.
 - **Attachment order is canonical** (a deterministic JSON-based order), because SQL row order without `ORDER BY` is
-  undefined. Sort in your own code if you need a specific child order.
+  undefined — give the include an explicit order (`include(nav, q => q.orderBy(…))`) when it matters.
 - Scalar executors (`count`, `sum`, …) ignore includes; `first`/`single`/`toArray` attach them.
 - An unknown navigation is R2007; a selector that is not a single property access, or a `thenInclude` that does not
   follow an `include`, is R2008.

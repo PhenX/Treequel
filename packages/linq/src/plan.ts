@@ -33,6 +33,15 @@ export interface IncludeSpec {
   readonly to: string;
   /** `"many"` attaches an array; `"one"` attaches a single row or `null`. */
   readonly kind: "one" | "many";
+  /**
+   * Refinement of the loaded rows: `where`/`orderBy`/`thenBy` ops applied to
+   * the children before attaching. An explicit order replaces the canonical
+   * attachment order; `take`/`skip` apply per parent.
+   */
+  readonly ops?: readonly PlanOp[];
+  /** Per-parent slice, applied after `ops`. */
+  readonly take?: number;
+  readonly skip?: number;
   readonly children?: readonly IncludeSpec[];
 }
 

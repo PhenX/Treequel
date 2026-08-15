@@ -608,6 +608,100 @@ describe("SQLite joins & includes — shapes and edges", () => {
         .toArray(),
     ).rejects.toThrow(/sum idiom/);
   });
+});
+
+describe("SQLite groupBy — SQL shape and edges", () => {
+  it("groups by a column with aggregate projections", async () => {
+    const text = await sqlDb.orders
+      .groupBy((o) => o.userId)
+      .select((g) => ({
+        userId: g.key,
+        n: g.items.length,
+        total: g.items.reduce((acc, o) => acc + o.total, 0),
+      }))
+      .explain();
+    expect(text).toContain('GROUP BY "t0"."user_id"');
+    expect(text).toContain('CAST(COUNT(*) AS REAL) AS "n"');
+    expect(text).toMatch(/CAST\(COALESCE\(SUM\("t0"\."total"\), 0\) AS REAL\)/);
+  });
+
+  it("where after a group projection wraps around the GROUP BY (HAVING semantics)", async () => {
+    const text = await sqlDb.orders
+      .groupBy((o) => o.userId)
+      .select((g) => ({ userId: g.key, n: g.items.length }))
+      .where((r) => r.n > 1)
+      .explain();
+    expect(text).toMatch(/FROM \(SELECT .*GROUP BY .*\) "d\d+" WHERE/);
+  });
+
+  it("precomputes a non-column group key into a derived table", async () => {
+    const text = await sqlDb.users
+      .groupBy((u) => u.orders?.length ?? 0)
+      .select((g) => ({ orders: g.key, people: g.items.length }))
+      .explain();
+    expect(text).toMatch(/AS "__tql_g0" FROM "users"/);
+    expect(text).toMatch(/GROUP BY "d\d+"\."__tql_g0"/);
+  });
+
+  it("rejects materializing raw groups and operators over a pending group", async () => {
+    await expect(sqlDb.orders.groupBy((o) => o.userId).toArray()).rejects.toThrow(/memory-only/);
+    await expect(
+      sqlDb.orders
+        .groupBy((o) => o.userId)
+        .orderBy((g) => g.key)
+        .toArray(),
+    ).rejects.toThrow(/followed by a select/);
+  });
+
+  it("counts groups without a projection", async () => {
+    expect(await sqlDb.orders.groupBy((o) => o.userId).count()).toBe(
+      await memDb.orders.groupBy((o) => o.userId).count(),
+    );
+  });
+});
+
+describe("SQLite filtered includes — fetch shapes", () => {
+  it("slices per parent with a ROW_NUMBER window and strips the marker", async () => {
+    const statements: string[] = [];
+    const recording: SqlExecutor = (text, values) => {
+      statements.push(text);
+      return executor(text, values);
+    };
+    const rdb = createContext<Schema>(sqlite(recording, schema), { relations });
+    const rows = await rdb.users
+      .include(
+        (u) => u.orders,
+        (q) => q.orderByDescending((o) => o.total).take(1),
+      )
+      .orderBy((u) => u.id)
+      .take(3)
+      .toArray();
+    const fetch = statements.find((s) => s.includes("ROW_NUMBER"));
+    expect(fetch).toMatch(/ROW_NUMBER\(\) OVER \(PARTITION BY "t\d+"\."user_id" ORDER BY/);
+    expect(fetch).toMatch(/"__tql_rn" > 0 AND .*"__tql_rn" <= 1/);
+    // Ada keeps only her biggest order, and the marker never leaks.
+    const ada = rows.find((u) => u.id === 1);
+    expect(ada?.orders.map((o) => o.total)).toEqual([20]);
+    expect(Object.keys(ada?.orders[0] ?? {})).not.toContain("__tql_rn");
+  });
+
+  it("refuses per-parent slices when the dialect disables window functions", async () => {
+    const provider = makeSqlProvider(
+      { ...sqliteDialect, windowFunctions: false },
+      "sqlite-no-window",
+      executor,
+      schema,
+    );
+    const ndb = createContext<Schema>(provider, { relations });
+    await expect(
+      ndb.users
+        .include(
+          (u) => u.orders,
+          (q) => q.orderBy((o) => o.id).take(1),
+        )
+        .toArray(),
+    ).rejects.toThrow(/window functions/);
+  });
 
   it("rejects a bare-row join projection with R2001", async () => {
     await expect(

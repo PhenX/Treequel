@@ -284,6 +284,48 @@ export async function transformModule(
       return;
     }
 
+    // include()/thenInclude() refine callbacks: the builder parameter acts as
+    // a traced receiver inside the callback, so `q.where(o => …)` reifies.
+    if (
+      callee.type === "MemberExpression" &&
+      (callee.property as AnyNode).type === "Identifier" &&
+      ((callee.property as AnyNode).name === "include" ||
+        (callee.property as AnyNode).name === "thenInclude") &&
+      isTainted(callee.object as AnyNode)
+    ) {
+      const refine = args[1];
+      const param = (refine?.params as AnyNode[] | undefined)?.[0];
+      if (
+        refine?.type === "ArrowFunctionExpression" &&
+        param?.type === "Identifier" &&
+        typeof param.name === "string"
+      ) {
+        const builder = param.name as string;
+        const rootsAtBuilder = (n: AnyNode): boolean => {
+          const u = unwrap(n);
+          if (u.type === "Identifier") return u.name === builder;
+          if (u.type === "MemberExpression") return rootsAtBuilder(u.object as AnyNode);
+          if (u.type === "CallExpression") return rootsAtBuilder(u.callee as AnyNode);
+          return false;
+        };
+        walk(refine.body, (m) => {
+          if (m.type !== "CallExpression") return;
+          const mc = m.callee as AnyNode;
+          if (
+            mc.type === "MemberExpression" &&
+            (mc.property as AnyNode).type === "Identifier" &&
+            LINQ_METHODS.has((mc.property as AnyNode).name as string) &&
+            rootsAtBuilder(mc.object as AnyNode)
+          ) {
+            for (const a of (m.arguments as AnyNode[]) ?? []) {
+              if (a.type === "ArrowFunctionExpression") targets.push({ arrow: a });
+            }
+          }
+        });
+      }
+      return;
+    }
+
     // tainted LINQ method call — reify arrow arguments.
     if (
       callee.type === "MemberExpression" &&

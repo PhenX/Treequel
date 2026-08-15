@@ -75,12 +75,16 @@ const SUPPORTED_OPS = [
   "join",
   "leftJoin",
   "include",
+  "groupBy",
   "exec",
 ];
 
 function fold(expr: AnyExpr): Node {
   return partialEval({ body: expr.body, scope: expr.scope });
 }
+
+/** A layer's row shape — groups exist only inside projection scopes. */
+type RowShape = Exclude<ColumnShape, { kind: "group" }>;
 
 /**
  * One SELECT under construction. `shape` resolves the *input* row of the layer
@@ -89,7 +93,7 @@ function fold(expr: AnyExpr): Node {
  */
 interface Layer {
   from: string;
-  shape: ColumnShape;
+  shape: RowShape;
   where: string[];
   projection: string | null;
   projectionColumns: readonly string[] | null;
@@ -99,6 +103,13 @@ interface Layer {
   limit: number | null;
   offset: number | null;
   pristine: boolean;
+  /** Rendered `GROUP BY` expressions, set by `foldGroupBy`. */
+  groupClause: readonly string[] | null;
+  /** Group awaiting its projection: key parts + the pre-group row shape. */
+  pendingGroup: {
+    readonly keyParts: ReadonlyArray<{ readonly name: string | null; readonly sql: string }>;
+    readonly item: ColumnShape;
+  } | null;
 }
 
 function selectList(layer: Layer): string {
@@ -148,12 +159,17 @@ class Compiler {
       limit: null,
       offset: null,
       pristine: true,
+      groupClause: null,
+      pendingGroup: null,
     };
   }
 
   render(layer: Layer, overrideSelect?: string): string {
     let sql = `SELECT ${layer.distinct ? "DISTINCT " : ""}${overrideSelect ?? selectList(layer)} FROM ${layer.from}`;
     if (layer.where.length > 0) sql += ` WHERE ${layer.where.join(" AND ")}`;
+    if (layer.groupClause && layer.groupClause.length > 0) {
+      sql += ` GROUP BY ${layer.groupClause.join(", ")}`;
+    }
     if (layer.orderBy.length > 0) sql += ` ORDER BY ${layer.orderBy.join(", ")}`;
     if (layer.limit !== null) sql += ` LIMIT ${layer.limit}`;
     else if (layer.offset !== null && this.dialect.offsetRequiresLimit) sql += ` LIMIT -1`;
@@ -161,10 +177,21 @@ class Compiler {
     return sql;
   }
 
+  /** A `groupBy` needs its projection before any other operator continues. */
+  private rejectPendingGroup(layer: Layer, doing: string): void {
+    if (layer.pendingGroup) {
+      throw new TreequelError(
+        "R2001",
+        `groupBy must be followed by a select projection (${doing} over raw groups is memory-only in v1).`,
+      );
+    }
+  }
+
   /** Close `layer` into a derived table and start a fresh one over it. */
   wrap(layer: Layer): Layer {
+    this.rejectPendingGroup(layer, "wrap");
     const alias = this.alias("d");
-    const shape: ColumnShape =
+    const shape: RowShape =
       layer.projection === null
         ? { ...layer.shape, alias }
         : layer.scalar
@@ -182,6 +209,8 @@ class Compiler {
       limit: null,
       offset: null,
       pristine: false,
+      groupClause: null,
+      pendingGroup: null,
     };
   }
 
@@ -197,6 +226,7 @@ class Compiler {
   }
 
   foldWhere(layer: Layer, cond: (l: Layer) => string): Layer {
+    this.rejectPendingGroup(layer, "where");
     if (
       layer.projection !== null ||
       layer.distinct ||
@@ -211,6 +241,20 @@ class Compiler {
   }
 
   foldSelect(layer: Layer, e: AnyExpr): Layer {
+    if (layer.pendingGroup) {
+      const group = layer.pendingGroup;
+      const scope = new Map<string, ColumnShape>();
+      if (e.params[0]) {
+        scope.set(e.params[0], { kind: "group", keyParts: group.keyParts, item: group.item });
+      }
+      const proj = this.projection(fold(e), this.ctx.scoped(scope));
+      layer.projection = proj.sql;
+      layer.projectionColumns = proj.columns;
+      layer.scalar = proj.scalar;
+      layer.pendingGroup = null;
+      layer.pristine = false;
+      return layer;
+    }
     if (layer.projection !== null || layer.distinct) layer = this.wrap(layer);
     const scope = new Map<string, ColumnShape>();
     if (e.params[0]) scope.set(e.params[0], layer.shape);
@@ -222,7 +266,99 @@ class Compiler {
     return layer;
   }
 
+  /**
+   * Start a group: translate the key against the current row shape (composite
+   * object keys contribute one expression per property) and hold the group
+   * open until the projection arrives. Any key part that is not a bare column
+   * is precomputed into a derived table first — a grouped SELECT cannot
+   * re-evaluate expressions like correlated subqueries (Postgres refuses),
+   * and precomputing evaluates them once per row. Aggregate lambdas translate
+   * against a source-stripped item shape — navigations inside them are
+   * refused rather than silently diverging from the reference.
+   */
+  foldGroupBy(layer: Layer, e: AnyExpr): Layer {
+    this.rejectPendingGroup(layer, "groupBy");
+    if (
+      layer.projection !== null ||
+      layer.distinct ||
+      layer.orderBy.length > 0 ||
+      layer.limit !== null ||
+      layer.offset !== null
+    ) {
+      layer = this.wrap(layer);
+    }
+    const body = fold(e);
+    const parts: Array<{ name: string | null; node: Node }> = [];
+    if (body.kind === "ObjectLit") {
+      for (const prop of body.props) {
+        if ("spread" in prop) {
+          throw new TreequelError("R2001", "Spread in a groupBy key is not supported.");
+        }
+        parts.push({ name: prop.key, node: prop.value });
+      }
+      if (parts.length === 0) {
+        throw new TreequelError("R2001", "A composite groupBy key needs at least one property.");
+      }
+    } else {
+      parts.push({ name: null, node: body });
+    }
+
+    const param = e.params[0];
+    const isColumn = (n: Node): boolean => n.kind === "Member" && n.object.kind === "Param";
+    const computed = new Map<number, string>();
+    if (parts.some((p) => !isColumn(p.node))) {
+      const scope = new Map<string, ColumnShape>();
+      if (param) scope.set(param, layer.shape);
+      const ctx = this.ctx.scoped(scope);
+      const extras: string[] = [];
+      parts.forEach((p, i) => {
+        if (!isColumn(p.node)) {
+          const col = `__tql_g${i}`;
+          computed.set(i, col);
+          extras.push(`${translate(p.node, ctx)} AS ${quoteIdent(col)}`);
+        }
+      });
+      const star = `${quoteIdent(layer.shape.alias)}.*`;
+      const inner = this.render(layer, `${star}, ${extras.join(", ")}`);
+      const alias = this.alias("d");
+      layer = {
+        from: `(${inner}) ${quoteIdent(alias)}`,
+        shape: { ...layer.shape, alias },
+        where: [],
+        projection: null,
+        projectionColumns: null,
+        scalar: false,
+        distinct: false,
+        orderBy: [],
+        limit: null,
+        offset: null,
+        pristine: false,
+        groupClause: null,
+        pendingGroup: null,
+      };
+    }
+
+    const scope = new Map<string, ColumnShape>();
+    if (param) scope.set(param, layer.shape);
+    const ctx = this.ctx.scoped(scope);
+    const keyParts = parts.map((p, i) => {
+      const col = computed.get(i);
+      const sql =
+        col === undefined
+          ? translate(p.node, ctx)
+          : `${quoteIdent(layer.shape.alias)}.${quoteIdent(col)}`;
+      return { name: p.name, sql };
+    });
+    const item: ColumnShape =
+      layer.shape.kind === "table" ? { ...layer.shape, source: undefined } : layer.shape;
+    layer.groupClause = keyParts.map((k) => k.sql);
+    layer.pendingGroup = { keyParts, item };
+    layer.pristine = false;
+    return layer;
+  }
+
   foldOrderBy(layer: Layer, e: AnyExpr, desc: boolean): Layer {
+    this.rejectPendingGroup(layer, "orderBy");
     if (layer.limit !== null || layer.offset !== null) layer = this.wrap(layer);
     if (layer.projection !== null) {
       // Order by an output column of the projection when the key is a bare
@@ -251,6 +387,7 @@ class Compiler {
   }
 
   foldDistinct(layer: Layer): Layer {
+    this.rejectPendingGroup(layer, "distinct");
     if (layer.limit !== null || layer.offset !== null) layer = this.wrap(layer);
     layer.distinct = true;
     layer.pristine = false;
@@ -258,6 +395,7 @@ class Compiler {
   }
 
   foldTake(layer: Layer, n: number): Layer {
+    this.rejectPendingGroup(layer, "take");
     const m = Math.max(0, n);
     layer.limit = layer.limit === null ? m : Math.min(layer.limit, m);
     layer.pristine = false;
@@ -265,6 +403,7 @@ class Compiler {
   }
 
   foldSkip(layer: Layer, n: number): Layer {
+    this.rejectPendingGroup(layer, "skip");
     const m = Math.max(0, n);
     if (layer.limit !== null) layer.limit = Math.max(0, layer.limit - m);
     layer.offset = (layer.offset ?? 0) + m;
@@ -273,6 +412,7 @@ class Compiler {
   }
 
   foldJoin(layer: Layer, op: Extract<PlanOp, { op: "join" | "leftJoin" }>): Layer {
+    this.rejectPendingGroup(layer, "join");
     if (!layer.pristine) layer = this.dirtyJoinBase(layer);
     let inner = this.compilePlan(op.inner);
     if (!inner.pristine) inner = this.wrap(inner);
@@ -386,6 +526,8 @@ class Compiler {
         return this.foldSkip(layer, op.n);
       case "distinct":
         return this.foldDistinct(layer);
+      case "groupBy":
+        return this.foldGroupBy(layer, op.expr);
       case "join":
       case "leftJoin":
         return this.foldJoin(layer, op);
@@ -425,6 +567,12 @@ function compile(plan: QueryPlan, schema: SchemaMeta, dialect: SqlDialect): Comp
   }
 
   const kind = exec?.kind ?? "toArray";
+  if (layer.pendingGroup && (kind === "toArray" || kind === "first" || kind === "single")) {
+    throw new TreequelError(
+      "R2001",
+      "Materializing raw groups is memory-only (v1) — project them with select(g => …) first.",
+    );
+  }
   const withPred = (negate = false): void => {
     if (exec?.expr) {
       const e = exec.expr;
@@ -526,6 +674,79 @@ function compile(plan: QueryPlan, schema: SchemaMeta, dialect: SqlDialect): Comp
 }
 
 /** Fetch and attach one level of navigations via batched split queries. */
+/** Fetch one chunk of related rows, applying the spec's refinement ops. */
+async function fetchRefinedChunk(
+  spec: IncludeSpec,
+  chunk: readonly unknown[],
+  schema: SchemaMeta,
+  dialect: SqlDialect,
+  executor: SqlExecutor,
+  relations: RelationsMeta | undefined,
+): Promise<Array<Record<string, unknown>>> {
+  const compiler = new Compiler(schema, dialect, relations);
+  let layer = compiler.freshLayer(spec.target);
+  const orderParts: string[] = [];
+  for (const op of spec.ops ?? []) {
+    if (op.op === "where") {
+      layer = compiler.foldWhere(layer, (l) => compiler.translateWith(op.expr, l.shape));
+    } else if (op.op === "orderBy" || op.op === "thenBy") {
+      orderParts.push(
+        `${compiler.translateWith(op.expr, layer.shape)} ${op.desc ? "DESC" : "ASC"}${dialect.nullsSuffix(op.desc)}`,
+      );
+    } else {
+      throw new TreequelError(
+        "R2001",
+        `An include refinement supports where/orderBy only (got '${op.op}').`,
+      );
+    }
+  }
+  layer = compiler.foldWhere(layer, (l) => {
+    const col = shapeColumn(l.shape, spec.to, compiler.ctx);
+    return dialect.arrayContains(col, chunk, compiler.ctx);
+  });
+
+  let raw: string;
+  if (spec.take !== undefined || spec.skip !== undefined) {
+    if (dialect.windowFunctions === false) {
+      throw new TreequelError(
+        "R2001",
+        `Per-parent include slices need window functions, which the ${dialect.name} dialect disables.`,
+      );
+    }
+    // Per-parent slice: number the rows inside each parent's partition.
+    const alias = quoteIdent(layer.shape.alias);
+    const partition = shapeColumn(layer.shape, spec.to, compiler.ctx);
+    const over = `PARTITION BY ${partition}${orderParts.length > 0 ? ` ORDER BY ${orderParts.join(", ")}` : ""}`;
+    const inner = compiler.render(
+      layer,
+      `${alias}.*, ROW_NUMBER() OVER (${over}) AS ${quoteIdent(ROW_MARK)}`,
+    );
+    const lo = spec.skip ?? 0;
+    const hi = spec.take !== undefined ? lo + spec.take : null;
+    const w = quoteIdent("w");
+    const rn = `${w}.${quoteIdent(ROW_MARK)}`;
+    raw = `SELECT ${w}.* FROM (${inner}) ${w} WHERE ${rn} > ${lo}${hi !== null ? ` AND ${rn} <= ${hi}` : ""} ORDER BY ${partitionAlias(partition, w)}, ${rn}`;
+  } else {
+    layer.orderBy.push(...orderParts);
+    raw = compiler.render(layer);
+  }
+
+  const { text, values } = finalizeSql(raw, compiler.ctx.values, dialect);
+  const result = await executor(
+    text,
+    values.map((v) => dialect.coerceValue(v)),
+  );
+  return result.rows;
+}
+
+const ROW_MARK = "__tql_rn";
+
+/** Rewrite an inner column reference to the wrapper alias for the outer ORDER BY. */
+function partitionAlias(partition: string, wrapper: string): string {
+  const dot = partition.lastIndexOf(".");
+  return `${wrapper}${dot === -1 ? `.${partition}` : partition.slice(dot)}`;
+}
+
 async function stitchIncludes(
   parents: unknown[],
   specs: readonly IncludeSpec[],
@@ -533,6 +754,7 @@ async function stitchIncludes(
   schema: SchemaMeta,
   dialect: SqlDialect,
   executor: SqlExecutor,
+  relations: RelationsMeta | undefined,
 ): Promise<unknown[]> {
   let cur = parents;
   for (const spec of specs) {
@@ -547,16 +769,11 @@ async function stitchIncludes(
       const batch = dialect.maxBatchKeys ?? keys.length;
       for (let i = 0; i < keys.length; i += batch) {
         const chunk = keys.slice(i, i + batch);
-        const shape: ColumnShape = { kind: "table", alias: "c", meta };
-        const ctx = new TranslateContext(dialect, shape);
-        const col = shapeColumn(shape, spec.to, ctx);
-        const raw = `SELECT ${quoteIdent("c")}.* FROM ${quoteIdent(meta.table)} ${quoteIdent("c")} WHERE ${dialect.arrayContains(col, chunk, ctx)}`;
-        const { text, values } = finalizeSql(raw, ctx.values, dialect);
-        const result = await executor(
-          text,
-          values.map((v) => dialect.coerceValue(v)),
-        );
-        children.push(...result.rows);
+        const rows = await fetchRefinedChunk(spec, chunk, schema, dialect, executor, relations);
+        for (const row of rows) {
+          delete row[ROW_MARK];
+          children.push(row);
+        }
       }
     }
     if (spec.children && spec.children.length > 0) {
@@ -567,9 +784,13 @@ async function stitchIncludes(
         schema,
         dialect,
         executor,
+        relations,
       );
     }
-    cur = attachChildren(cur, spec, children, parentProp, childProp);
+    // SQL already applied the per-parent slice in the window fetch.
+    const { take: _take, skip: _skip, ...attachSpec } = spec;
+    const ordered = spec.ops?.some((o) => o.op === "orderBy") ?? false;
+    cur = attachChildren(cur, attachSpec, children, parentProp, childProp, ordered);
   }
   return cur;
 }
@@ -611,7 +832,15 @@ export function makeSqlProvider(
       const out = post(result.rows);
       if (includes.length === 0 || rowKind === null) return out as T;
       const parents = rowKind === "toArray" ? (out as unknown[]) : out === null ? [] : [out];
-      const stitched = await stitchIncludes(parents, includes, keyProp, schema, dialect, executor);
+      const stitched = await stitchIncludes(
+        parents,
+        includes,
+        keyProp,
+        schema,
+        dialect,
+        executor,
+        plan.relations,
+      );
       return (rowKind === "toArray" ? stitched : (stitched[0] ?? null)) as T;
     },
     async explain(plan: QueryPlan): Promise<string> {

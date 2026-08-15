@@ -15,10 +15,28 @@ interface QueryProvider {
 ```
 
 - `capabilities()` declares which plan ops (and, optionally, which WellKnown calls) you translate. `Queryable` runs a
-  capability pre-check before any I/O and fails fast with a located error, so an unsupported op never reaches your
-  `execute`.
+  capability pre-check before any I/O — recursively through `join`/`leftJoin` inner plans — and fails fast with a
+  located error, so an unsupported op never reaches your `execute`.
 - `execute(plan)` receives an immutable `QueryPlan` — a `source` and an ordered list of ops (`where`, `select`,
-  `orderBy`, `take`, executors, …), each carrying an `Expr`.
+  `orderBy`, `take`, `join`/`leftJoin` with a nested inner plan, executors, …), each carrying an `Expr`.
+- An `include` op carries a self-contained `IncludeSpec` — navigation name, target source, key pair, cardinality,
+  nested children. Providers never read relation metadata; everything needed to fetch and attach is in the spec.
+
+## Implementing includes
+
+Fetch related rows however your backend likes (the SQL core batches
+`WHERE key = ANY(…)` per navigation); the key collection, grouping, copy-on-attach, and the canonical child order all
+live in shared helpers so every provider agrees on the result shape:
+
+```ts
+import { collectIncludes, collectKeys, attachChildren } from "@treequel/linq";
+
+const specs = collectIncludes(plan.ops); // merged across repeated include()
+const keys = collectKeys(parents, spec.from, spec.nav); // distinct, non-null
+const stitched = attachChildren(parents, spec, children, spec.from, spec.to);
+```
+
+Attach only for row-shaped executors (`toArray`, `first`, `single`); scalar executors ignore includes.
 
 ## Partial-evaluate first, then translate
 
@@ -40,15 +58,19 @@ The in-memory provider defines correct behavior. Your provider must produce the 
 ships a conformance harness:
 
 ```ts
-import { runConformance } from "@treequel/linq/testing";
+import { defaultRelations, runConformance } from "@treequel/linq/testing";
 
-const results = await runConformance((fixtures) => makeMyProvider(fixtures), { fixtures });
+const results = await runConformance((fixtures) => makeMyProvider(fixtures), {
+  fixtures, // users / orders / items arrays
+  relations: defaultRelations(), // the corpus include cases resolve against these
+});
 const failures = results.filter((r) => !r.equal);
 ```
 
-Run this under the build plugin (name the file `*.reify.test.ts` in a Vitest setup) so the queries reify into real
-trees. Every divergence the reference finds — LIKE escaping, null ordering, collation — becomes a permanent regression
-fixture.
+The corpus queries are wrapped in `expr()`, so they reify into real trees whenever the module runs under the build
+plugin — trace `@treequel/core` in the plugin's `packages` option, or `import "@treequel/fallback/register"` when no
+build step runs the tests. Every divergence the reference finds — LIKE escaping, null ordering, collation, null join
+keys — becomes a permanent regression fixture.
 
 ## Values are parameters, not strings
 

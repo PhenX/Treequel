@@ -26,6 +26,7 @@ export default defineConfig({
           items: [
             { text: "Getting started", link: "/guide/getting-started" },
             { text: "The expression subset", link: "/guide/the-subset" },
+            { text: "Joins & includes", link: "/guide/joins-and-includes" },
             { text: "The boundary rule", link: "/guide/the-boundary-rule" },
             { text: "Writing a provider", link: "/guide/writing-a-provider" },
           ],

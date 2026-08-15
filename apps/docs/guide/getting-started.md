@@ -52,6 +52,9 @@ const adults = await db.users
 // [{ id: 1, name: "Ada" }]
 ```
 
+Queries over more than one source — `join`, `leftJoin`, and EF-style `include`/`thenInclude` — are covered in
+[Joins & includes](/guide/joins-and-includes).
+
 ## The same query, on Postgres
 
 Swap the provider. The query definitions do not change. The Postgres provider takes a driver `executor` — it works over

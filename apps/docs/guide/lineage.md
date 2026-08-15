@@ -1,0 +1,117 @@
+# The C# lineage
+
+Treequel is a TypeScript rebuild of one C# idea: a lambda whose static type decides whether it compiles to a
+function or to *data describing the function*. C# has shipped that since 2007; LINQ rests on it, and EF Core is its
+largest deployed provider. This page maps what carried over, what EF Core specifically contributed, and where
+TypeScript forced a different answer.
+
+## `Expression<Func<…>>`, rebuilt at build time
+
+In C#, the declared type picks what the compiler emits:
+
+```csharp
+Func<User, bool>             f = u => u.Age > 18; // compiled code
+Expression<Func<User, bool>> e = u => u.Age > 18; // an expression tree
+```
+
+TypeScript's compiler has no such seam, so Treequel adds one with a build transform: the Vite plugin finds lambdas at
+traced call sites and rewrites each into a literal carrying **both** forms — the original function, untouched, and
+the tree as plain data:
+
+```ts
+db.users.where((u) => u.age > minAge);
+// ⇣ what the plugin emits
+db.users.where(
+  __tql_expr$({
+    v: 1,
+    compiled: (u) => u.age > minAge, // the function it always was
+    params: ["u"],
+    body: {
+      kind: "Binary",
+      op: ">",
+      left: { kind: "Member", object: { kind: "Param", name: "u" }, prop: "age" },
+      right: { kind: "Capture", name: "minAge" },
+    },
+    scope: () => ({ minAge }),
+  }),
+);
+```
+
+`Expr<(u: User) => boolean>` is the counterpart of `Expression<Func<User, bool>>`, and every operator accepts
+`F | Expr<F>` — the same pairing C# expresses with the `Func` / `Expression<Func>` overload sets of `Enumerable` and
+`Queryable`.
+
+## `IQueryable`, plans, and explicit execution
+
+A LINQ `IQueryable` chain runs nothing — it builds an expression tree that an `IQueryProvider` translates when the
+query is enumerated. `Queryable` keeps that split: every operator appends one op to an immutable `QueryPlan`, and a
+`QueryProvider` translates the plan when an executor runs.
+
+One deliberate departure: C# executes on enumeration — `foreach`, `ToList()`, a stray `Count()` — and it is easy to
+run a query without meaning to. A Treequel `Queryable` is not a thenable and never auto-executes; I/O happens only at
+a named executor (`toArray()`, `first()`, `count()`, …). A line that queries the database should look like one.
+
+## Closures become parameters
+
+C# lambdas capture variables by reference and read them when the query runs; EF Core then binds captured values as
+SQL parameters instead of pasting them into the statement. Both properties carry over. The emitted
+`scope: () => ({ minAge })` thunk reads the live binding at execution time; partial evaluation folds it into the
+tree; SQL providers bind it as `$1` / `?`:
+
+```ts
+let minAge = 18;
+const adults = db.users.where((u) => u.age > minAge);
+minAge = 21;
+await adults.toArray(); // WHERE "users"."age" > $1 — with $1 = 21, the value at execution
+```
+
+## What EF Core contributed
+
+EF Core is the reference implementation for "LINQ over a real database", and Treequel borrows its answers directly:
+
+- **`include` / `thenInclude`** are EF Core's navigation-loading names and rules — includes attach to result rows and
+  are invisible to `where` in the same query. Treequel always executes them the way EF Core's `AsSplitQuery()` does:
+  one batched statement per navigation, so joins never duplicate parents and `take`/`skip` apply to parents alone.
+- **`flatMap` is `SelectMany`** — querying through a navigation becomes a join.
+- **`.inMemory()` is `AsEnumerable()`, made mandatory.** Pre-Core EF silently finished untranslatable queries on the
+  client; the accidental table scans were bad enough that EF Core 3.0 removed the behavior as a breaking change.
+  Treequel starts where that story ended: untranslatable residue is a located, coded error, and rows cross into
+  JavaScript only at the explicit [`.inMemory()` boundary](/guide/the-boundary-rule).
+- **The in-memory implementation is the semantics.** LINQ to Objects defines what the operators mean, and remote
+  providers are judged against it. `@treequel/provider-memory` plays the same role — enforced by a property-based
+  conformance suite rather than by convention.
+
+## Where TypeScript forced different answers
+
+- **A build step instead of a compiler feature.** The C# compiler builds trees; Treequel's are built by the Vite
+  plugin — or, without one, by a runtime `toString()` fallback that is closure-blind and says so
+  ([R3002](/errors#R3002)). What C# gets from the compiler being the single validator, Treequel rebuilds by sharing
+  one validator package across the build, the editor plugin, and the ESLint rule.
+- **A closed, serializable grammar instead of an open one.** A C# expression tree can reference any .NET method, and
+  it does not serialize — it lives and dies in-process. Treequel's tree is a small closed algebra with a versioned
+  JSON wire format, because these trees are meant to leave the process: cross to a server, sit in a policy store, be
+  translated by third-party providers. A provider can promise translation only over a finite grammar.
+- **Different subset lines.** C#'s converter has restrictions of its own — no statement bodies, no assignments, no
+  `?.`. [Treequel's subset](/guide/the-subset) is the same idea with the lines drawn for cross-provider meaning, and
+  optional chaining is *inside* it, because navigation properties are optional.
+
+## The map
+
+| C# / .NET                                                 | Treequel                                                 |
+| --------------------------------------------------------- | -------------------------------------------------------- |
+| `Expression<Func<User, bool>>`                            | `Expr<(u: User) => boolean>`                             |
+| Compiler-built expression trees                           | Build-time reification (`@treequel/vite`)                |
+| `IQueryable<T>`                                           | `Queryable<T>`                                           |
+| `IQueryProvider`                                          | `QueryProvider`                                          |
+| LINQ to Objects                                           | `@treequel/provider-memory`                              |
+| `ExpressionVisitor`                                       | The visitor / rewriter in `@treequel/core`               |
+| `Where` / `Select` / `OrderBy` / `ThenBy` / `Skip` / `Take` | `where` / `select` / `orderBy` / `thenBy` / `skip` / `take` |
+| `SelectMany`                                              | `flatMap`                                                |
+| `Include` / `ThenInclude`, `AsSplitQuery`                 | `include` / `thenInclude` (always split)                 |
+| `FirstOrDefaultAsync` / `SingleAsync`                     | `first` / `single`                                       |
+| `AsEnumerable()`                                          | `.inMemory()`                                            |
+| `ToListAsync()`                                           | `toArray()`                                              |
+
+What Treequel does **not** rebuild is the rest of EF Core: no `DbContext` change tracking, no `SaveChanges`, no
+migrations, no write path at all. That split is deliberate — [Compared to ORMs & EF Core](/guide/comparison) covers
+it.

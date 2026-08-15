@@ -1,0 +1,7 @@
+# Default owner for everything in the repo.
+* @PhenX
+
+# Load-bearing contracts — the wire format and the diagnostics catalog are
+# append-only and versioned; flag changes here for extra scrutiny.
+/packages/tree/ @PhenX
+/packages/capture/src/diagnostics.ts @PhenX

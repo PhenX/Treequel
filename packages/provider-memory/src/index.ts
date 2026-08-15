@@ -1,5 +1,5 @@
 /**
- * `@treequel/provider-memory` — the reference/oracle provider. It applies each
+ * `@treequel/provider-memory` — the reference provider. It applies each
  * op with the native JS equivalent via `expr.compiled`, never the tree. This is
  * the semantics every other provider's conformance suite is asserted against
  *. It is a thin wrapper over the shared engine in `@treequel/linq`.

@@ -1,0 +1,50 @@
+name: Provider request
+description: Request or propose a provider for a new target (datastore, API, or protocol).
+labels: ["provider"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Third-party providers are the ecosystem bet. A provider is a pure translator over the closed tree grammar that
+        passes `runConformance` against the memory oracle. See the "Writing a provider" guide before proposing one.
+  - type: input
+    id: target
+    attributes:
+      label: Target
+      description: The datastore, API, or protocol (e.g. MySQL, SQLite, OData, IndexedDB, a REST filter DSL).
+    validations:
+      required: true
+  - type: textarea
+    id: shape
+    attributes:
+      label: Query shape
+      description: What do queries against this target look like, and how would a tree map onto it?
+    validations:
+      required: true
+  - type: textarea
+    id: capabilities
+    attributes:
+      label: Capabilities
+      description: >
+        Which plan ops and WellKnown calls can it translate (where/select/orderBy/take/join, startsWith, etc.)? What
+        must fail fast (R2001/R2002) or cross the `.inMemory()` boundary?
+    validations:
+      required: true
+  - type: dropdown
+    id: intent
+    attributes:
+      label: Intent
+      options:
+        - I want to build this and am looking for guidance.
+        - I am requesting someone else build it.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before filing
+      options:
+        - label: I read the "Writing a provider" guide and understand the conformance requirement.
+          required: true
+        - label: I searched existing issues for the same target.
+          required: true

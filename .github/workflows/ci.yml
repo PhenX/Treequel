@@ -36,6 +36,40 @@ jobs:
       - name: Test (vitest workspace; property + conformance on PGlite)
         run: npx vitest run
 
+  commitlint:
+    # Lint the Conventional Commits range of a pull request (never main history).
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Lint commit messages (PR range)
+        run: node scripts/check-commit.mjs --range "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+
+  bench:
+    # Transform perf report. Prints the measured ratio against bench/baseline.json
+    # but never fails on a perf delta — absolute ops/sec (and the miss/hit ratio
+    # with them) vary between runners, so the committed baseline can only advise
+    # here. The local `npm run bench:check` is the hard gate. This job still goes
+    # red if the bench cannot build or run, which is a real problem worth seeing.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build packages (bench imports the built transform)
+        run: npm run build --workspaces --if-present
+      - name: Transform benchmark report vs baseline
+        run: npm run bench:ci
+
   pkg-health:
     runs-on: ubuntu-latest
     steps:

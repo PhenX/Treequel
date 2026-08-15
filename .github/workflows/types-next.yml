@@ -1,0 +1,48 @@
+name: Canary
+
+# Early warning against the two upstreams that can silently break us: the
+# TypeScript compiler (the `F | Expr<F>` inference risk) and oxc-parser (ESTree
+# drift). Runs weekly and on demand; both jobs are allowed to fail — a red run
+# is a visible heads-up, never a merge gate. Failures here open a fix ahead of
+# the pinned bump, replacing a Renovate-style canary PR.
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  typescript-next:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install typescript@next
+        run: npm i -D --no-save typescript@next
+      - run: npx tsc -v
+      - name: Typecheck and run the F | Expr<F> type tests
+        run: |
+          npx tsc -b
+          npm run test:types
+
+  oxc-next:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install oxc-parser@next
+        run: npm i -D --no-save oxc-parser@next
+      - name: Run the suite against the canary parser
+        run: npx vitest run

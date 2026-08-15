@@ -33,13 +33,19 @@ departure from the plan gets an ADR (`docs/adr/NNNN-*.md`) recording what change
 
 ## Repo status
 
-**M0–M6 landed.** All eleven `@treequel/*` packages are implemented, typechecked (`tsc -b`) and tested (Vitest,
-including fast-check property tests — serialize round-trip, partial-eval invariants, and a generative SQL≡memory
-oracle on PGlite — and `tsc`-checked `F | Expr<F>` type tests under `type-tests/`).
+**M0–M7 landed, bar the 0.1 publish.** All thirteen `@treequel/*` packages are implemented, typechecked (`tsc -b`) and
+tested (Vitest, including fast-check property tests — serialize round-trip, partial-eval invariants, and a generative
+SQL≡memory reference on PGlite — and `tsc`-checked `F | Expr<F>` type tests under `type-tests/`).
 The toolchain (npm workspaces, tsdown, project references, oxlint + oxfmt gated in `npm run verify`), `check-graph.mjs`,
-`release.mjs`, CI matrix, and the two integration examples are in place. **Remaining for M7 (plan §16):** the VitePress
-docs site (`apps/docs`), the playground (`apps/playground`), generated diagnostics + tree-schema pages, and the 0.1
-release. **Update this paragraph as milestones complete.**
+the Conventional-Commits `check-commit.mjs` (CI lints the PR range), `release.mjs` with changelog rendering, the
+transform benchmark (`bench/`, advisory regression gate), the CI matrix + weekly TS/oxc canary, and the two integration
+examples are in place. The **M7** surface exists too: the VitePress docs site (`apps/docs`) with generated diagnostics +
+tree-schema pages, the playground (`apps/playground`), the manually dispatched **Release** workflow, and the community
+health files (code of conduct, issue forms, CODEOWNERS). Pulled ahead of the plan's post-0.1 backlog, the SQL providers
+split into **`@treequel/provider-postgres`** and **`@treequel/provider-sqlite`** over a shared **`@treequel/provider-sql`**
+core (the `SqlDialect` seam + `makeSqlProvider`), so there are now thirteen `@treequel/*` packages (ADR-0003). **The one
+remaining step is dispatching the Release workflow to publish `0.1.0`.** **Update this paragraph as milestones
+complete.**
 
 ## Project overview
 
@@ -83,6 +89,8 @@ M0 wires the toolchain; this is the contract for it. From the repo root:
 | `npm run build --workspaces --if-present` | Build all packages (tsdown) |
 | `npx vitest run` | All test projects |
 | `npx vitest run --project unit` | Fast local loop; other projects: `types`, `transform`, `conformance`, `e2e` |
+| `npm run check-commit` | Lint `HEAD`'s commit message (Conventional Commits) |
+| `npm run bench` · `bench:check` | Transform microbenchmark · regression gate (build the packages first) |
 
 Run typecheck, lint and tests **once at the end** before the final commit — not after every edit.
 
@@ -98,9 +106,9 @@ Run typecheck, lint and tests **once at the end** before the final commit — no
    Everything under `src/internal/` may change freely. publint guards against deep-import leakage.
 4. **Diagnostic codes.** `Rxxxx` codes are append-only once released: never renumber, never reuse a retired code,
    never change a code's meaning. Message wording may improve; each code keeps its docs anchor and ≥1 test fixture.
-5. **Provider semantics.** The memory provider is the reference semantics and test oracle for every other provider. A
+5. **Provider semantics.** The memory provider is the reference semantics for every other provider. A
    behavior change there changes the definition of correct for the whole ecosystem — the conformance suite moves in
-   the same PR, and divergences found by the oracle property test become committed regression fixtures.
+   the same PR, and divergences found by the reference property test become committed regression fixtures.
 
 ## Conventions that apply everywhere
 
@@ -202,7 +210,7 @@ clause by clause.
 
 - Vitest workspace projects `unit` / `types` / `transform` / `conformance` / `e2e`; shared presets in
   `tooling/vitest`.
-- **The oracle is the strategy.** Every provider passes `runConformance` against the memory provider; every semantic
+- **The reference is the strategy.** Every provider passes `runConformance` against the memory provider; every semantic
   divergence the property tests find becomes a committed conformance fixture, permanently.
 - **Every `Rxxxx` diagnostic has ≥1 golden fixture** asserting message + span, with parity across the three hosts
   (build error, editor squiggle, lint output).

@@ -34,7 +34,7 @@ const residual = partialEval({ body: op.expr.body, scope: op.expr.scope });
 After folding, translation is a walk over a finite node set. Reject what you can't translate with a coded error that
 names your provider and the offending call — never a guess, never a silent client-side fallback.
 
-## Conformance: the memory provider is the oracle
+## Conformance: the memory provider is the reference
 
 The in-memory provider defines correct behavior. Your provider must produce the same results. The provider-author kit
 ships a conformance harness:
@@ -47,7 +47,7 @@ const failures = results.filter((r) => !r.equal);
 ```
 
 Run this under the build plugin (name the file `*.reify.test.ts` in a Vitest setup) so the queries reify into real
-trees. Every divergence the oracle finds — LIKE escaping, null ordering, collation — becomes a permanent regression
+trees. Every divergence the reference finds — LIKE escaping, null ordering, collation — becomes a permanent regression
 fixture.
 
 ## Values are parameters, not strings

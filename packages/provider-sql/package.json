@@ -1,10 +1,10 @@
 {
   "name": "@treequel/provider-sql",
   "version": "0.1.0",
-  "description": "Treequel SQL provider — compiles expression trees to parameterized Postgres.",
+  "description": "Treequel SQL-translation core — the dialect seam, translator, and provider builder shared by the Postgres and SQLite providers.",
   "keywords": [
+    "dialect",
     "linq",
-    "postgres",
     "provider",
     "sql",
     "treequel"

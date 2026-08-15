@@ -44,7 +44,7 @@ Write ordinary TypeScript lambdas — `u => u.age > minAge && u.name.startsWith(
 - **G2 — Closure capture.** Free variables in lambdas are captured live (thunk), exactly like C# closures. `u => u.age > minAge` just works.
 - **G3 — Robustness.** Behavior is identical under minification, transpilation targets, and bundler pipelines. (This is what rules out `Function.prototype.toString()` as the primary mechanism.)
 - **G4 — Retargetable trees.** The tree format is a small, closed, versioned, JSON-serializable algebra. Providers are pure tree translators.
-- **G5 — Dual execution.** Every `Expr` carries the compiled original; the in-memory provider is the reference semantics and test oracle for all other providers.
+- **G5 — Dual execution.** Every `Expr` carries the compiled original; the in-memory provider is the reference semantics for all other providers.
 - **G6 — Graceful degradation.** Without the plugin: in-memory paths work fully; remote providers fall back to runtime parse with precise, teachable errors on closures.
 - **G7 — Vite-native, portable by construction.** The plugin uses only Rollup-compatible hooks (`enforce: "pre"` + `transform` + `load`), so it runs unchanged in Vite, Rollup, and Rolldown. The transform itself is a pure function in its own package (`@treequel/transform`), so webpack/Rspack adapters (e.g. a community unplugin wrapper) are possible post-0.1 without touching core.
 - **G8 — First-class DX.** Language-service plugin (red squiggles in-editor for out-of-subset syntax), ESLint rule, code-framed build errors, pretty tree printing.
@@ -110,7 +110,7 @@ Design consequences already in place: trees are JSON-plain and versioned (§5), 
                           │   ├─ Queryable<T> (lazy, immutable)        │
                           │   ├─ QueryPlan (source + ops[])            │
                           │   └─ QueryProvider interface               │
-                          │        ├─ @treequel/provider-memory (oracle)
+                          │        ├─ @treequel/provider-memory (reference)
                           │        ├─ @treequel/provider-sql (pg first)│
                           │        └─ third-party providers            │
                           │                                            │
@@ -237,7 +237,7 @@ Summary table; detailed specs in §5–§12.
 | `@treequel/transform` | Pure per-module transform (tracer, detector, splicing) | `capture`, `oxc-parser`, `magic-string` | n/a (dev-time) |
 | `@treequel/vite` | Thin Vite plugin over `transform` (Rollup-compatible hooks) | `transform` | n/a (dev dep) |
 | `@treequel/linq` | `Queryable`, `QueryPlan`, provider protocol, `createContext` | `core` | < 4 kB |
-| `@treequel/provider-memory` | Reference/oracle provider | `linq` | < 2 kB |
+| `@treequel/provider-memory` | Reference provider | `linq` | < 2 kB |
 | `@treequel/provider-sql` | Tree → parameterized SQL (pg dialect first) | `linq` | < 10 kB |
 | `@treequel/ts-plugin` | LS diagnostics in-editor | `capture` | n/a |
 | `@treequel/eslint-plugin` | Same rules for lint-gated CI | `capture` | n/a |
@@ -401,7 +401,7 @@ Performance budget: < 1 ms per non-matching module (pre-scan only), < 10 ms per 
 
 > Only lambda **literals** written directly at a traced call site, or wrapped in `expr()`, become expression trees. A plain function value reaching a provider that needs a tree fails at plan-build time with R2003: `Opaque function passed to .where() — write the lambda inline or wrap it with expr().`
 
-The in-memory provider accepts opaque functions (it just calls them) but logs a dev-mode warning R2004 so tests don't silently diverge from what production providers can do. (Silently accepting them in the oracle while SQL rejects them would undermine G5.)
+The in-memory provider accepts opaque functions (it just calls them) but logs a dev-mode warning R2004 so tests don't silently diverge from what production providers can do. (Silently accepting them in the reference while SQL rejects them would undermine G5.)
 
 ### 7.5 Sourcemaps, HMR, SSR
 
@@ -532,7 +532,7 @@ interface QueryProvider {
 
 ## 10. Providers
 
-### 10.1 `provider-memory` (the oracle)
+### 10.1 `provider-memory` (the reference)
 
 ~150 lines: for each op, apply the JS-native equivalent using `expr.compiled` (never the tree). `groupBy` → Map; `join` → hash join; executors trivially. This provider defines semantics; every other provider's conformance suite (§14.3) asserts equality against it.
 
@@ -575,7 +575,7 @@ Detection is layered; each layer shrinks the problem for the next.
 3. **Capability pre-check (before any I/O).** `Queryable` walks the folded plan against `capabilities()`: plan ops vs `dialect.ops`; Param-rooted `Member`/`Index` chains must resolve through schema meta to a column or declared JSON path (else R2002); every `Call` must resolve to a key in `dialect.calls` (else R2001, naming provider + call + `loc`); nested `Lambda` (`some`/`every`) requires the corresponding relational capability. Any diagnostic → throw before touching the database.
 4. **Call resolution via tree typing.** The dialect table is keyed `(receiverType, method)` (e.g. `string.startsWith`). Receiver types come from a bottom-up type inference over the tree — trivial because the grammar is closed: column types from schema meta, `Constant` tags, and fixed operator result types propagate upward. Untypeable receivers (usually undeclared JSON paths) make a call *ambiguous* → R2006 ("declare the column type in schema meta"), never a guess. Shortcut: method names unique across `WellKnown` resolve without receiver typing.
 
-Detection ≠ semantics: "can emit SQL" is not "means the same as the JS". The oracle property suite (§14.2) owns semantic equivalence; every divergence it finds (LIKE escaping, null ordering, collation) becomes a conformance regression fixture.
+Detection ≠ semantics: "can emit SQL" is not "means the same as the JS". The reference property suite (§14.2) owns semantic equivalence; every divergence it finds (LIKE escaping, null ordering, collation) becomes a conformance regression fixture.
 
 **No silent client evaluation (ADR-11).** Untranslatable residue is a fail-fast error, never a quiet fallback — except through the explicit boundary operator:
 
@@ -624,7 +624,7 @@ Single source of truth `packages/capture/src/diagnostics.ts`; every diagnostic h
 |---|---|---|
 | R1100–R1199 | Capture/subset | R1101 block body · R1102 assignment · R1103 loose equality · R1104 `this` · R1105 `new` · R1106 await/yield · R1109 regex literal · R1111 rest/array-destructure param |
 | R1900–R1999 | Tree format | R1901 bad/newer serialized format |
-| R2000–R2099 | Provider/plan | R2001 untranslatable call (names provider + call + loc) · R2002 dynamic index / unresolvable column path · R2003 opaque function at provider · R2004 opaque function in oracle (warn) · R2005 Param-dependent call to captured function · R2006 ambiguous call — declare column type in schema meta |
+| R2000–R2099 | Provider/plan | R2001 untranslatable call (names provider + call + loc) · R2002 dynamic index / unresolvable column path · R2003 opaque function at provider · R2004 opaque function in reference (warn) · R2005 Param-dependent call to captured function · R2006 ambiguous call — declare column type in schema meta |
 | R3000–R3099 | Fallback | R3001 fallback active (warn once) · R3002 closure in fallback (names variables) · R3003 fallback refused in production |
 | R4000–R4099 | Plugin/config | R4001 context import untraceable (suggests `expr()` or `@treequel-context`) · R4002 double-transform detected (info) |
 
@@ -640,12 +640,12 @@ Single source of truth `packages/capture/src/diagnostics.ts`; every diagnostic h
 | Transform snapshots | Vitest + inline fixtures | for each `fixtures/*.input.ts`: emitted code snapshot + parsed-tree snapshot + sourcemap position spot-checks. Golden files reviewed in PRs |
 | Diagnostics golden | Vitest | every Rxxxx has ≥1 fixture; message + span asserted; parity across build/LS/eslint hosts |
 | Type tests | Vitest `expectTypeOf` (+ `tsc --noEmit` matrix TS latest & next) | §11 inference guarantees |
-| Property tests | fast-check | (a) tree gen → `evaluate(partialEval(t))` ≡ direct eval; (b) predicate gen + data gen → **memory ≡ SQL** row sets (the oracle test, run on PGlite); (c) serialize/deserialize identity |
-| Conformance | `runConformance` | shared behavioral suite each provider must pass vs memory oracle: nulls, Unicode/collation notes, empty sources, LIKE-escaping (`%`,`_` in user input!), date boundaries, `single` cardinality |
+| Property tests | fast-check | (a) tree gen → `evaluate(partialEval(t))` ≡ direct eval; (b) predicate gen + data gen → **memory ≡ SQL** row sets (the reference test, run on PGlite); (c) serialize/deserialize identity |
+| Conformance | `runConformance` | shared behavioral suite each provider must pass vs memory reference: nulls, Unicode/collation notes, empty sources, LIKE-escaping (`%`,`_` in user input!), date boundaries, `single` cardinality |
 | E2E | Vitest + Vite programmatic build (`vite.build()` in-process) of `examples/vite-postgres` | plugin wiring, HMR smoke via Vite dev-server API, fallback example errors as documented |
 | Bench | tinybench in `bench/` | transform per-module cost; regression threshold in CI (fail > 30% slower than committed baseline) |
 
-### 14.2 The oracle test is the crown jewel
+### 14.2 The reference test is the crown jewel
 
 `fast-check` arbitraries generate: a schema (3–6 columns of mixed types incl. nullable), row sets (with nulls, empty strings, `%_` characters, Unicode, boundary dates), and predicate/projection trees restricted to the WellKnown surface. Assert `sortCanonical(await memory) deepEquals sortCanonical(await sql)` (unordered ops compare as multisets). Every provider bug becomes a shrunk minimal counterexample. Run 200 cases per PR, 5 000 nightly.
 
@@ -727,7 +727,7 @@ This table is normative: adding a dependency means adding a row and a justificat
 | `@treequel/fallback` (dev-only path, lazy `import()`) | `meriyah` | Pure-JS ESTree parser for browser-safe runtime parsing; oxc-parser is a native binding and can't ship to browsers. |
 | Repo devDependencies | `typescript`, `vitest`, `tsdown`, `oxlint`, `oxfmt` | the toolchain |
 | | `vitepress` | docs (isolated in `apps/docs`) |
-| | `fast-check` | the oracle property tests (§14.2) are the correctness strategy; not vendorable |
+| | `fast-check` | the reference property tests (§14.2) are the correctness strategy; not vendorable |
 | | `@electric-sql/pglite` | real-Postgres conformance in CI without service containers |
 | | `publint`, `tinybench` | tiny, CI-only |
 | `@treequel/eslint-plugin` only | `eslint`, `@typescript-eslint/utils` (peer/dev) | required to *be* an ESLint plugin; scoped to that package |
@@ -750,7 +750,7 @@ Each milestone ends green-in-CI and demo-able. Estimates assume one focused engi
 
 **M4 — LINQ + memory provider (1 wk).** `Queryable`/plan/protocol/capability pre-check; memory provider; type-test suite (§11) — **checkpoint: if `F | Expr<F>` inference fails here, exercise plan B before proceeding.** *Exit: examples/no-plugin path fully works; type tests green on TS latest+next.*
 
-**M5 — SQL provider (2 wk).** Translatability checker + tree typing (§10.4), normalize pass, pg dialect table, LIKE escaping, params, executors, `.inMemory()` plan splitting, PGlite conformance + oracle property test. *Exit: 5 000-case nightly oracle run clean; `explain()` returns SQL text.*
+**M5 — SQL provider (2 wk).** Translatability checker + tree typing (§10.4), normalize pass, pg dialect table, LIKE escaping, params, executors, `.inMemory()` plan splitting, PGlite conformance + reference property test. *Exit: 5 000-case nightly reference run clean; `explain()` returns SQL text.*
 
 **M6 — Fallback + DX surface (1.5 wk).** `fallback` package with R3xxx behavior; `ts-plugin`; `eslint-plugin`; parity golden test. *Exit: same bad lambda → same message in 3 hosts; fallback example matches docs.*
 
@@ -784,11 +784,11 @@ Maintain full ADRs in `docs/adr/NNNN-*.md`; summaries:
 | Cross-module tracing edge cases (barrel files, dynamic import, monorepo package boundaries) | High | boundary rule + `expr()` escape hatch keeps everything *possible*; manifest covers the 90% pattern; R4001 teaches the fix |
 | oxc-parser output drift vs ESTree assumptions | Medium | adapter layer isolates it; oxc version pinned exactly; scheduled canary workflow against `next` |
 | oxlint/oxfmt still maturing (rule gaps, formatter churn) | Medium | both are dev-only and swappable in a day; pin exact versions; no repo code depends on them |
-| SQL semantic mismatches (collation, null ordering, LIKE escaping) | Certain, individually small | oracle property test finds them; conformance suite grows a regression fixture per bug |
+| SQL semantic mismatches (collation, null ordering, LIKE escaping) | Certain, individually small | reference property test finds them; conformance suite grows a regression fixture per bug |
 | PGlite instability on Windows CI | Low | fall back to Linux-only conformance + service-container Postgres job |
 | Scope creep toward ORM | High (socially) | N1 non-goal enforced in issue triage; relations/`include` deferred to a designed post-0.1 RFC |
 
-**Open questions to resolve during M2–M4** (tracked as GitHub issues from day one): exact `WellKnown` v1 list freeze; whether `select` object nesting is flag-gated or default in SQL provider; `groupBy` materialization shape for the memory oracle vs SQL aggregate-only reality (likely: v1 `groupBy` must be followed by an aggregate executor or aggregate `select`, matching what SQL can honor — decide with a spike); how `join` result projections handle name collisions.
+**Open questions to resolve during M2–M4** (tracked as GitHub issues from day one): exact `WellKnown` v1 list freeze; whether `select` object nesting is flag-gated or default in SQL provider; `groupBy` materialization shape for the memory reference vs SQL aggregate-only reality (likely: v1 `groupBy` must be followed by an aggregate executor or aggregate `select`, matching what SQL can honor — decide with a spike); how `join` result projections handle name collisions.
 
 ---
 

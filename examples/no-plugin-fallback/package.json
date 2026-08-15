@@ -11,6 +11,6 @@
     "@treequel/fallback": "*",
     "@treequel/linq": "*",
     "@treequel/provider-memory": "*",
-    "@treequel/provider-sql": "*"
+    "@treequel/provider-postgres": "*"
   }
 }

@@ -10,7 +10,15 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 // Runtime packages must have ZERO third-party runtime dependencies (headline feature).
-const RUNTIME = new Set(["tree", "core", "linq", "provider-memory", "provider-sql"]);
+const RUNTIME = new Set([
+  "tree",
+  "core",
+  "linq",
+  "provider-memory",
+  "provider-sql",
+  "provider-postgres",
+  "provider-sqlite",
+]);
 
 // Allowed runtime dependencies per package: internal @treequel/* names + external pkgs.
 const ALLOWED = {
@@ -20,6 +28,8 @@ const ALLOWED = {
   linq: { internal: ["core"], external: [] },
   "provider-memory": { internal: ["core", "linq"], external: [] },
   "provider-sql": { internal: ["core", "linq"], external: [] },
+  "provider-postgres": { internal: ["provider-sql"], external: [] },
+  "provider-sqlite": { internal: ["provider-sql"], external: [] },
   transform: { internal: ["capture"], external: ["oxc-parser", "magic-string"] },
   vite: { internal: ["transform"], external: [] },
   fallback: { internal: ["core", "capture"], external: ["meriyah"] },

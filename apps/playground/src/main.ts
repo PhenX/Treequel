@@ -1,7 +1,7 @@
 import { __expr, type Node, print } from "@treequel/core";
 import { parseFunctionSource } from "@treequel/fallback";
 import { createContext } from "@treequel/linq";
-import { type SchemaMeta, sqlProvider } from "@treequel/provider-sql";
+import { type SchemaMeta, postgres } from "@treequel/provider-postgres";
 import { emitNode } from "@treequel/transform/emit";
 import { serialize } from "@treequel/tree";
 
@@ -17,7 +17,7 @@ const jsonEl = $("json");
 // A provider whose executor is never called — we only render explain() text.
 const noExec = async (): Promise<{ rows: Array<Record<string, unknown>> }> => ({ rows: [] });
 const schema: SchemaMeta = { users: { table: "users" } };
-const db = createContext<{ users: unknown }>(sqlProvider(noExec, schema)) as {
+const db = createContext<{ users: unknown }>(postgres(noExec, schema)) as {
   users: {
     where(e: unknown): { explain(): Promise<string> };
     select(e: unknown): { explain(): Promise<string> };

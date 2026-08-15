@@ -1,5 +1,6 @@
 import { type Node, TreequelError } from "@treequel/core";
 import { type TableMeta, physicalColumn } from "./schema.js";
+import { type SqlDialect } from "./dialect.js";
 
 /** State threaded through a single expression translation. */
 export class TranslateContext {
@@ -7,12 +8,13 @@ export class TranslateContext {
   constructor(
     readonly meta: TableMeta,
     readonly alias: string,
+    readonly dialect: SqlDialect,
     readonly loc?: string,
   ) {}
 
   param(value: unknown): string {
     this.values.push(value);
-    return `$${this.values.length}`;
+    return this.dialect.placeholder(this.values.length);
   }
 
   private located(detail: string): string {
@@ -26,11 +28,6 @@ export class TranslateContext {
 
 export function quoteIdent(id: string): string {
   return `"${id.replace(/"/g, '""')}"`;
-}
-
-/** Escape LIKE metacharacters in a literal so it matches literally (ESCAPE '\'). */
-function escapeLike(s: string): string {
-  return s.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
 }
 
 const NUMERIC_BINARY: Record<string, string> = {
@@ -95,7 +92,7 @@ export function translate(node: Node, ctx: TranslateContext): string {
       return translateCall(node, ctx);
 
     case "In":
-      return `(${translate(node.needle, ctx)} = ANY(${translate(node.haystack, ctx)}))`;
+      return translateIn(node.needle, node.haystack, ctx);
 
     case "Template":
       return translateTemplate(node, ctx);
@@ -141,10 +138,10 @@ function translateBinary(node: Extract<Node, { kind: "Binary" }>, ctx: Translate
     return `(${translate(node.left, ctx)} ${isNot ? "<>" : "="} ${translate(node.right, ctx)})`;
   }
   if (node.op === "**") {
-    return `POWER(${translate(node.left, ctx)}, ${translate(node.right, ctx)})`;
+    return ctx.dialect.power(translate(node.left, ctx), translate(node.right, ctx));
   }
   if (node.op === "in") {
-    return `(${translate(node.left, ctx)} = ANY(${translate(node.right, ctx)}))`;
+    return translateIn(node.left, node.right, ctx);
   }
   const sqlOp = NUMERIC_BINARY[node.op];
   if (!sqlOp) return ctx.fail("R2001", `Operator '${node.op}' is not translatable.`);
@@ -181,7 +178,7 @@ function translateCall(node: Extract<Node, { kind: "Call" }>, ctx: TranslateCont
     default:
       return ctx.fail(
         "R2001",
-        `Call '.${method}()' is not translatable by the pg provider — cross the .inMemory() boundary or extend the dialect.`,
+        `Call '.${method}()' is not translatable by the ${ctx.dialect.name} provider — cross the .inMemory() boundary or extend the dialect.`,
       );
   }
 }
@@ -195,22 +192,23 @@ function translateLike(
   const arg = args[0];
   // Array membership: constant array .includes(column)
   if (method === "includes" && recv.kind === "Constant" && Array.isArray(recv.value)) {
-    return `(${translate(arg as Node, ctx)} = ANY(${ctx.param(recv.value)}))`;
+    return ctx.dialect.arrayContains(translate(arg as Node, ctx), recv.value, ctx);
   }
   if (!arg || arg.kind !== "Constant" || typeof arg.value !== "string") {
     return ctx.fail(
       "R2001",
-      `.${method}() requires a constant string argument for SQL LIKE translation.`,
+      `.${method}() requires a constant string argument for a SQL string match.`,
     );
   }
-  const escaped = escapeLike(arg.value);
-  const pattern =
-    method === "startsWith"
-      ? `${escaped}%`
-      : method === "endsWith"
-        ? `%${escaped}`
-        : `%${escaped}%`;
-  return `(${translate(recv, ctx)} LIKE ${ctx.param(pattern)} ESCAPE '\\')`;
+  return ctx.dialect.stringMatch(method, translate(recv, ctx), arg.value, ctx);
+}
+
+/** `needle` ∈ `haystack`, where `haystack` must be a constant array. */
+function translateIn(needle: Node, haystack: Node, ctx: TranslateContext): string {
+  if (haystack.kind === "Constant" && Array.isArray(haystack.value)) {
+    return ctx.dialect.arrayContains(translate(needle, ctx), haystack.value, ctx);
+  }
+  return ctx.fail("R2001", "Membership requires a constant array on the right.");
 }
 
 function translateTemplate(

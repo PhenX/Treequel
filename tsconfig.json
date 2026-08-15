@@ -11,6 +11,8 @@
     { "path": "packages/linq" },
     { "path": "packages/provider-memory" },
     { "path": "packages/provider-sql" },
+    { "path": "packages/provider-postgres" },
+    { "path": "packages/provider-sqlite" },
     { "path": "packages/ts-plugin" },
     { "path": "packages/eslint-plugin" }
   ]

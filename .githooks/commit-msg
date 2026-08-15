@@ -1,0 +1,4 @@
+#!/bin/sh
+# Conventional Commits check. Enable with:  git config core.hooksPath .githooks
+# (Git for Windows runs this through its bundled sh, so it is cross-platform.)
+exec node scripts/check-commit.mjs --file "$1"

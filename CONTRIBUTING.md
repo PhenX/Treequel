@@ -34,6 +34,22 @@ From the repo root:
 | `npm run build --workspaces --if-present` | Build all packages |
 | `npx vitest run` | All tests — `--project unit` for the fast loop |
 
+## Benchmarks
+
+`bench/` holds a tinybench microbenchmark of the per-module build transform. It imports the built packages, so build
+first:
+
+```bash
+npm run build --workspaces --if-present
+npm run bench          # print a table
+npm run bench:check    # compare against bench/baseline.json
+```
+
+The baseline is a ratio (a matching-module transform vs a pre-scan bail), which cancels most but not all machine speed —
+it still drifts between runners, so `bench:check` is a **local** hard gate against your own baseline. Regenerate that
+baseline with `node bench/transform.bench.mjs --update` when an intentional change moves it. CI runs `bench:ci`
+(`--report`) on pull requests: it prints the delta but never fails on perf alone.
+
 ## Commit messages & PR titles
 
 This repo uses [Conventional Commits](https://www.conventionalcommits.org/), enforced by a commit-msg check locally
@@ -55,6 +71,18 @@ type(scope): subject
 Mark a break of the tree wire format or of a package's public API with `!` after the type/scope, or a
 `BREAKING CHANGE:` footer.
 
+### Checking locally
+
+`node scripts/check-commit.mjs --last` lints the message on `HEAD`; `npm run check-commit` is the same. To have Git
+reject a bad message before it is written, point Git at a committed hook once (no extra dependency):
+
+```bash
+git config core.hooksPath .githooks
+```
+
+The `commit-msg` hook under `.githooks/` runs the same check on every commit. CI lints the whole PR range regardless,
+so the hook is a convenience, not the gate.
+
 ### Examples
 
 ```
@@ -74,11 +102,12 @@ Every third-party dependency needs a justified row in `DEPENDENCIES.md` in the s
 
 ## Releases
 
-Lockstep, via `scripts/release.mjs` from a manually dispatched workflow (patch/minor/major): it bumps every package to
-the same version, rewrites internal `"*"` ranges, updates `CHANGELOG.md` from the commit history, tags, and publishes
-each public package to npm with provenance.
+Lockstep, from the manually dispatched **Release** workflow (patch/minor/major). `scripts/release.mjs` does the
+deterministic part — bump every package to one version, rewrite internal `"*"` ranges, and prepend a `CHANGELOG.md`
+section rendered from the commit history — and the workflow commits, tags, pushes, and publishes each public package to
+npm with provenance (provenance can only be produced from CI). Pushing the release commit also redeploys the docs.
 
 ## Security
 
-Please report vulnerabilities privately — see [SECURITY.md](SECURITY.md) once it lands; until then, use GitHub's
-private vulnerability reporting on this repository rather than a public issue.
+Please report vulnerabilities privately — see [SECURITY.md](SECURITY.md). Use GitHub's private vulnerability reporting
+on this repository rather than a public issue.

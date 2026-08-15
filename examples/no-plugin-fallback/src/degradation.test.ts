@@ -5,7 +5,7 @@
  * relies on the lazily-registered runtime fallback.
  */
 import { enableFallback } from "@treequel/fallback";
-import { type SchemaMeta, type SqlExecutor, sqlProvider } from "@treequel/provider-sql";
+import { type SchemaMeta, type SqlExecutor, postgres } from "@treequel/provider-postgres";
 import { createContext } from "@treequel/linq";
 import { memoryProvider } from "@treequel/provider-memory";
 import { beforeAll, describe, expect, it, vi } from "vitest";
@@ -27,7 +27,7 @@ const schemaMeta: SchemaMeta = { users: { table: "users" } };
 
 const memDb = createContext<Schema>(memoryProvider({ users }));
 const remoteDb = createContext<Schema>(
-  sqlProvider((async () => ({ rows: [] })) as SqlExecutor, schemaMeta),
+  postgres((async () => ({ rows: [] })) as SqlExecutor, schemaMeta),
 );
 
 beforeAll(() => {

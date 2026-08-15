@@ -41,9 +41,9 @@ error naming any captured variable (`import "@treequel/fallback/register"` to en
 | [`@treequel/capture`](packages/capture) | The shared subset validator, free-variable analysis, serializer | `tree` |
 | [`@treequel/linq`](packages/linq) | `Queryable`, `QueryPlan`, provider protocol, `createContext` | `core` |
 | [`@treequel/provider-memory`](packages/provider-memory) | Reference provider (defines the semantics) | `linq` |
-| [`@treequel/provider-sql`](packages/provider-sql) | Shared SQL-translation core (dialect seam, translator, builder) | `linq` |
-| [`@treequel/provider-postgres`](packages/provider-postgres) | Tree → parameterized Postgres | `provider-sql` |
-| [`@treequel/provider-sqlite`](packages/provider-sqlite) | Tree → parameterized SQLite | `provider-sql` |
+| [`@treequel/sql-core`](packages/sql-core) | Shared SQL-translation core (dialect seam, translator, builder) | `linq` |
+| [`@treequel/provider-postgres`](packages/provider-postgres) | Tree → parameterized Postgres | `sql-core` |
+| [`@treequel/provider-sqlite`](packages/provider-sqlite) | Tree → parameterized SQLite | `sql-core` |
 | [`@treequel/transform`](packages/transform) | Pure per-module build transform | `capture`, `oxc-parser`, `magic-string` |
 | [`@treequel/vite`](packages/vite) | Thin Vite / Rollup / Rolldown plugin | `transform` |
 | [`@treequel/fallback`](packages/fallback) | Runtime `toString()` capture (dev-only, lazy) | `core`, `capture`, `meriyah` |

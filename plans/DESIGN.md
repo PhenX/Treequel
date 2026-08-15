@@ -111,7 +111,7 @@ Design consequences already in place: trees are JSON-plain and versioned (§5), 
                           │   ├─ QueryPlan (source + ops[])            │
                           │   └─ QueryProvider interface               │
                           │        ├─ @treequel/provider-memory (reference)
-                          │        ├─ @treequel/provider-sql (pg first)│
+                          │        ├─ @treequel/sql-core (pg first)│
                           │        └─ third-party providers            │
                           │                                            │
                           │  @treequel/fallback (dev-only path)        │
@@ -165,7 +165,7 @@ treequel/
 │  ├─ vite/                      # @treequel/vite      — thin Vite plugin over transform (Rollup/Rolldown-compatible)
 │  ├─ linq/                      # @treequel/linq      — Queryable, QueryPlan, provider protocol, createContext
 │  ├─ provider-memory/           # @treequel/provider-memory
-│  ├─ provider-sql/              # @treequel/provider-sql (dialect: postgres first; mysql/sqlite later)
+│  ├─ sql-core/              # @treequel/sql-core (dialect: postgres first; mysql/sqlite later)
 │  ├─ ts-plugin/                 # @treequel/ts-plugin — language service plugin
 │  └─ eslint-plugin/             # @treequel/eslint-plugin
 ├─ apps/
@@ -193,7 +193,7 @@ treequel/
 
 ```
 tree ◀── core ◀── linq ◀── provider-memory
-  ▲        ▲        ▲  ◀── provider-sql
+  ▲        ▲        ▲  ◀── sql-core
   │        │        │
   └── capture ◀── transform ◀── vite
          ▲     ◀── fallback (also depends on core)
@@ -238,7 +238,7 @@ Summary table; detailed specs in §5–§12.
 | `@treequel/vite` | Thin Vite plugin over `transform` (Rollup-compatible hooks) | `transform` | n/a (dev dep) |
 | `@treequel/linq` | `Queryable`, `QueryPlan`, provider protocol, `createContext` | `core` | < 4 kB |
 | `@treequel/provider-memory` | Reference provider | `linq` | < 2 kB |
-| `@treequel/provider-sql` | Tree → parameterized SQL (pg dialect first) | `linq` | < 10 kB |
+| `@treequel/sql-core` | Tree → parameterized SQL (pg dialect first) | `linq` | < 10 kB |
 | `@treequel/ts-plugin` | LS diagnostics in-editor | `capture` | n/a |
 | `@treequel/eslint-plugin` | Same rules for lint-gated CI | `capture` | n/a |
 
@@ -549,7 +549,7 @@ interface QueryProvider {
 
 ~150 lines: for each op, apply the JS-native equivalent using `expr.compiled` (never the tree). `groupBy` → Map; `join` → hash join; executors trivially. This provider defines semantics; every other provider's conformance suite (§14.3) asserts equality against it.
 
-### 10.2 `provider-sql` (Postgres first)
+### 10.2 `sql-core` (Postgres first)
 
 Pipeline per plan: `partialEval` every expr → **normalize** (rewrite pass: `x.includes(y)`→`In`, `!(a && b)`→De Morgan optional, null-comparison normalization `x === null` → `IS NULL`) → **translate** with a dialect table → emit `{ text, values }` parameterized SQL (never string-interpolated values; `Constant`s become `$n` params).
 

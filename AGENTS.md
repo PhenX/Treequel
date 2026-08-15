@@ -18,7 +18,8 @@ Read the section covering the area you are editing, in addition to this file:
 | `packages/core/` — `Expr`, visitor/rewriter, partial evaluation | plan §8 |
 | `packages/fallback/` — runtime `toString()` path | plan §8.4 |
 | `packages/linq/` — `Queryable`, `QueryPlan`, provider protocol | plan §9 |
-| `packages/provider-*/` — providers | plan §10 |
+| `packages/sql-core/` — shared SQL translator, dialect seam, provider builder | plan §10 |
+| `packages/provider-*/` — providers (`memory`, `postgres`, `sqlite`) | plan §10 |
 | `packages/ts-plugin/`, `packages/eslint-plugin/` — editor & lint surface | plan §12 |
 | `apps/docs/` — VitePress documentation site | plan §15.1 + [voice](#voice) below |
 | `.github/`, `scripts/`, `tooling/` — CI, release, shared configs | plan §15 |
@@ -42,7 +43,7 @@ transform benchmark (`bench/`, advisory regression gate), the CI matrix + weekly
 examples are in place. The **M7** surface exists too: the VitePress docs site (`apps/docs`) with generated diagnostics +
 tree-schema pages, the playground (`apps/playground`), the manually dispatched **Release** workflow, and the community
 health files (code of conduct, issue forms, CODEOWNERS). Pulled ahead of the plan's post-0.1 backlog, the SQL providers
-split into **`@treequel/provider-postgres`** and **`@treequel/provider-sqlite`** over a shared **`@treequel/provider-sql`**
+split into **`@treequel/provider-postgres`** and **`@treequel/provider-sqlite`** over a shared **`@treequel/sql-core`**
 core (the `SqlDialect` seam + `makeSqlProvider`), so there are now thirteen `@treequel/*` packages (ADR-0003). Also
 ahead of plan: **first-class `leftJoin` and EF-style `include`/`thenInclude`** (relations declared via
 `defineRelations`, split-query batching in SQL, layered SQL compile with derived-table wrapping — ADR-0004), with the

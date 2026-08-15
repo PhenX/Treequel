@@ -3,7 +3,7 @@ import initSqlJs from "sql.js";
 import { memoryProvider } from "@treequel/provider-memory";
 import { type Context, createContext, defineRelations, expr } from "@treequel/linq";
 import { type Fixtures, defaultRelations, runConformance } from "@treequel/linq/testing";
-import { makeSqlProvider } from "@treequel/provider-sql";
+import { makeSqlProvider } from "@treequel/sql-core";
 import { beforeAll, describe, expect, it } from "vitest";
 import { type SchemaMeta, type SqlExecutor, sqlite, sqliteDialect } from "./index.js";
 

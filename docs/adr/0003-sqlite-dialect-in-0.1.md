@@ -1,6 +1,6 @@
 # ADR 0003 — SQL providers: per-dialect packages over a shared core, SQLite in 0.1
 
-Status: accepted
+Status: accepted (the shared core's package name is superseded by ADR-0010: `provider-sql` → `sql-core`)
 
 ## Context
 

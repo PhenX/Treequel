@@ -1,5 +1,5 @@
 /**
- * `@treequel/provider-sql` — the shared SQL-translation core. It holds the
+ * `@treequel/sql-core` — the shared SQL-translation core. It holds the
  * dialect-agnostic translator, the `SqlDialect` seam, and the provider builder
  * `makeSqlProvider`; the concrete Postgres and SQLite providers (and any
  * third-party dialect) are thin packages that supply a `SqlDialect` and call it.

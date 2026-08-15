@@ -1,4 +1,4 @@
-import { type SqlDialect, escapeLike } from "@treequel/provider-sql";
+import { type SqlDialect, escapeLike } from "@treequel/sql-core";
 
 export const pgDialect: SqlDialect = {
   name: "postgres",

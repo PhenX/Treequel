@@ -1,5 +1,5 @@
 {
-  "name": "@treequel/provider-sql",
+  "name": "@treequel/sql-core",
   "version": "0.1.0",
   "description": "Treequel SQL-translation core — the dialect seam, translator, and provider builder shared by the Postgres and SQLite providers.",
   "keywords": [

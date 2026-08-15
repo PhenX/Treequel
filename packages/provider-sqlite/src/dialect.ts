@@ -1,4 +1,4 @@
-import { type SqlDialect, escapeGlob } from "@treequel/provider-sql";
+import { type SqlDialect, escapeGlob } from "@treequel/sql-core";
 
 export const sqliteDialect: SqlDialect = {
   name: "sqlite",

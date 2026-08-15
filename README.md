@@ -61,6 +61,14 @@ binary / logical / unary / ternary operators, template / object / array literals
 `every`. Out-of-subset syntax is rejected with a coded, located diagnostic — the same message in the editor, in ESLint,
 and at build time. Loose equality (`==` / `!=`) is rejected (`R1103`, autofixed to `===` / `!==`).
 
+## Lineage
+
+The design is C#'s `Expression<Func<T, bool>>` and `IQueryable<T>` rebuilt for TypeScript, with a build-time plugin
+standing in for the C# compiler and EF Core supplying the provider playbook — `include`/`thenInclude` with split
+queries, parameterized SQL, and no silent client-side evaluation. The docs map the concepts in
+[The C# lineage](https://phenx.github.io/Treequel/guide/lineage) and place Treequel next to Prisma, Drizzle, Kysely,
+TypeORM, MikroORM, and EF Core in [Compared to ORMs & EF Core](https://phenx.github.io/Treequel/guide/comparison).
+
 ## Status
 
 Pre-0.1, under initial construction — nothing is published to npm yet. The API shown above is the design target, not a

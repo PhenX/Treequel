@@ -103,3 +103,10 @@ than returning a wrong result. Enable it with:
 ```ts
 import "@treequel/fallback/register";
 ```
+
+## Coming from somewhere else?
+
+- From C#: LINQ and EF Core are this design's ancestors, and the concepts map one-to-one —
+  [The C# lineage](/guide/lineage).
+- From Prisma, Drizzle, Kysely, TypeORM, or MikroORM: Treequel is not an ORM, and the overlap is narrower than it
+  looks — [Compared to ORMs & EF Core](/guide/comparison).

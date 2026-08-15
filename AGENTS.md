@@ -87,9 +87,9 @@ M0 wires the toolchain; this is the contract for it. From the repo root:
 | `npm ci` | Install (npm workspaces; no pnpm, no yarn) |
 | `npm run verify` | Everything below in order — what CI runs, green before any release |
 | `node scripts/check-graph.mjs` | Dependency edges, duplicate-tool check, private-flag check |
-| `npx oxlint` | Lint |
+| `npx tsc -b` | Typecheck + build dist — project references, topological, incremental |
+| `npx oxlint` | Lint — the treequel rules load from the built `eslint-plugin` via `jsPlugins`, so run `npx tsc -b` first |
 | `npx oxfmt --check .` | Format check (`npx oxfmt .` to write) |
-| `npx tsc -b` | Typecheck — project references, topological, incremental |
 | `npm run build --workspaces --if-present` | Build all packages (tsdown) |
 | `npx vitest run` | All test projects |
 | `npx vitest run --project unit` | Fast local loop; other projects: `types`, `transform`, `conformance`, `e2e` |

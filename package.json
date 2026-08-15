@@ -29,7 +29,7 @@
     "bench": "node bench/transform.bench.mjs",
     "bench:check": "node bench/transform.bench.mjs --check",
     "bench:ci": "node bench/transform.bench.mjs --report",
-    "verify": "npm run check-graph && npm run lint && npm run format:check && npm run typecheck && npm run test:types && npm run test"
+    "verify": "npm run check-graph && npm run typecheck && npm run lint && npm run format:check && npm run test:types && npm run test"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.2.17",

@@ -6,7 +6,10 @@
     "perf": "warn"
   },
   "ignorePatterns": ["**/dist/**", "**/node_modules/**", "plans/**"],
+  "jsPlugins": [{ "name": "treequel", "specifier": "@treequel/eslint-plugin" }],
   "rules": {
+    "treequel/valid-expression": "error",
+    "treequel/no-opaque-callback": "warn",
     "no-console": "off",
     "no-underscore-dangle": "off",
     "no-await-in-loop": "off",
@@ -14,5 +17,14 @@
     "unicorn/no-thenable": "off",
     "unicorn/no-array-sort": "off",
     "unicorn/consistent-function-scoping": "off"
-  }
+  },
+  "overrides": [
+    {
+      "files": ["**/*.test.ts", "type-tests/**"],
+      "rules": {
+        "treequel/valid-expression": "off",
+        "treequel/no-opaque-callback": "off"
+      }
+    }
+  ]
 }

@@ -17,7 +17,8 @@ db.users.where(adult); // → R2003 at a provider that needs the tree
 ```
 
 A provider that needs a tree rejects an opaque function with [R2003](/errors#R2003), telling you to inline the lambda
-or wrap it with `expr()`. The ESLint rule `treequel/no-opaque-callback` flags this at lint time, before you run.
+or wrap it with `expr()`. The lint rule `treequel/no-opaque-callback` — from `@treequel/eslint-plugin`, which loads
+into ESLint directly and into oxlint via `jsPlugins` — flags this at lint time, before you run.
 
 The in-memory provider accepts opaque functions — it just calls them — so a test can pass while a SQL provider would
 reject the same code. That divergence is a warning, not a silent success.

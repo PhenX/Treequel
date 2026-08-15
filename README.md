@@ -58,8 +58,8 @@ and the fallback agree on what is legal.
 
 Query lambdas are expression-bodied arrows over a small closed grammar: member and index access, calls,
 binary / logical / unary / ternary operators, template / object / array literals, and nested lambdas for `some` and
-`every`. Out-of-subset syntax is rejected with a coded, located diagnostic — the same message in the editor, in ESLint,
-and at build time. Loose equality (`==` / `!=`) is rejected (`R1103`, autofixed to `===` / `!==`).
+`every`. Out-of-subset syntax is rejected with a coded, located diagnostic — the same message in the editor, in ESLint
+or oxlint, and at build time. Loose equality (`==` / `!=`) is rejected (`R1103`, autofixed to `===` / `!==`).
 
 ## Lineage
 

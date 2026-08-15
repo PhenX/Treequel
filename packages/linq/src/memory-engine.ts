@@ -2,7 +2,7 @@ import type { AnyExpr, PlanOp, QueryPlan } from "./plan.js";
 
 /**
  * The reference in-memory semantics: apply plan ops to plain arrays using each
- * expression's `compiled` function. This engine *is* the oracle every other
+ * expression's `compiled` function. This engine *is* the reference every other
  * provider is tested against; it lives in `linq` so both
  * `provider-memory` and the `.inMemory()` boundary reuse one implementation.
  */
@@ -84,7 +84,7 @@ function sortBy(rows: unknown[], keys: Array<{ expr: AnyExpr; desc: boolean }>):
 }
 
 /**
- * Total order used by both the oracle and (mirrored by) the SQL provider.
+ * Total order used by both the reference and (mirrored by) the SQL provider.
  * null/undefined sort *last* under ascending — negating for `desc` then makes
  * them sort first, matching Postgres NULLS LAST (asc) / NULLS FIRST (desc).
  */

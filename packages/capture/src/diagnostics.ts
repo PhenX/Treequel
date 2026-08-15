@@ -72,7 +72,7 @@ export const DIAGNOSTICS: Readonly<Record<string, DiagnosticSpec>> = Object.free
     summary: "Opaque function passed to a query method",
     hint: "Write the lambda inline at the call site, or wrap it with expr().",
   },
-  R2004: { severity: "warn", summary: "Opaque function accepted by the in-memory oracle" },
+  R2004: { severity: "warn", summary: "Opaque function accepted by the in-memory reference" },
   R2005: { severity: "error", summary: "Param-dependent call to a captured function" },
   R2006: {
     severity: "error",

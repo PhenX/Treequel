@@ -32,5 +32,5 @@ Run it:
 npm test -w @treequel-example/vite-postgres
 ```
 
-The memory provider is the oracle; the SQL provider must match it. That
+The memory provider is the reference; the SQL provider must match it. That
 equality — over reified trees, on real Postgres semantics — is the whole point.

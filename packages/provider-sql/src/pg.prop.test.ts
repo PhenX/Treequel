@@ -88,7 +88,7 @@ beforeAll(async () => {
   );
 });
 
-describe("SQL provider ≡ memory oracle (property, on PGlite)", () => {
+describe("SQL provider ≡ memory reference (property, on PGlite)", () => {
   it("agrees on generated predicates over generated rows", async () => {
     const exec: SqlExecutor = (t, v) => pg.query(t, v) as ReturnType<SqlExecutor>;
     await fc.assert(

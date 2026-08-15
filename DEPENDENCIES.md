@@ -30,7 +30,7 @@ Runtime packages (`tree`, `core`, `linq`, `provider-memory`, `provider-sql`) car
 | `tsdown` | Library bundler (rolldown/oxc stack) — ESM output + `.d.ts` via `isolatedDeclarations`. |
 | `oxlint`, `oxfmt` | Lint and format (the VoidZero stack); `npm run verify` gates on both. |
 | `vitest`, `@vitest/coverage-v8` | Test runner + coverage. |
-| `fast-check` | Property tests: serialize round-trip, partial-eval invariants, and the SQL≡memory oracle. |
+| `fast-check` | Property tests: serialize round-trip, partial-eval invariants, and the SQL≡memory reference. |
 | `@electric-sql/pglite` | Real-Postgres conformance in CI without a service container. |
 | `sql.js` | Real-SQLite conformance in tests (WASM, no native build) — the SQLite counterpart to PGlite. |
 | `tinybench` | The `bench/` transform microbenchmark and its CI regression gate. |

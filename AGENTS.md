@@ -35,7 +35,7 @@ departure from the plan gets an ADR (`docs/adr/NNNN-*.md`) recording what change
 
 **M0–M7 landed, bar the 0.1 publish.** All eleven `@treequel/*` packages are implemented, typechecked (`tsc -b`) and
 tested (Vitest, including fast-check property tests — serialize round-trip, partial-eval invariants, and a generative
-SQL≡memory oracle on PGlite — and `tsc`-checked `F | Expr<F>` type tests under `type-tests/`).
+SQL≡memory reference on PGlite — and `tsc`-checked `F | Expr<F>` type tests under `type-tests/`).
 The toolchain (npm workspaces, tsdown, project references, oxlint + oxfmt gated in `npm run verify`), `check-graph.mjs`,
 the Conventional-Commits `check-commit.mjs` (CI lints the PR range), `release.mjs` with changelog rendering, the
 transform benchmark (`bench/`, advisory regression gate), the CI matrix + weekly TS/oxc canary, and the two integration
@@ -105,9 +105,9 @@ Run typecheck, lint and tests **once at the end** before the final commit — no
    Everything under `src/internal/` may change freely. publint guards against deep-import leakage.
 4. **Diagnostic codes.** `Rxxxx` codes are append-only once released: never renumber, never reuse a retired code,
    never change a code's meaning. Message wording may improve; each code keeps its docs anchor and ≥1 test fixture.
-5. **Provider semantics.** The memory provider is the reference semantics and test oracle for every other provider. A
+5. **Provider semantics.** The memory provider is the reference semantics for every other provider. A
    behavior change there changes the definition of correct for the whole ecosystem — the conformance suite moves in
-   the same PR, and divergences found by the oracle property test become committed regression fixtures.
+   the same PR, and divergences found by the reference property test become committed regression fixtures.
 
 ## Conventions that apply everywhere
 
@@ -209,7 +209,7 @@ clause by clause.
 
 - Vitest workspace projects `unit` / `types` / `transform` / `conformance` / `e2e`; shared presets in
   `tooling/vitest`.
-- **The oracle is the strategy.** Every provider passes `runConformance` against the memory provider; every semantic
+- **The reference is the strategy.** Every provider passes `runConformance` against the memory provider; every semantic
   divergence the property tests find becomes a committed conformance fixture, permanently.
 - **Every `Rxxxx` diagnostic has ≥1 golden fixture** asserting message + span, with parity across the three hosts
   (build error, editor squiggle, lint output).

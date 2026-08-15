@@ -1,6 +1,6 @@
 /**
  * `@treequel/linq/testing` — the provider-author kit. `runConformance` runs a
- * battery of queries against a provider and the in-memory oracle and reports any
+ * battery of queries against a provider and the in-memory reference and reports any
  * divergence. Providers under test receive real `Expr`
  * trees when this suite runs under the build plugin (e.g. Vitest + @treequel/vite).
  */
@@ -43,9 +43,9 @@ const ALL_OPS = [
   "exec",
 ];
 
-function oracleProvider(fixtures: Fixtures): QueryProvider {
+function referenceProvider(fixtures: Fixtures): QueryProvider {
   return {
-    name: "oracle",
+    name: "reference",
     capabilities(): Capabilities {
       return capabilities(ALL_OPS);
     },
@@ -147,19 +147,19 @@ export function defaultCases(): ConformanceCase[] {
   ];
 }
 
-/** Run the corpus against a provider and the oracle; return per-case comparisons. */
+/** Run the corpus against a provider and the reference; return per-case comparisons. */
 export async function runConformance(
   makeProvider: (fixtures: Fixtures) => QueryProvider | Promise<QueryProvider>,
   opts: { fixtures: Fixtures; cases?: ConformanceCase[] },
 ): Promise<ConformanceResult[]> {
   const cases = opts.cases ?? defaultCases();
-  const oracleCtx = createContext(oracleProvider(opts.fixtures));
+  const referenceCtx = createContext(referenceProvider(opts.fixtures));
   const provider = await makeProvider(opts.fixtures);
   const providerCtx = createContext(provider);
 
   const results: ConformanceResult[] = [];
   for (const c of cases) {
-    const expected = await c.run(oracleCtx);
+    const expected = await c.run(referenceCtx);
     try {
       const actual = await c.run(providerCtx);
       results.push({

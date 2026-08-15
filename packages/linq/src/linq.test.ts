@@ -147,8 +147,8 @@ describe("Queryable over the memory provider", () => {
   });
 });
 
-describe("conformance harness self-check (oracle vs memory)", () => {
-  it("every default case matches the oracle", async () => {
+describe("conformance harness self-check (reference vs memory)", () => {
+  it("every default case matches the reference", async () => {
     const results = await runConformance((fx) => memoryProvider(fx), { fixtures });
     const failures = results.filter((r) => !r.equal);
     expect(failures).toEqual([]);

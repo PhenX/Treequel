@@ -2,7 +2,7 @@
  * `@treequel/linq` — the query layer: `Queryable`, the `QueryPlan` a provider
  * receives, the provider protocol, and `createContext`. Depends only on
  * `@treequel/core`. The in-memory engine lives here too so it is the single
- * shared oracle semantics.
+ * shared reference semantics.
  */
 export { type AnyExpr, type ExecKind, type PlanOp, type QueryPlan, withOp } from "./plan.js";
 export { type Capabilities, type QueryProvider, capabilities } from "./provider.js";

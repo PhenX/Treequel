@@ -45,7 +45,7 @@ let memDb: Context<Schema>;
 
 beforeAll(async () => {
   const pg = await PGlite.create();
-  // COLLATE "C" gives byte-order string comparison, matching the JS oracle exactly.
+  // COLLATE "C" gives byte-order string comparison, matching the JS reference exactly.
   await pg.exec(`
     CREATE TABLE users (id int primary key, name text COLLATE "C", age int, active boolean, city text COLLATE "C");
     CREATE TABLE orders (id int primary key, user_id int, total float8);
@@ -77,7 +77,7 @@ const canon = (v: unknown): string =>
 
 const multiset = (a: unknown[]): string[] => a.map(canon).sort();
 
-describe("pg provider ≡ memory oracle (reified trees run on PGlite)", () => {
+describe("pg provider ≡ memory reference (reified trees run on PGlite)", () => {
   it("where: numeric predicate", async () => {
     const p = expr((u: User) => u.age >= 30);
     expect(multiset(await sqlDb.users.where(p).toArray())).toEqual(

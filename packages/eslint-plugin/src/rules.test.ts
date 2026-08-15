@@ -19,6 +19,8 @@ tester.run("valid-expression", validExpression as never, {
     "expr(u => u.name.startsWith('A'));",
     // not a query lambda — ignored
     "arr.map(u => u.x == 1);",
+    // global-namespace statics that share query-operator names — ignored
+    "Math.min(a => a.x == 1);",
   ],
   invalid: [
     {
@@ -38,7 +40,15 @@ tester.run("valid-expression", validExpression as never, {
 });
 
 tester.run("no-opaque-callback", noOpaqueCallback as never, {
-  valid: ["db.users.where(u => u.active);", "db.users.where(expr(pred));", "db.users.take(n);"],
+  valid: [
+    "db.users.where(u => u.active);",
+    "db.users.where(expr(pred));",
+    "db.users.take(n);",
+    // global-namespace statics that share query-operator names — ignored
+    "Math.max(0, n);",
+    "Math.min(cur, m);",
+    "Object.groupBy(rows, keyOf);",
+  ],
   invalid: [
     { code: "db.users.where(myPredicate);", errors: [{ message: /R2003/ }] },
     { code: "db.users.select(function (u) { return u.id; });", errors: [{ message: /R2003/ }] },

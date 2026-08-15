@@ -23,6 +23,7 @@ const LINQ_METHODS = new Set([
   "max",
   "avg",
   "join",
+  "leftJoin",
 ]);
 
 const HOST_ALIAS = "__tql_expr$";

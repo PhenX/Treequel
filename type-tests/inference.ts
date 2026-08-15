@@ -3,10 +3,13 @@
 
 import {
   type Grouping,
+  type Includable,
+  type Loaded,
   type Ordered,
   type Queryable,
   type QueryProvider,
   createContext,
+  defineRelations,
   expr,
 } from "@treequel/linq";
 
@@ -78,3 +81,111 @@ q.select(exprPred);
 type _noBrandLeak = Expect<
   Equal<keyof (typeof projected extends Queryable<infer R> ? R : never), "id" | "upper">
 >;
+
+// --- joins & includes -------------------------------------------------------
+
+interface NavItem {
+  id: number;
+  orderId: number;
+  sku: string;
+}
+interface NavOrder {
+  id: number;
+  userId: number | null;
+  total: number;
+  user?: NavUser | null;
+  items?: NavItem[];
+}
+interface NavUser {
+  id: number;
+  name: string;
+  active: boolean;
+  orders?: NavOrder[];
+}
+interface NavSchema {
+  users: NavUser;
+  orders: NavOrder;
+  items: NavItem;
+}
+
+// defineRelations validates navigation names, targets and key properties.
+const navRelations = defineRelations<NavSchema>({
+  users: {
+    orders: { kind: "many", target: "orders", from: "id", to: "userId" },
+  },
+  orders: {
+    user: { kind: "one", target: "users", from: "userId", to: "id" },
+    items: { kind: "many", target: "items", from: "id", to: "orderId" },
+  },
+});
+const navDb = createContext<NavSchema>(provider, { relations: navRelations });
+
+defineRelations<NavSchema>({
+  users: {
+    orders: {
+      kind: "many",
+      // @ts-expect-error — "bogus" is not a source in the schema.
+      target: "bogus",
+      from: "id",
+      to: "userId",
+    },
+  },
+});
+defineRelations<NavSchema>({
+  users: {
+    orders: {
+      kind: "many",
+      target: "orders",
+      from: "id",
+      // @ts-expect-error — "sku" is not a key of the orders row.
+      to: "sku",
+    },
+  },
+});
+
+// include() marks the navigation loaded (required, non-null) and carries the
+// element type for thenInclude chaining.
+const included = navDb.users.include((u) => u.orders);
+type _inc = Expect<Equal<typeof included, Includable<Loaded<NavUser, "orders">, NavOrder>>>;
+const nested = included.thenInclude((o) => o.items);
+type _nested = Expect<Equal<typeof nested, Includable<Loaded<NavUser, "orders">, NavItem>>>;
+
+// The loaded rows have the navigation present, not optional.
+async function loadedRows(): Promise<void> {
+  const rows = await included.toArray();
+  type _loaded = Expect<Equal<(typeof rows)[0]["orders"], NavOrder[]>>;
+}
+void loadedRows;
+
+// A reference navigation loads as its element type.
+const withUser = navDb.orders.include((o) => o.user);
+type _incOne = Expect<Equal<typeof withUser, Includable<Loaded<NavOrder, "user">, NavUser>>>;
+
+// join: both key selectors and the two-parameter result infer.
+const joined = navDb.orders.join(
+  navDb.users,
+  (o) => o.userId,
+  (u) => u.id,
+  (o, u) => ({ order: o.id, who: u.name }),
+);
+type _joined = Expect<Equal<typeof joined, Queryable<{ order: number; who: string }>>>;
+
+// leftJoin: the inner row is nullable in the result selector — strict TS
+// forces the same null-handling SQL produces.
+const leftJoined = navDb.orders.leftJoin(
+  navDb.users,
+  (o) => o.userId,
+  (u) => u.id,
+  (o, u) => ({ order: o.id, who: u?.name ?? null }),
+);
+type _leftJoined = Expect<
+  Equal<typeof leftJoined, Queryable<{ order: number; who: string | null }>>
+>;
+
+navDb.orders.leftJoin(
+  navDb.users,
+  (o) => o.userId,
+  (u) => u.id,
+  // @ts-expect-error — `u` may be null; unguarded access is rejected.
+  (o, u) => ({ who: u.name }),
+);

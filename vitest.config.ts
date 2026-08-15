@@ -11,13 +11,17 @@ const pkg = (name: string, entry = "src/index.ts"): string =>
  */
 export default defineConfig({
   // The Treequel plugin reifies query lambdas into real Expr trees for:
-  //  - `*.reify.test.ts` provider tests (exercise the true build-time path), and
+  //  - `*.reify.test.ts` provider tests (exercise the true build-time path),
+  //  - the conformance corpus in `linq/src/testing.ts` (its expr() calls), and
   //  - example source modules under `examples/**/src` (they ship real queries),
   // while ordinary unit tests stay plain (opaque lambdas / memory path).
+  // `@treequel/core` is traced so the corpus can import `expr` from it.
   plugins: [
     treequel({
+      packages: ["@treequel/linq", "@treequel/core"],
       include: [
         /\.reify\.test\.ts$/,
+        /packages[\\/]linq[\\/]src[\\/]testing\.ts$/,
         // example source modules, but not their `.test.ts` files
         /[\\/]examples[\\/].+[\\/]src[\\/].+(?<!\.test)\.ts$/,
       ],

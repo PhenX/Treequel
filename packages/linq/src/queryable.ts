@@ -1,12 +1,33 @@
 import { type Expr, TreequelError, expr, isExpr } from "@treequel/core";
+import { appendChild, chainTail, navName, resolveRelation } from "./include.js";
 import { type Grouping, applyOps } from "./memory-engine.js";
-import { type AnyExpr, type ExecKind, type PlanOp, type QueryPlan, withOp } from "./plan.js";
+import {
+  type AnyExpr,
+  type ExecKind,
+  type IncludeSpec,
+  type PlanOp,
+  type QueryPlan,
+  withOp,
+} from "./plan.js";
 import type { QueryProvider } from "./provider.js";
+import type { RelationsMeta, SchemaRelations } from "./relations.js";
 
 export type Pred<T> = ((t: T) => boolean) | Expr<(t: T) => boolean>;
 export type Proj<T, R> = ((t: T) => R) | Expr<(t: T) => R>;
 export type Key<T, K> = ((t: T) => K) | Expr<(t: T) => K>;
 export type Result2<T, U, R> = ((t: T, u: U) => R) | Expr<(t: T, u: U) => R>;
+export type NavSelector<T, R> = ((t: T) => R) | Expr<(t: T) => R>;
+
+/** The element type behind a navigation value: `Order[] | undefined` → `Order`. */
+export type NavElement<R> = NonNullable<R> extends readonly (infer E)[] ? E : NonNullable<R>;
+
+/** Keys of `T` whose value type is exactly `R` — recovers the navigation name. */
+export type KeysWithValue<T, R> = keyof {
+  [P in keyof T as [R] extends [T[P]] ? ([T[P]] extends [R] ? P : never) : never]: 0;
+};
+
+/** `T` with the navigation properties `K` marked loaded (required, non-null). */
+export type Loaded<T, K> = T & { [P in K & keyof T]-?: NonNullable<T[P]> };
 
 export interface Queryable<T> {
   where(p: Pred<T>): Queryable<T>;
@@ -23,6 +44,23 @@ export interface Queryable<T> {
     innerKey: Key<U, K>,
     result: Result2<T, U, R>,
   ): Queryable<R>;
+  /**
+   * Left outer join: every outer row survives; `result` receives `null` for the
+   * inner side when there is no match, so projections must be null-safe
+   * (`o?.total ?? 0`) — which is also exactly what SQL's NULL propagation does.
+   */
+  leftJoin<U, K, R>(
+    inner: Queryable<U>,
+    outerKey: Key<T, K>,
+    innerKey: Key<U, K>,
+    result: Result2<T, U | null, R>,
+  ): Queryable<R>;
+  /**
+   * Load a declared navigation with the query (`db.users.include(u => u.orders)`).
+   * Related rows attach to the final result rows; chain `.thenInclude()` for
+   * nested navigations. Requires a relations map on the context.
+   */
+  include<R>(nav: NavSelector<T, R>): Includable<Loaded<T, KeysWithValue<T, R>>, NavElement<R>>;
   /** Explicit client-eval boundary: rows cross here; the suffix runs in memory. */
   inMemory(): Queryable<T>;
 
@@ -47,6 +85,11 @@ export interface Ordered<T> extends Queryable<T> {
   thenByDescending<K>(k: Key<T, K>): Ordered<T>;
 }
 
+/** A `Queryable` whose last operator was `include`; adds `thenInclude`. */
+export interface Includable<T, TNav> extends Queryable<T> {
+  thenInclude<R>(nav: NavSelector<TNav, R>): Includable<T, NavElement<R>>;
+}
+
 function toExpr(fn: unknown): AnyExpr {
   return (isExpr(fn) ? fn : expr(fn as (...a: never[]) => unknown)) as AnyExpr;
 }
@@ -61,13 +104,14 @@ function precheck(provider: QueryProvider, plan: QueryPlan): void {
         `Provider '${provider.name}' cannot translate the '${op.op}' operation.`,
       );
     }
+    if (op.op === "join" || op.op === "leftJoin") precheck(provider, op.inner);
   }
 }
 
 const throwingSource = (source: string): never => {
   throw new TreequelError(
     "R2001",
-    `In-memory suffix after .inMemory() cannot resolve source '${source}' (joins after the boundary are unsupported in v1).`,
+    `In-memory suffix after .inMemory() cannot resolve source '${source}' (joins and includes after the boundary are unsupported in v1).`,
   );
 };
 
@@ -75,10 +119,11 @@ class QueryableImpl<T> implements Ordered<T> {
   constructor(
     readonly provider: QueryProvider,
     readonly plan: QueryPlan,
+    readonly relations?: RelationsMeta,
   ) {}
 
   private next<R>(op: PlanOp): QueryableImpl<R> {
-    return new QueryableImpl<R>(this.provider, withOp(this.plan, op));
+    return new QueryableImpl<R>(this.provider, withOp(this.plan, op), this.relations);
   }
 
   where(p: Pred<T>): Queryable<T> {
@@ -117,13 +162,57 @@ class QueryableImpl<T> implements Ordered<T> {
     innerKey: Key<U, K>,
     result: Result2<T, U, R>,
   ): Queryable<R> {
+    return this.joinOp<R>("join", (inner as QueryableImpl<U>).plan, outerKey, innerKey, result);
+  }
+  leftJoin<U, K, R>(
+    inner: Queryable<U>,
+    outerKey: Key<T, K>,
+    innerKey: Key<U, K>,
+    result: Result2<T, U | null, R>,
+  ): Queryable<R> {
+    return this.joinOp<R>("leftJoin", (inner as QueryableImpl<U>).plan, outerKey, innerKey, result);
+  }
+  private joinOp<R>(
+    op: "join" | "leftJoin",
+    inner: QueryPlan,
+    outerKey: unknown,
+    innerKey: unknown,
+    result: unknown,
+  ): Queryable<R> {
     return this.next<R>({
-      op: "join",
-      inner: (inner as QueryableImpl<U>).plan,
+      op,
+      inner,
       outerKey: toExpr(outerKey),
       innerKey: toExpr(innerKey),
       result: toExpr(result),
     });
+  }
+  include<R>(nav: NavSelector<T, R>): Includable<Loaded<T, KeysWithValue<T, R>>, NavElement<R>> {
+    const name = navName(nav);
+    const rel = resolveRelation(this.relations, this.plan.source, name);
+    const spec: IncludeSpec = { nav: name, ...rel };
+    return this.next({ op: "include", spec }) as unknown as Includable<
+      Loaded<T, KeysWithValue<T, R>>,
+      NavElement<R>
+    >;
+  }
+  thenInclude(nav: NavSelector<unknown, unknown>): Includable<T, unknown> {
+    const last = this.plan.ops[this.plan.ops.length - 1];
+    if (!last || last.op !== "include") {
+      throw new TreequelError("R2008", ".thenInclude() must directly follow .include().");
+    }
+    const name = navName(nav);
+    const parent = chainTail(last.spec);
+    const rel = resolveRelation(this.relations, parent.target, name);
+    const spec = appendChild(last.spec, { nav: name, ...rel });
+    const plan: QueryPlan = {
+      source: this.plan.source,
+      ops: [...this.plan.ops.slice(0, -1), { op: "include", spec }],
+    };
+    return new QueryableImpl(this.provider, plan, this.relations) as unknown as Includable<
+      T,
+      unknown
+    >;
   }
   inMemory(): Queryable<T> {
     return this.next<T>({ op: "inMemory" });
@@ -197,9 +286,18 @@ class QueryableImpl<T> implements Ordered<T> {
   }
 }
 
+export interface ContextOptions<Schema> {
+  /** Navigation metadata consumed by `include()` (see {@link defineRelations}). */
+  readonly relations?: SchemaRelations<Schema>;
+}
+
 /** Construct a `Queryable` rooted at a provider + source name. */
-export function queryable<T>(provider: QueryProvider, source: string): Queryable<T> {
-  return new QueryableImpl<T>(provider, { source, ops: [] });
+export function queryable<T>(
+  provider: QueryProvider,
+  source: string,
+  relations?: RelationsMeta,
+): Queryable<T> {
+  return new QueryableImpl<T>(provider, { source, ops: [] }, relations);
 }
 
 export type Context<S> = { readonly [K in keyof S]: Queryable<S[K]> };
@@ -208,11 +306,15 @@ export type Context<S> = { readonly [K in keyof S]: Queryable<S[K]> };
  * The traced root. `db.users` becomes a `Queryable<User>` over the provider.
  * A Proxy maps each property access to a fresh (immutable) Queryable.
  */
-export function createContext<Schema>(provider: QueryProvider): Context<Schema> {
+export function createContext<Schema>(
+  provider: QueryProvider,
+  options: ContextOptions<Schema> = {},
+): Context<Schema> {
+  const relations = options.relations as RelationsMeta | undefined;
   return new Proxy(Object.create(null) as Context<Schema>, {
     get(_target, prop) {
       if (typeof prop !== "string") return undefined;
-      return queryable(provider, prop);
+      return queryable(provider, prop, relations);
     },
   });
 }

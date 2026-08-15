@@ -17,4 +17,5 @@ export const LINQ_METHODS: ReadonlySet<string> = new Set([
   "max",
   "avg",
   "join",
+  "leftJoin",
 ]);

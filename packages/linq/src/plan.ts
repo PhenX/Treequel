@@ -15,6 +15,26 @@ export type ExecKind =
   | "max"
   | "avg";
 
+/**
+ * A resolved navigation to load with the query, self-contained: providers read
+ * everything they need (target source, key pair, cardinality) from the spec and
+ * never consult relation metadata themselves. `children` carries nested
+ * `thenInclude` levels.
+ */
+export interface IncludeSpec {
+  /** Property name the loaded rows are attached under (e.g. `"orders"`). */
+  readonly nav: string;
+  /** Source name of the related rows (e.g. `"orders"`). */
+  readonly target: string;
+  /** Key property on the parent row. */
+  readonly from: string;
+  /** Key property on the related row. */
+  readonly to: string;
+  /** `"many"` attaches an array; `"one"` attaches a single row or `null`. */
+  readonly kind: "one" | "many";
+  readonly children?: readonly IncludeSpec[];
+}
+
 export type PlanOp =
   | { readonly op: "where"; readonly expr: AnyExpr }
   | { readonly op: "select"; readonly expr: AnyExpr }
@@ -23,12 +43,13 @@ export type PlanOp =
   | { readonly op: "distinct" }
   | { readonly op: "groupBy"; readonly expr: AnyExpr }
   | {
-      readonly op: "join";
+      readonly op: "join" | "leftJoin";
       readonly inner: QueryPlan;
       readonly outerKey: AnyExpr;
       readonly innerKey: AnyExpr;
       readonly result: AnyExpr;
     }
+  | { readonly op: "include"; readonly spec: IncludeSpec }
   | { readonly op: "inMemory" }
   | {
       readonly op: "exec";
@@ -36,6 +57,23 @@ export type PlanOp =
       readonly expr?: AnyExpr;
       readonly orNull?: boolean;
     };
+
+/** Every plan op kind — the capability set of a provider that supports everything. */
+export const PLAN_OP_KINDS: readonly string[] = [
+  "where",
+  "select",
+  "orderBy",
+  "thenBy",
+  "take",
+  "skip",
+  "distinct",
+  "groupBy",
+  "join",
+  "leftJoin",
+  "include",
+  "inMemory",
+  "exec",
+];
 
 /** The immutable description a provider receives. */
 export interface QueryPlan {

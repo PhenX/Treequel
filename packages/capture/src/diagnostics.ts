@@ -78,6 +78,16 @@ export const DIAGNOSTICS: Readonly<Record<string, DiagnosticSpec>> = Object.free
     severity: "error",
     summary: "Ambiguous call — declare the column type in schema meta",
   },
+  R2007: {
+    severity: "error",
+    summary: "Unknown navigation for include()",
+    hint: "Declare the navigation in the relations map passed to createContext(provider, { relations }).",
+  },
+  R2008: {
+    severity: "error",
+    summary: "Invalid include()/thenInclude() usage",
+    hint: "A navigation selector is a single property access (`u => u.orders`); thenInclude() must follow include().",
+  },
 
   // R3000–R3099 — fallback
   R3001: { severity: "warn", summary: "Runtime fallback active (no build plugin ran)" },

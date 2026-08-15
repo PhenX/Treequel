@@ -1,4 +1,6 @@
-import type { AnyExpr, PlanOp, QueryPlan } from "./plan.js";
+import { canonical } from "./canon.js";
+import { attachChildren, collectIncludes, collectKeys, rowKey } from "./include.js";
+import type { AnyExpr, IncludeSpec, PlanOp, QueryPlan } from "./plan.js";
 
 /**
  * The reference in-memory semantics: apply plan ops to plain arrays using each
@@ -25,6 +27,7 @@ export function runPlanInMemory(plan: QueryPlan, rows: RowSource): unknown {
 
 /** Apply a sequence of ops to an array; an `exec` op returns the final result. */
 export function applyOps(start: unknown[], ops: readonly PlanOp[], rows: RowSource): unknown {
+  const includes = collectIncludes(ops);
   let cur = start;
   for (let i = 0; i < ops.length; i++) {
     const op = ops[i] as PlanOp;
@@ -61,13 +64,47 @@ export function applyOps(start: unknown[], ops: readonly PlanOp[], rows: RowSour
         cur = groupBy(cur, op.expr) as unknown[];
         break;
       case "join":
+      case "leftJoin":
         cur = hashJoin(cur, op, rows);
         break;
+      case "include":
+        break; // collected up front; navigations attach to the final rows below
       case "inMemory":
         break; // boundary marker — a no-op inside a pure memory run
       case "exec":
+        if (rowResult(op.kind)) cur = applyIncludes(cur, includes, rows);
         return execute(cur, op);
     }
+  }
+  return applyIncludes(cur, includes, rows);
+}
+
+const rowResult = (kind: Extract<PlanOp, { op: "exec" }>["kind"]): boolean =>
+  kind === "toArray" || kind === "first" || kind === "single";
+
+/**
+ * Attach each navigation's related rows to the final rows. Parents are copied
+ * on attach; related rows are fetched by key from the row source and stitched
+ * with the shared engine so every provider agrees on the result shape.
+ */
+function applyIncludes(
+  parents: unknown[],
+  specs: readonly IncludeSpec[],
+  rows: RowSource,
+): unknown[] {
+  let cur = parents;
+  for (const spec of specs) {
+    if (cur.length === 0) break;
+    const keys = collectKeys(cur, spec.from, spec.nav);
+    const wanted = new Set(keys.map((k) => canonical(k)));
+    let children = (rows(spec.target) as unknown[]).filter((child) => {
+      const key = rowKey(child, spec.to, spec.nav);
+      return key !== null && key !== undefined && wanted.has(canonical(key));
+    });
+    if (spec.children && spec.children.length > 0) {
+      children = applyIncludes(children, spec.children, rows);
+    }
+    cur = attachChildren(cur, spec, children, spec.from, spec.to);
   }
   return cur;
 }
@@ -100,15 +137,6 @@ function compare(a: unknown, b: unknown): number {
   const as = String(a);
   const bs = String(b);
   return as < bs ? -1 : as > bs ? 1 : 0;
-}
-
-function canonical(v: unknown): string {
-  return JSON.stringify(v, (_k, val) => {
-    if (val && typeof val === "object" && !Array.isArray(val)) {
-      return Object.fromEntries(Object.entries(val as object).sort(([x], [y]) => (x < y ? -1 : 1)));
-    }
-    return val as unknown;
-  });
 }
 
 function distinct(rows: unknown[]): unknown[] {
@@ -148,23 +176,43 @@ function groupBy(rows: unknown[], keyExpr: AnyExpr): Array<Grouping<unknown, unk
   });
 }
 
+/**
+ * A join key that never matches: null/undefined, or a composite (plain object)
+ * with a null/undefined member — mirroring SQL, where `NULL = x` is never true.
+ */
+function joinKey(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "object" && !Array.isArray(value) && !(value instanceof Date)) {
+    for (const v of Object.values(value as Record<string, unknown>)) {
+      if (v === null || v === undefined) return null;
+    }
+  }
+  return canonical(value);
+}
+
 function hashJoin(
   outer: unknown[],
-  op: Extract<PlanOp, { op: "join" }>,
+  op: Extract<PlanOp, { op: "join" | "leftJoin" }>,
   rows: RowSource,
 ): unknown[] {
+  const left = op.op === "leftJoin";
   const innerRows = applyOps([...rows(op.inner.source)], op.inner.ops, rows) as unknown[];
   const index = new Map<string, unknown[]>();
   for (const ir of innerRows) {
-    const key = canonical(invoke(op.innerKey, ir));
+    const key = joinKey(invoke(op.innerKey, ir));
+    if (key === null) continue;
     const bucket = index.get(key);
     if (bucket) bucket.push(ir);
     else index.set(key, [ir]);
   }
   const out: unknown[] = [];
   for (const or of outer) {
-    const matches = index.get(canonical(invoke(op.outerKey, or)));
-    if (!matches) continue;
+    const key = joinKey(invoke(op.outerKey, or));
+    const matches = key === null ? undefined : index.get(key);
+    if (!matches) {
+      if (left) out.push(invoke(op.result, or, null));
+      continue;
+    }
     for (const ir of matches) out.push(invoke(op.result, or, ir));
   }
   return out;

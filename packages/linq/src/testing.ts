@@ -1,14 +1,20 @@
 /**
  * `@treequel/linq/testing` — the provider-author kit. `runConformance` runs a
  * battery of queries against a provider and the in-memory reference and reports any
- * divergence. Providers under test receive real `Expr`
- * trees when this suite runs under the build plugin (e.g. Vitest + @treequel/vite).
+ * divergence. The corpus lambdas are wrapped in `expr()` so providers under test
+ * receive real `Expr` trees whenever this module runs under the build plugin
+ * (trace `@treequel/core` in the plugin's `packages`) — or, without a build
+ * step, under `import "@treequel/fallback/register"`.
  */
+import { expr } from "@treequel/core";
+import { canonical } from "./canon.js";
 import { type Capabilities, capabilities } from "./provider.js";
 import { runPlanInMemory } from "./memory-engine.js";
+import { PLAN_OP_KINDS } from "./plan.js";
 import type { QueryPlan } from "./plan.js";
 import type { QueryProvider } from "./provider.js";
-import { type Context, createContext } from "./queryable.js";
+import type { RelationsMeta } from "./relations.js";
+import { type Context, type ContextOptions, type Queryable, createContext } from "./queryable.js";
 
 export interface Fixtures {
   readonly [source: string]: readonly unknown[];
@@ -29,38 +35,16 @@ export interface ConformanceResult {
   readonly error?: unknown;
 }
 
-const ALL_OPS = [
-  "where",
-  "select",
-  "orderBy",
-  "thenBy",
-  "take",
-  "skip",
-  "distinct",
-  "groupBy",
-  "join",
-  "inMemory",
-  "exec",
-];
-
 function referenceProvider(fixtures: Fixtures): QueryProvider {
   return {
     name: "reference",
     capabilities(): Capabilities {
-      return capabilities(ALL_OPS);
+      return capabilities([...PLAN_OP_KINDS]);
     },
     async execute<T>(plan: QueryPlan): Promise<T> {
       return runPlanInMemory(plan, (s) => fixtures[s] ?? []) as T;
     },
   };
-}
-
-function canonical(v: unknown): string {
-  return JSON.stringify(v, (_k, val) =>
-    val && typeof val === "object" && !Array.isArray(val)
-      ? Object.fromEntries(Object.entries(val as object).sort(([a], [b]) => (a < b ? -1 : 1)))
-      : (val as unknown),
-  );
 }
 
 function equal(expected: unknown, actual: unknown, ordered: boolean): boolean {
@@ -74,36 +58,63 @@ function equal(expected: unknown, actual: unknown, ordered: boolean): boolean {
   return canonical(expected) === canonical(actual);
 }
 
-/** The standard behavioral corpus. Written as inline lambdas so the build plugin reifies them. */
+/**
+ * Relations matching the standard corpus fixtures (`users` → `orders` →
+ * `items`). Pass to `runConformance` (and mirror in provider schemas) when
+ * running the default cases.
+ */
+export function defaultRelations(): RelationsMeta {
+  return {
+    users: {
+      orders: { kind: "many", target: "orders", from: "id", to: "userId" },
+    },
+    orders: {
+      user: { kind: "one", target: "users", from: "userId", to: "id" },
+      items: { kind: "many", target: "items", from: "id", to: "orderId" },
+    },
+  };
+}
+
+/**
+ * The standard behavioral corpus. Every lambda is wrapped in `expr()` so the
+ * build plugin reifies it regardless of how the surrounding harness passes the
+ * context around.
+ */
 export function defaultCases(): ConformanceCase[] {
-  type U = { id: number; name: string; age: number; active: boolean; city: string | null };
-  type O = { id: number; userId: number; total: number };
-  const users = (db: Context<Record<string, unknown>>) =>
-    db.users as unknown as import("./queryable.js").Queryable<U>;
-  const orders = (db: Context<Record<string, unknown>>) =>
-    db.orders as unknown as import("./queryable.js").Queryable<O>;
+  type U = {
+    id: number;
+    name: string;
+    age: number;
+    active: boolean;
+    city: string | null;
+    orders?: O[];
+  };
+  type O = { id: number; userId: number | null; total: number; user?: U | null; items?: I[] };
+  type I = { id: number; orderId: number; sku: string };
+  const users = (db: Context<Record<string, unknown>>) => db.users as unknown as Queryable<U>;
+  const orders = (db: Context<Record<string, unknown>>) => db.orders as unknown as Queryable<O>;
 
   return [
     {
       name: "where numeric",
       run: (db) =>
         users(db)
-          .where((u) => u.age >= 18)
+          .where(expr((u: U) => u.age >= 18))
           .toArray(),
     },
     {
       name: "where + select projection",
       run: (db) =>
         users(db)
-          .where((u) => u.active)
-          .select((u) => ({ id: u.id, name: u.name }))
+          .where(expr((u: U) => u.active))
+          .select(expr((u: U) => ({ id: u.id, name: u.name })))
           .toArray(),
     },
     {
       name: "where startsWith",
       run: (db) =>
         users(db)
-          .where((u) => u.name.startsWith("A"))
+          .where(expr((u: U) => u.name.startsWith("A")))
           .toArray(),
     },
     {
@@ -111,7 +122,7 @@ export function defaultCases(): ConformanceCase[] {
       ordered: true,
       run: (db) =>
         users(db)
-          .orderBy((u) => u.age)
+          .orderBy(expr((u: U) => u.age))
           .take(3)
           .toArray(),
     },
@@ -120,8 +131,8 @@ export function defaultCases(): ConformanceCase[] {
       ordered: true,
       run: (db) =>
         users(db)
-          .orderByDescending((u) => u.age)
-          .thenBy((u) => u.name)
+          .orderByDescending(expr((u: U) => u.age))
+          .thenBy(expr((u: U) => u.name))
           .toArray(),
     },
     {
@@ -129,19 +140,130 @@ export function defaultCases(): ConformanceCase[] {
       ordered: true,
       run: (db) =>
         users(db)
-          .orderBy((u) => u.id)
+          .orderBy(expr((u: U) => u.id))
           .skip(2)
           .toArray(),
     },
-    { name: "count with predicate", run: (db) => users(db).count((u) => u.age > 30) },
-    { name: "any", run: (db) => users(db).any((u) => u.age > 90) },
-    { name: "sum", run: (db) => orders(db).sum((o) => o.total) },
+    {
+      name: "count with predicate",
+      run: (db) => users(db).count(expr((u: U) => u.age > 30)),
+    },
+    { name: "any", run: (db) => users(db).any(expr((u: U) => u.age > 90)) },
+    { name: "sum", run: (db) => orders(db).sum(expr((o: O) => o.total)) },
     {
       name: "select distinct city",
       run: (db) =>
         users(db)
-          .select((u) => u.city)
+          .select(expr((u: U) => u.city))
           .distinct()
+          .toArray(),
+    },
+    {
+      name: "take then skip composes as a slice",
+      ordered: true,
+      run: (db) =>
+        users(db)
+          .orderBy(expr((u: U) => u.id))
+          .take(3)
+          .skip(1)
+          .toArray(),
+    },
+    {
+      name: "where after select projection",
+      run: (db) =>
+        users(db)
+          .select(expr((u: U) => ({ id: u.id, years: u.age })))
+          .where(expr((r: { id: number; years: number }) => r.years > 30))
+          .toArray(),
+    },
+    {
+      name: "where after scalar select",
+      run: (db) =>
+        users(db)
+          .select(expr((u: U) => u.age))
+          .where(expr((a: number) => a > 30))
+          .toArray(),
+    },
+    {
+      name: "inner join with projection (null keys never match)",
+      run: (db) =>
+        orders(db)
+          .join(
+            users(db),
+            expr((o: O) => o.userId),
+            expr((u: U) => u.id),
+            expr((o: O, u: U) => ({ order: o.id, who: u.name })),
+          )
+          .toArray(),
+    },
+    {
+      name: "join with a filtered inner query",
+      run: (db) =>
+        users(db)
+          .join(
+            orders(db).where(expr((o: O) => o.total >= 10)),
+            expr((u: U) => u.id),
+            expr((o: O) => o.userId),
+            expr((u: U, o: O) => ({ name: u.name, total: o.total })),
+          )
+          .toArray(),
+    },
+    {
+      name: "left join keeps unmatched outer rows",
+      run: (db) =>
+        orders(db)
+          .leftJoin(
+            users(db),
+            expr((o: O) => o.userId),
+            expr((u: U) => u.id),
+            expr((o: O, u: U | null) => ({ order: o.id, who: u?.name ?? null })),
+          )
+          .toArray(),
+    },
+    {
+      name: "join then where over the joined shape",
+      run: (db) =>
+        orders(db)
+          .join(
+            users(db),
+            expr((o: O) => o.userId),
+            expr((u: U) => u.id),
+            expr((o: O, u: U) => ({ order: o.id, who: u.name, total: o.total })),
+          )
+          .where(expr((r: { order: number; who: string; total: number }) => r.total >= 10))
+          .toArray(),
+    },
+    {
+      name: "include a collection navigation",
+      run: (db) =>
+        users(db)
+          .include((u) => u.orders)
+          .toArray(),
+    },
+    {
+      name: "include a reference navigation",
+      run: (db) =>
+        orders(db)
+          .include((o) => o.user)
+          .toArray(),
+    },
+    {
+      name: "include with thenInclude",
+      run: (db) =>
+        users(db)
+          .include((u) => u.orders)
+          .thenInclude((o) => o.items)
+          .toArray(),
+    },
+    {
+      name: "include composes with where and take",
+      ordered: true,
+      run: (db) =>
+        users(db)
+          .include((u) => u.orders)
+          .where(expr((u: U) => u.active))
+          .orderBy(expr((u: U) => u.id))
+          .take(2)
           .toArray(),
     },
   ];
@@ -150,12 +272,16 @@ export function defaultCases(): ConformanceCase[] {
 /** Run the corpus against a provider and the reference; return per-case comparisons. */
 export async function runConformance(
   makeProvider: (fixtures: Fixtures) => QueryProvider | Promise<QueryProvider>,
-  opts: { fixtures: Fixtures; cases?: ConformanceCase[] },
+  opts: { fixtures: Fixtures; cases?: ConformanceCase[]; relations?: RelationsMeta },
 ): Promise<ConformanceResult[]> {
   const cases = opts.cases ?? defaultCases();
-  const referenceCtx = createContext(referenceProvider(opts.fixtures));
+  const options = { relations: opts.relations } as ContextOptions<Record<string, unknown>>;
+  const referenceCtx = createContext<Record<string, unknown>>(
+    referenceProvider(opts.fixtures),
+    options,
+  );
   const provider = await makeProvider(opts.fixtures);
-  const providerCtx = createContext(provider);
+  const providerCtx = createContext<Record<string, unknown>>(provider, options);
 
   const results: ConformanceResult[] = [];
   for (const c of cases) {

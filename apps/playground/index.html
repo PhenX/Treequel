@@ -10,15 +10,19 @@
     <header>
       <h1>Treequel Playground</h1>
       <p>
-        Paste a query lambda. It is parsed with the same subset validator the build and editor use,
-        then shown as an expression tree, the emitted runtime host, and the SQL a Postgres provider
-        would run.
+        Pick a sample or paste a query lambda. It is parsed with the same subset validator the build
+        and editor use, then shown as an expression tree, the emitted runtime host, and the SQL a
+        Postgres provider would run. The demo schema is <code>users → orders → items</code> with
+        declared relations, so navigation predicates and correlated counts translate too.
         <a href="/Treequel/">Docs</a>
       </p>
     </header>
 
     <main>
       <section class="input">
+        <label>Samples</label>
+        <div id="samples" class="samples"></div>
+
         <label for="lambda">Query lambda</label>
         <textarea id="lambda" spellcheck="false" rows="4">
 u => u.age >= minAge && u.name.startsWith(prefix)</textarea>

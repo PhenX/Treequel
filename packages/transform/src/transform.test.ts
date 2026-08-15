@@ -38,6 +38,24 @@ describe("transformModule — reification", () => {
     expect(await run(code)).toBeNull();
   });
 
+  it("reifies lambdas inside an include refinement callback, not the callback itself", async () => {
+    const code = [
+      'import { createContext } from "@treequel/linq";',
+      "const db = createContext(provider);",
+      "const q = db.users.include(",
+      "  (u) => u.orders,",
+      "  (r) => r.where(o => o.total > 10).orderByDescending(o => o.total).take(1),",
+      ");",
+    ].join("\n");
+    const out = await run(code);
+    expect(out).not.toBeNull();
+    // The two builder lambdas reify; the nav selector and the callback stay plain.
+    expect(out!.count).toBe(2);
+    expect(out!.code).toContain("compiled:o => o.total > 10");
+    expect(out!.code).toContain("(u) => u.orders,");
+    expect(out!.code).toContain("(r) => r.where(");
+  });
+
   it("taints intermediate bindings across the fixpoint", async () => {
     const code = [
       'import { createContext } from "@treequel/linq";',

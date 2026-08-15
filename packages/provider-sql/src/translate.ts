@@ -1,20 +1,94 @@
 import { type Node, TreequelError } from "@treequel/core";
-import { type TableMeta, physicalColumn } from "./schema.js";
+import type { Relation, RelationsMeta } from "@treequel/linq";
+import { type SchemaMeta, type TableMeta, physicalColumn } from "./schema.js";
 import { type SqlDialect } from "./dialect.js";
 
-/** State threaded through a single expression translation. */
+/**
+ * How a lambda parameter resolves to SQL. A `table` shape maps properties
+ * through schema meta to physical columns (`source` is its logical source
+ * name, for navigation lookup); a `derived` shape maps them to the output
+ * aliases of a subquery projection; a `scalar` shape is a single-value row
+ * (`SELECT expr AS "value"`) whose parameter *is* the value.
+ */
+export type ColumnShape =
+  | {
+      readonly kind: "table";
+      readonly alias: string;
+      readonly meta: TableMeta;
+      readonly source?: string;
+    }
+  | { readonly kind: "derived"; readonly alias: string; readonly columns: readonly string[] | null }
+  | { readonly kind: "scalar"; readonly alias: string }
+  | {
+      /** The `g` of a group projection: `key` parts plus the pre-group row shape. */
+      readonly kind: "group";
+      readonly keyParts: ReadonlyArray<{ readonly name: string | null; readonly sql: string }>;
+      readonly item: ColumnShape;
+    };
+
+/** Statement-wide surroundings for navigation subqueries (`EXISTS`). */
+export interface TranslateEnv {
+  readonly relations?: RelationsMeta;
+  readonly schema?: SchemaMeta;
+  /** Allocate a statement-unique table alias. */
+  readonly alias?: () => string;
+}
+
+/** Column name a scalar subquery projects its value under. */
+export const SCALAR_COLUMN = "value";
+
+// NUL delimits value markers: it cannot appear in generated SQL text, so a
+// marker never collides with identifiers, keywords, or literals.
+const NUL = String.fromCharCode(0);
+const MARKER = new RegExp(`${NUL}(\\d+)${NUL}`, "g");
+
+/**
+ * State threaded through a single SQL statement's translation. `param()` emits
+ * a position-independent marker; {@link finalizeSql} rewrites markers to the
+ * dialect's placeholders in *textual* order and reorders the values to match —
+ * translation order and clause order are free to differ (they do: a `WHERE`
+ * folds before the `SELECT` list that precedes it in the statement).
+ */
 export class TranslateContext {
-  readonly values: unknown[] = [];
+  readonly values: unknown[];
+  readonly env: TranslateEnv;
+  private readonly shapes: ReadonlyMap<string, ColumnShape> | ColumnShape;
+  private readonly parent?: TranslateContext;
+
   constructor(
-    readonly meta: TableMeta,
-    readonly alias: string,
     readonly dialect: SqlDialect,
+    shapes: ReadonlyMap<string, ColumnShape> | ColumnShape,
     readonly loc?: string,
-  ) {}
+    values: unknown[] = [],
+    env: TranslateEnv = {},
+    parent?: TranslateContext,
+  ) {
+    this.shapes = shapes;
+    this.values = values;
+    this.env = env;
+    this.parent = parent;
+  }
+
+  /**
+   * A context over new parameter bindings that shares this statement's values
+   * and env. The current bindings stay visible as the lexical parent scope, so
+   * a nested navigation lambda can still reference the outer row.
+   */
+  scoped(shapes: ReadonlyMap<string, ColumnShape> | ColumnShape): TranslateContext {
+    return new TranslateContext(this.dialect, shapes, this.loc, this.values, this.env, this);
+  }
+
+  /** Resolve a lambda parameter. A single (non-map) shape binds every parameter. */
+  shapeOf(param: string): ColumnShape | undefined {
+    if (this.shapes instanceof Map) {
+      return this.shapes.get(param) ?? this.parent?.shapeOf(param);
+    }
+    return this.shapes as ColumnShape;
+  }
 
   param(value: unknown): string {
     this.values.push(value);
-    return this.dialect.placeholder(this.values.length);
+    return `${NUL}${this.values.length - 1}${NUL}`;
   }
 
   private located(detail: string): string {
@@ -26,8 +100,39 @@ export class TranslateContext {
   }
 }
 
+/** Rewrite param markers to dialect placeholders in textual order. */
+export function finalizeSql(
+  text: string,
+  values: readonly unknown[],
+  dialect: SqlDialect,
+): { text: string; values: unknown[] } {
+  const ordered: unknown[] = [];
+  const finalText = text.replace(MARKER, (_m, index: string) => {
+    ordered.push(values[Number(index)]);
+    return dialect.placeholder(ordered.length);
+  });
+  return { text: finalText, values: ordered };
+}
+
 export function quoteIdent(id: string): string {
   return `"${id.replace(/"/g, '""')}"`;
+}
+
+/** Column reference for `prop` on rows of the given shape. */
+export function shapeColumn(shape: ColumnShape, prop: string, ctx: TranslateContext): string {
+  switch (shape.kind) {
+    case "table":
+      return `${quoteIdent(shape.alias)}.${quoteIdent(physicalColumn(shape.meta, prop))}`;
+    case "derived":
+      if (shape.columns && !shape.columns.includes(prop)) {
+        return ctx.fail("R2002", `Column '${prop}' is not part of the projected row.`);
+      }
+      return `${quoteIdent(shape.alias)}.${quoteIdent(prop)}`;
+    case "scalar":
+      return ctx.fail("R2002", `A scalar row has no column '${prop}'.`);
+    case "group":
+      return ctx.fail("R2002", `A group has no column '${prop}' — project from g.key and g.items.`);
+  }
 }
 
 const NUMERIC_BINARY: Record<string, string> = {
@@ -46,14 +151,19 @@ function isNullConstant(n: Node): boolean {
   return n.kind === "Constant" && n.value === null;
 }
 
-/** Translate a (partial-evaluated, param-rooted) tree to a pg SQL fragment. */
+/** Translate a (partial-evaluated, param-rooted) tree to a SQL fragment. */
 export function translate(node: Node, ctx: TranslateContext): string {
   switch (node.kind) {
     case "Constant":
       return node.value === null ? "NULL" : ctx.param(node.value);
 
-    case "Param":
+    case "Param": {
+      const shape = ctx.shapeOf(node.name);
+      if (shape?.kind === "scalar") {
+        return `${quoteIdent(shape.alias)}.${quoteIdent(SCALAR_COLUMN)}`;
+      }
       return ctx.fail("R2001", "Bare row reference is not translatable; project specific columns.");
+    }
 
     case "Capture":
       return ctx.fail(
@@ -102,20 +212,68 @@ export function translate(node: Node, ctx: TranslateContext): string {
   }
 }
 
+function paramShape(node: Node, ctx: TranslateContext): ColumnShape {
+  const shape = ctx.shapeOf((node as Extract<Node, { kind: "Param" }>).name);
+  if (!shape) {
+    return ctx.fail(
+      "R2002",
+      `Lambda parameter '${(node as Extract<Node, { kind: "Param" }>).name}' is not bound to a table here.`,
+    );
+  }
+  return shape;
+}
+
 function translateMember(node: Extract<Node, { kind: "Member" }>, ctx: TranslateContext): string {
-  // string/array .length
+  // Group count / navigation count / string length
   if (node.prop === "length") {
+    const items = matchGroupItems(node.object, ctx);
+    if (items) {
+      return ctx.dialect.floatCast(groupCount(items, ctx));
+    }
+    const chain = matchNavChain(node.object, ctx);
+    if (chain) {
+      return navSubquery(chain, ctx, (d) => d.floatCast("COUNT(*)"));
+    }
     return `LENGTH(${translate(node.object, ctx)})`;
   }
-  // Direct column: Member(Param, col)
+  // Group key: `g.key` (scalar) or `g.key.prop` (composite)
   if (node.object.kind === "Param") {
-    return `${quoteIdent(ctx.alias)}.${quoteIdent(physicalColumn(ctx.meta, node.prop))}`;
+    const shape = paramShape(node.object, ctx);
+    if (shape.kind === "group") {
+      if (node.prop !== "key") {
+        return ctx.fail("R2002", `A group has no property '${node.prop}' — use g.key or g.items.`);
+      }
+      const scalar = shape.keyParts.length === 1 && shape.keyParts[0]?.name === null;
+      if (!scalar) {
+        return ctx.fail(
+          "R2001",
+          "A composite group key projects one property at a time (g.key.prop).",
+        );
+      }
+      return (shape.keyParts[0] as { sql: string }).sql;
+    }
+    return shapeColumn(shape, node.prop, ctx);
+  }
+  if (
+    node.object.kind === "Member" &&
+    node.object.prop === "key" &&
+    node.object.object.kind === "Param"
+  ) {
+    const shape = ctx.shapeOf(node.object.object.name);
+    if (shape?.kind === "group") {
+      const part = shape.keyParts.find((p) => p.name === node.prop);
+      if (!part) {
+        return ctx.fail("R2002", `'${node.prop}' is not a property of the group key.`);
+      }
+      return part.sql;
+    }
   }
   // One level of JSONB path: Member(Member(Param, jsonCol), key)
   if (node.object.kind === "Member" && node.object.object.kind === "Param") {
+    const shape = paramShape(node.object.object, ctx);
     const col = node.object.prop;
-    if (ctx.meta.json?.includes(col)) {
-      return `${quoteIdent(ctx.alias)}.${quoteIdent(physicalColumn(ctx.meta, col))}->>'${node.prop.replace(/'/g, "''")}'`;
+    if (shape.kind === "table" && shape.meta.json?.includes(col)) {
+      return `${quoteIdent(shape.alias)}.${quoteIdent(physicalColumn(shape.meta, col))}->>'${node.prop.replace(/'/g, "''")}'`;
     }
     return ctx.fail(
       "R2002",
@@ -157,6 +315,14 @@ function translateCall(node: Extract<Node, { kind: "Call" }>, ctx: TranslateCont
   const args = node.args;
 
   switch (method) {
+    case "some":
+    case "every":
+      return translateNavQuantifier(method, recv, args, ctx);
+    case "reduce": {
+      const items = matchGroupItems(recv, ctx);
+      if (items) return translateGroupReduce(items, args, ctx);
+      return translateNavReduce(recv, args, ctx);
+    }
     case "startsWith":
     case "endsWith":
     case "includes":
@@ -181,6 +347,273 @@ function translateCall(node: Extract<Node, { kind: "Call" }>, ctx: TranslateCont
         `Call '.${method}()' is not translatable by the ${ctx.dialect.name} provider — cross the .inMemory() boundary or extend the dialect.`,
       );
   }
+}
+
+/**
+ * A navigation reference inside an expression: `param.nav`, optionally
+ * extended by `.filter(l)` steps, resolved against the outer row's shape.
+ */
+interface NavChain {
+  readonly rel: Relation;
+  readonly outer: Extract<ColumnShape, { kind: "table" }>;
+  readonly filters: ReadonlyArray<Extract<Node, { kind: "Lambda" }>>;
+}
+
+function matchNavChain(n: Node, ctx: TranslateContext): NavChain | null {
+  if (n.kind === "Member" && n.object.kind === "Param") {
+    const shape = ctx.shapeOf(n.object.name);
+    if (shape?.kind !== "table" || shape.source === undefined) return null;
+    const rel = ctx.env.relations?.[shape.source]?.[n.prop];
+    return rel ? { rel, outer: shape, filters: [] } : null;
+  }
+  if (
+    n.kind === "Call" &&
+    n.callee.kind === "Member" &&
+    n.callee.prop === "filter" &&
+    n.args[0]?.kind === "Lambda"
+  ) {
+    const base = matchNavChain(n.callee.object, ctx);
+    if (!base) return null;
+    return { ...base, filters: [...base.filters, n.args[0]] };
+  }
+  return null;
+}
+
+/**
+ * `(SELECT <agg> FROM child WHERE key AND filters…)` for a navigation chain.
+ * Each nested lambda translates in a child scope whose lexical parent is the
+ * current scope, so inner predicates can still reference the outer row.
+ */
+function navSubquery(
+  chain: NavChain,
+  ctx: TranslateContext,
+  selectFor: (dialect: SqlDialect, childCtx: TranslateContext, childShape: ColumnShape) => string,
+  extraCond?: (childCtx: TranslateContext, childShape: ColumnShape) => string,
+): string {
+  const { schema, alias } = ctx.env;
+  if (!schema || !alias) {
+    return ctx.fail("R2001", "Navigation subqueries need schema metadata on the translate env.");
+  }
+  const childMeta = schema[chain.rel.target];
+  if (!childMeta) {
+    return ctx.fail("R2002", `No schema meta for source '${chain.rel.target}'.`);
+  }
+  const childAlias = alias();
+  const childShape: ColumnShape = {
+    kind: "table",
+    alias: childAlias,
+    meta: childMeta,
+    source: chain.rel.target,
+  };
+  const conds = [
+    `${shapeColumn(childShape, chain.rel.to, ctx)} = ${shapeColumn(chain.outer, chain.rel.from, ctx)}`,
+  ];
+  for (const f of chain.filters) {
+    const inner = ctx.scoped(new Map([[f.params[0] as string, childShape]]));
+    conds.push(`(${translate(f.body, inner)})`);
+  }
+  if (extraCond) conds.push(extraCond(ctx, childShape));
+  const sel = selectFor(ctx.dialect, ctx, childShape);
+  return `(SELECT ${sel} FROM ${quoteIdent(childMeta.table)} ${quoteIdent(childAlias)} WHERE ${conds.join(" AND ")})`;
+}
+
+/**
+ * `parent.nav.some(c => …)` → `EXISTS (SELECT 1 FROM child WHERE key AND …)`;
+ * `every` → `NOT EXISTS (… AND NOT …)`, which is vacuously true over an empty
+ * navigation, matching `Array.prototype.every`. Filter steps in the chain
+ * (`nav.filter(p).every(q)`) stay positive conditions; only the quantifier's
+ * own predicate negates.
+ */
+function translateNavQuantifier(
+  method: "some" | "every",
+  recv: Node,
+  args: readonly Node[],
+  ctx: TranslateContext,
+): string {
+  const chain = matchNavChain(recv, ctx);
+  if (!chain) {
+    return ctx.fail(
+      "R2001",
+      `.${method}() translates only over a declared navigation collection (\`u.orders?.${method}(…)\`) — check the relations map on the context.`,
+    );
+  }
+  const lambda = args[0];
+  if (lambda?.kind !== "Lambda" || lambda.params.length === 0) {
+    return ctx.fail("R2001", `.${method}() over a navigation requires an inline predicate lambda.`);
+  }
+  const exists = navSubquery(
+    chain,
+    ctx,
+    () => "1",
+    (childCtx, childShape) => {
+      const inner = childCtx.scoped(new Map([[lambda.params[0] as string, childShape]]));
+      const body = translate(lambda.body, inner);
+      return method === "some" ? `(${body})` : `(NOT (${body}))`;
+    },
+  );
+  return method === "some" ? `EXISTS ${exists}` : `NOT EXISTS ${exists}`;
+}
+
+/**
+ * The recognized reduce idioms — real JS whose SQL meaning is unambiguous:
+ *  - sum: `reduce((acc, o) => acc + expr, seed)` with a constant numeric seed
+ *  - min: `reduce((m, o) => Math.min(m, expr), Infinity)`
+ *  - max: `reduce((m, o) => Math.max(m, expr), -Infinity)`
+ * Anything else is refused, never guessed.
+ */
+interface ReduceIdiom {
+  readonly agg: "SUM" | "MIN" | "MAX";
+  readonly selector: Node;
+  readonly element: string;
+  readonly seed: number;
+}
+
+function isMathGlobal(n: Node): boolean {
+  if (n.kind === "Capture" && n.name === "Math") return true;
+  return n.kind === "Constant" && n.value === Math;
+}
+
+function reduceIdiom(args: readonly Node[], ctx: TranslateContext): ReduceIdiom {
+  const shapeError = (): never =>
+    ctx.fail(
+      "R2001",
+      "Only the reduce idioms translate to SQL: the sum idiom " +
+        "`reduce((acc, o) => acc + expr, 0)` (constant numeric seed, `acc` on one side of `+`), " +
+        "`reduce((m, o) => Math.min(m, expr), Infinity)`, and the `Math.max`/`-Infinity` twin.",
+    );
+  const lambda = args[0];
+  const init = args[1];
+  if (
+    lambda?.kind !== "Lambda" ||
+    lambda.params.length < 2 ||
+    init?.kind !== "Constant" ||
+    typeof init.value !== "number"
+  ) {
+    return shapeError();
+  }
+  const acc = lambda.params[0] as string;
+  const element = lambda.params[1] as string;
+  const isAcc = (n: Node): boolean => n.kind === "Param" && n.name === acc;
+  const body = lambda.body;
+
+  if (body.kind === "Binary" && body.op === "+") {
+    const selector = isAcc(body.left) ? body.right : isAcc(body.right) ? body.left : null;
+    if (!selector || !Number.isFinite(init.value)) return shapeError();
+    return { agg: "SUM", selector, element, seed: init.value };
+  }
+  if (
+    body.kind === "Call" &&
+    body.callee.kind === "Member" &&
+    (body.callee.prop === "min" || body.callee.prop === "max") &&
+    isMathGlobal(body.callee.object) &&
+    body.args.length === 2
+  ) {
+    const agg = body.callee.prop === "min" ? "MIN" : "MAX";
+    const wanted = agg === "MIN" ? Infinity : -Infinity;
+    const [a, b] = body.args as [Node, Node];
+    const selector = isAcc(a) ? b : isAcc(b) ? a : null;
+    if (!selector || init.value !== wanted) return shapeError();
+    return { agg, selector, element, seed: init.value };
+  }
+  return shapeError();
+}
+
+/**
+ * `reduce` over a navigation chain: the sum idiom only — an empty navigation
+ * must yield the seed, which `COALESCE(SUM…, 0)` matches; `MIN`/`MAX` over an
+ * empty set is `NULL`, not the JS seed, so those idioms stay group-only.
+ */
+function translateNavReduce(recv: Node, args: readonly Node[], ctx: TranslateContext): string {
+  const chain = matchNavChain(recv, ctx);
+  if (!chain) {
+    return ctx.fail(
+      "R2001",
+      ".reduce() translates only over a declared navigation collection or a group's items.",
+    );
+  }
+  const idiom = reduceIdiom(args, ctx);
+  if (idiom.agg !== "SUM") {
+    return ctx.fail(
+      "R2001",
+      "Min/max reduce idioms apply to group items; over a navigation an empty set would be NULL, not the seed.",
+    );
+  }
+  const sum = navSubquery(chain, ctx, (dialect, childCtx, childShape) => {
+    const inner = childCtx.scoped(new Map([[idiom.element, childShape]]));
+    return dialect.floatCast(`SUM(${translate(idiom.selector, inner)})`);
+  });
+  const coalesced = `COALESCE(${sum}, 0)`;
+  return idiom.seed === 0 ? coalesced : `(${ctx.param(idiom.seed)} + ${coalesced})`;
+}
+
+/** `g.items` (optionally `.filter(l)`-extended) under a group shape. */
+interface GroupItemsChain {
+  readonly group: Extract<ColumnShape, { kind: "group" }>;
+  readonly filters: ReadonlyArray<Extract<Node, { kind: "Lambda" }>>;
+}
+
+function matchGroupItems(n: Node, ctx: TranslateContext): GroupItemsChain | null {
+  if (n.kind === "Member" && n.prop === "items" && n.object.kind === "Param") {
+    const shape = ctx.shapeOf(n.object.name);
+    return shape?.kind === "group" ? { group: shape, filters: [] } : null;
+  }
+  if (
+    n.kind === "Call" &&
+    n.callee.kind === "Member" &&
+    n.callee.prop === "filter" &&
+    n.args[0]?.kind === "Lambda"
+  ) {
+    const base = matchGroupItems(n.callee.object, ctx);
+    if (!base) return null;
+    return { ...base, filters: [...base.filters, n.args[0]] };
+  }
+  return null;
+}
+
+/** A filter chain becomes a CASE guard inside the aggregate. */
+function groupGuard(
+  items: GroupItemsChain,
+  ctx: TranslateContext,
+  value: string,
+  elseSql: string | null,
+): string {
+  if (items.filters.length === 0) return value;
+  const conds = items.filters.map((f) => {
+    const inner = ctx.scoped(new Map([[f.params[0] as string, items.group.item]]));
+    return `(${translate(f.body, inner)})`;
+  });
+  const elsePart = elseSql === null ? "" : ` ELSE ${elseSql}`;
+  return `CASE WHEN ${conds.join(" AND ")} THEN ${value}${elsePart} END`;
+}
+
+function groupCount(items: GroupItemsChain, ctx: TranslateContext): string {
+  return items.filters.length === 0 ? "COUNT(*)" : `COUNT(${groupGuard(items, ctx, "1", null)})`;
+}
+
+/** `g.items.reduce(…)` → `SUM`/`MIN`/`MAX` over the grouped rows. */
+function translateGroupReduce(
+  items: GroupItemsChain,
+  args: readonly Node[],
+  ctx: TranslateContext,
+): string {
+  const idiom = reduceIdiom(args, ctx);
+  const inner = ctx.scoped(new Map([[idiom.element, items.group.item]]));
+  const sel = translate(idiom.selector, inner);
+  if (idiom.agg === "SUM") {
+    const guarded = groupGuard(items, ctx, sel, "0");
+    const sum = ctx.dialect.floatCast(`COALESCE(SUM(${guarded}), 0)`);
+    return idiom.seed === 0 ? sum : `(${ctx.param(idiom.seed)} + ${sum})`;
+  }
+  // Groups are never empty, so MIN/MAX always see a row. A filter could empty
+  // one, where SQL yields NULL but the JS reduce yields its seed — refuse
+  // rather than diverge.
+  if (items.filters.length > 0) {
+    return ctx.fail(
+      "R2001",
+      "Min/max reduce idioms do not compose with .filter() — an emptied group would be NULL in SQL but the seed in JS.",
+    );
+  }
+  return ctx.dialect.floatCast(`${idiom.agg}(${sel})`);
 }
 
 function translateLike(

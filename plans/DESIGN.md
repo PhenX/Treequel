@@ -464,12 +464,16 @@ When `expr(f)` executes with a plain function (no plugin ran):
 ### 9.1 Public API
 
 ```ts
-// context creation — the traced root
-export function createContext<Schema>(provider: QueryProvider): Context<Schema>;
+// context creation — the traced root; relations feed include() (ADR-0004)
+export function createContext<Schema>(provider: QueryProvider, options?: { relations?: SchemaRelations<Schema> }): Context<Schema>;
 type Context<S> = { readonly [K in keyof S]: Queryable<S[K]> };
 
 // db.ts (user code)
-export const db = createContext<{ users: User; orders: Order }>(pgProvider(pool, schemaMeta));
+const relations = defineRelations<{ users: User; orders: Order }>({
+  users:  { orders: { kind: "many", target: "orders", from: "id", to: "userId" } },
+  orders: { user:   { kind: "one",  target: "users",  from: "userId", to: "id" } },
+});
+export const db = createContext<{ users: User; orders: Order }>(pgProvider(pool, schemaMeta), { relations });
 
 // Queryable<T> — lazy, immutable; every method returns a NEW Queryable
 interface Queryable<T> {
@@ -480,13 +484,18 @@ interface Queryable<T> {
   distinct(): Queryable<T>;
   take(n: number): Queryable<T>; skip(n: number): Queryable<T>;
   groupBy<K>(k: Key<T, K>): Queryable<Grouping<K, T>>;
-  join<U, K, R>(inner: Queryable<U>, outerKey: Key<T,K>, innerKey: Key<U,K>, result: Expr2<T,U,R> | ((t:T,u:U)=>R)): Queryable<R>;
-  // executors (async — providers may be remote)
+  join<U, K, R>(inner: Queryable<U>, outerKey: Key<T,K>, innerKey: Key<U,K>, result: Result2<T,U,R>): Queryable<R>;
+  leftJoin<U, K, R>(inner: Queryable<U>, outerKey: Key<T,K>, innerKey: Key<U,K>, result: Result2<T,U|null,R>): Queryable<R>;
+  // include/thenInclude (ADR-0004): nav selectors are probed (single property
+  // access over `compiled`), never captured; Loaded<> marks the nav required.
+  include<R>(nav: NavSelector<T, R>): Includable<Loaded<T, KeysWithValue<T,R>>, NavElement<R>>;
+  // executors (async — providers may be remote); names follow JS (Array
+  // some/every, Prisma-style nullable first) rather than LINQ (ADR-0005)
   toArray(): Promise<T[]>;
-  first(p?: Pred<T>): Promise<T>; firstOrNull(p?: Pred<T>): Promise<T | null>;
+  first(p?: Pred<T>): Promise<T | null>; firstOrThrow(p?: Pred<T>): Promise<T>;
   single(p?: Pred<T>): Promise<T>;
   count(p?: Pred<T>): Promise<number>;
-  any(p?: Pred<T>): Promise<boolean>; all(p: Pred<T>): Promise<boolean>;
+  some(p?: Pred<T>): Promise<boolean>; every(p: Pred<T>): Promise<boolean>;
   sum(s: Key<T, number>): Promise<number>; min/max/avg(...): Promise<...>;
   inMemory(): Queryable<T>;                       // explicit client-eval boundary (§10.4, ADR-11):
                                                   // provider executes the prefix; the rest of the chain
@@ -494,6 +503,9 @@ interface Queryable<T> {
   [Symbol.asyncIterator](): AsyncIterator<T>;    // streaming when provider supports it
   toSql?(): never;                                // NOT on Queryable — provider-specific escape hatch lives on provider
   explain(): Promise<string>;                     // provider-rendered plan (SQL text, "memory scan", etc.)
+}
+interface Includable<T, TNav> extends Queryable<T> {
+  thenInclude<R>(nav: NavSelector<TNav, R>): Includable<T, NavElement<R>>;
 }
 type Pred<T>  = ((t: T) => boolean) | Expr<(t: T) => boolean>;
 type Proj<T,R>= ((t: T) => R)      | Expr<(t: T) => R>;
@@ -515,8 +527,9 @@ type PlanOp =
   | { op:"orderBy"|"thenBy"; expr: Expr<any>; desc: boolean }
   | { op:"take"|"skip"; n: number }
   | { op:"distinct" } | { op:"groupBy"; expr: Expr<any> }
-  | { op:"join"; inner: QueryPlan; outerKey: Expr<any>; innerKey: Expr<any>; result: Expr<any> }
-  | { op:"exec"; kind:"toArray"|"first"|"single"|"count"|"any"|"all"|"sum"|"min"|"max"|"avg"; expr?: Expr<any>; orNull?: boolean };
+  | { op:"join"|"leftJoin"; inner: QueryPlan; outerKey: Expr<any>; innerKey: Expr<any>; result: Expr<any> }
+  | { op:"include"; spec: IncludeSpec }          // self-contained: nav, target, from/to keys, kind, children (ADR-0004)
+  | { op:"exec"; kind:"toArray"|"first"|"single"|"count"|"some"|"every"|"sum"|"min"|"max"|"avg"; expr?: Expr<any>; orNull?: boolean };
 
 interface QueryProvider {
   readonly name: string;
@@ -555,8 +568,14 @@ Core translation table (pg dialect):
 | `Ternary` | `CASE WHEN t THEN a ELSE b END` |
 | `Template` | `\|\|` concatenation with `COALESCE` per null policy |
 | `select` ObjectLit | projection list with aliases; nested objects → `jsonb_build_object` (flag-gated) |
-| ops `where/orderBy/take/skip/distinct/groupBy/join` | `WHERE` (ANDed), `ORDER BY`, `LIMIT/OFFSET`, `DISTINCT`, `GROUP BY`, `INNER JOIN ON` |
-| executors | `count`→`COUNT(*)`, `any`→`EXISTS(...)`, `first`→`LIMIT 1` (+`single` → `LIMIT 2` + runtime cardinality check) |
+| ops `where/orderBy/take/skip/distinct/join/leftJoin` | `WHERE` (ANDed), `ORDER BY`, `LIMIT/OFFSET`, `DISTINCT`, `INNER/LEFT JOIN ON` — compiled as a layer stack: an op that would change meaning under SQL clause order wraps the current SELECT into a derived table (ADR-0004); `groupBy` stays memory-only in v1 |
+| `include` | split queries: per navigation one batched fetch (`= ANY($n)` pg / chunked `IN` sqlite via `dialect.maxBatchKeys`), stitched by the shared helpers in `linq`; attaches to final rows only |
+| `nav.some(p)` / `nav.every(p)` in predicates | correlated `EXISTS (SELECT 1 …)` / `NOT EXISTS (… NOT p)` against the navigation's target (relations ride on the plan; the nested lambda translates in a lexical child scope) |
+| `nav.length`, `nav.filter(p).length`, `nav.reduce((acc,o)=>acc+e,0)` | correlated scalar subqueries: `COUNT(*)`, filtered `COUNT(*)`, `COALESCE(SUM(e),0)` — usable in projections, predicates, orderBy keys and aggregate selectors (ADR-0006) |
+| `groupBy(k)` + `select(g => …)` | `GROUP BY` with aggregate projections over `g.key`/`g.items` (`length`→COUNT, filtered counts, reduce sum/min/max idioms, `sum/count` for averages); non-column keys precompute into a derived table; `where` after the projection wraps = HAVING; raw groups stay memory-only (ADR-0007) |
+| `include(nav, q => q.where/orderBy/take/skip)` | refined split fetch: filters/order fold into the batched child query; per-parent slices via `ROW_NUMBER() OVER (PARTITION BY key …)` gated by `dialect.windowFunctions` (ADR-0008) |
+| `flatMap(nav)` / `flatMap(nav, result)` | expand through a navigation (EF `SelectMany`): `INNER JOIN` onto the target; without a selector the layer swaps to the child shape so chained flatMap/include/nav-predicates resolve against the flattened source (ADR-0009) |
+| executors | `count`→`COUNT(*)`, `some`→`EXISTS(...)`, `first`→`LIMIT 1` (+`single` → `LIMIT 2` + runtime cardinality check) |
 
 Schema meta is minimal and explicit in v1: `{ users: { table:"users", columns:{ id:"id", createdAt:"created_at" }, json?: ["meta"] } }`. No introspection in v1 (providers may add it).
 
@@ -592,7 +611,7 @@ db.users
 
 ## 11. Type system design
 
-- **Union acceptance** `F | Expr<F>`: contextual typing of lambda parameters through a union of a function type and an object type with an optional phantom function property is the risky spot. Mitigations, in order: (1) single non-overloaded signatures; (2) phantom key optional and `in`-variance-neutral (`[brand]?: F`); (3) a `type-tests/` suite (vitest + expect-type) asserting: param inference in `where`, return inference in `select` incl. object-literal widening, `strictNullChecks` behavior for `firstOrNull`, no excess-property leakage of brand in errors. If inference degrades in some TS version, plan B is `Pred<T> = (t: T) => boolean` in the *public* signature with the transform+`expr()` both producing values that still structurally match via the optional-brand trick — decided by the type tests, which run against TS `latest` and `next` nightly in CI.
+- **Union acceptance** `F | Expr<F>`: contextual typing of lambda parameters through a union of a function type and an object type with an optional phantom function property is the risky spot. Mitigations, in order: (1) single non-overloaded signatures; (2) phantom key optional and `in`-variance-neutral (`[brand]?: F`); (3) a `type-tests/` suite (vitest + expect-type) asserting: param inference in `where`, return inference in `select` incl. object-literal widening, `strictNullChecks` behavior for the nullable `first`, no excess-property leakage of brand in errors. If inference degrades in some TS version, plan B is `Pred<T> = (t: T) => boolean` in the *public* signature with the transform+`expr()` both producing values that still structurally match via the optional-brand trick — decided by the type tests, which run against TS `latest` and `next` nightly in CI.
 - **Error ergonomics:** never require users to write `Expr<...>`; docs always show plain lambdas. `Grouping<K,T>` mirrors C#: `{ key: K } & Iterable<T>` with provider-defined materialization.
 - **`strict` everywhere**; public API passes `--isolatedDeclarations` (keeps .d.ts generation trivial and fast under tsdown).
 

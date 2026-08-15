@@ -43,7 +43,10 @@ examples are in place. The **M7** surface exists too: the VitePress docs site (`
 tree-schema pages, the playground (`apps/playground`), the manually dispatched **Release** workflow, and the community
 health files (code of conduct, issue forms, CODEOWNERS). Pulled ahead of the plan's post-0.1 backlog, the SQL providers
 split into **`@treequel/provider-postgres`** and **`@treequel/provider-sqlite`** over a shared **`@treequel/provider-sql`**
-core (the `SqlDialect` seam + `makeSqlProvider`), so there are now thirteen `@treequel/*` packages (ADR-0003). **The one
+core (the `SqlDialect` seam + `makeSqlProvider`), so there are now thirteen `@treequel/*` packages (ADR-0003). Also
+ahead of plan: **first-class `leftJoin` and EF-style `include`/`thenInclude`** (relations declared via
+`defineRelations`, split-query batching in SQL, layered SQL compile with derived-table wrapping — ADR-0004), with the
+conformance corpus running on PGlite and sql.js. **The one
 remaining step is dispatching the Release workflow to publish `0.1.0`.** **Update this paragraph as milestones
 complete.**
 

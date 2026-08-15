@@ -12,8 +12,8 @@ const adults = await db.users
   .where(u => u.age >= minAge && u.name.startsWith(prefix))
   .select(u => ({ id: u.id, name: u.name }))
   .toArray();
-// → SELECT "users"."id", "users"."name" FROM "users"
-//   WHERE ("users"."age" >= $1 AND "users"."name" LIKE $2 ESCAPE '\')
+// → SELECT "t0"."id" AS "id", "t0"."name" AS "name" FROM "users" "t0"
+//   WHERE ("t0"."age" >= $1 AND "t0"."name" LIKE $2 ESCAPE '\')
 ```
 
 The same query file runs under Vitest with no plugin configured, against fixture arrays, producing equal results — the

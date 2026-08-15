@@ -4,12 +4,33 @@
  * `@treequel/core`. The in-memory engine lives here too so it is the single
  * shared reference semantics.
  */
-export { type AnyExpr, type ExecKind, type PlanOp, type QueryPlan, withOp } from "./plan.js";
+export {
+  type AnyExpr,
+  type ExecKind,
+  type IncludeSpec,
+  type PlanOp,
+  type QueryPlan,
+  PLAN_OP_KINDS,
+  withOp,
+} from "./plan.js";
 export { type Capabilities, type QueryProvider, capabilities } from "./provider.js";
 export { type Grouping, type RowSource, applyOps, runPlanInMemory } from "./memory-engine.js";
 export {
+  type Relation,
+  type RelationsMeta,
+  type SchemaRelations,
+  defineRelations,
+} from "./relations.js";
+export { attachChildren, collectIncludes, collectKeys, mergeIncludeSpecs } from "./include.js";
+export {
   type Context,
+  type ContextOptions,
+  type Includable,
   type Key,
+  type KeysWithValue,
+  type Loaded,
+  type NavElement,
+  type NavSelector,
   type Ordered,
   type Pred,
   type Proj,

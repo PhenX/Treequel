@@ -1,4 +1,16 @@
-import type { AnyExpr, PlanOp, QueryPlan } from "./plan.js";
+import { TreequelError } from "@treequel/core";
+import { canonical } from "./canon.js";
+import {
+  attachChildren,
+  collectIncludes,
+  collectKeys,
+  predicateSpecs,
+  rowKey,
+  touchedRootProps,
+  tryBody,
+} from "./include.js";
+import type { AnyExpr, IncludeSpec, PlanOp, QueryPlan } from "./plan.js";
+import type { RelationsMeta } from "./relations.js";
 
 /**
  * The reference in-memory semantics: apply plan ops to plain arrays using each
@@ -19,34 +31,86 @@ export type RowSource = (source: string) => readonly unknown[];
 const invoke = (e: AnyExpr, ...args: unknown[]): unknown =>
   (e.compiled as (...a: unknown[]) => unknown)(...args);
 
+/** Where the current rows came from — resolves navigations in predicates. */
+export interface PlanEnv {
+  readonly source?: string;
+  readonly relations?: RelationsMeta;
+}
+
 export function runPlanInMemory(plan: QueryPlan, rows: RowSource): unknown {
-  return applyOps([...rows(plan.source)], plan.ops, rows);
+  return applyOps([...rows(plan.source)], plan.ops, rows, {
+    source: plan.source,
+    ...(plan.relations ? { relations: plan.relations } : {}),
+  });
+}
+
+/**
+ * Rows to evaluate a predicate against: when its tree references declared
+ * navigations, a copy of each row with those navigations attached (the rows a
+ * SQL provider reasons about via correlated subqueries); otherwise `null`,
+ * and the predicate runs over the rows as-is. Without a tree (no plugin, no
+ * fallback), a compiled lambda that touches a navigation is refused rather
+ * than silently evaluated against absent data.
+ */
+function navEvalRows(cur: unknown[], e: AnyExpr, env: PlanEnv, rows: RowSource): unknown[] | null {
+  const navs = env.source ? env.relations?.[env.source] : undefined;
+  if (!navs || cur.length === 0) return null;
+  const body = tryBody(e);
+  if (body === null) {
+    for (const prop of touchedRootProps(e.compiled)) {
+      if (navs[prop]) {
+        throw new TreequelError(
+          "R3001",
+          `This lambda reads the navigation '${prop}', which needs an expression tree to resolve. ` +
+            'Enable the @treequel/vite build plugin or `import "@treequel/fallback/register"`.',
+        );
+      }
+    }
+    return null;
+  }
+  const specs = predicateSpecs(body, e.params[0], env.source as string, env.relations);
+  if (specs.length === 0) return null;
+  return applyIncludes(cur, specs, rows, env.relations);
 }
 
 /** Apply a sequence of ops to an array; an `exec` op returns the final result. */
-export function applyOps(start: unknown[], ops: readonly PlanOp[], rows: RowSource): unknown {
+export function applyOps(
+  start: unknown[],
+  ops: readonly PlanOp[],
+  rows: RowSource,
+  env: PlanEnv = {},
+): unknown {
+  const includes = collectIncludes(ops);
   let cur = start;
+  // Navigations resolve on source-shaped rows only: once a select/groupBy/join
+  // reshapes the element, later expressions run over what they were given.
+  let scope = env;
   for (let i = 0; i < ops.length; i++) {
     const op = ops[i] as PlanOp;
     switch (op.op) {
-      case "where":
-        cur = cur.filter((r) => Boolean(invoke(op.expr, r)));
+      case "where": {
+        const ev = navEvalRows(cur, op.expr, scope, rows) ?? cur;
+        cur = cur.filter((_r, j) => Boolean(invoke(op.expr, ev[j])));
         break;
-      case "select":
-        cur = cur.map((r) => invoke(op.expr, r));
+      }
+      case "select": {
+        const ev = navEvalRows(cur, op.expr, scope, rows) ?? cur;
+        cur = cur.map((_r, j) => invoke(op.expr, ev[j]));
+        scope = {};
         break;
+      }
       case "orderBy": {
         const keys: Array<{ expr: AnyExpr; desc: boolean }> = [{ expr: op.expr, desc: op.desc }];
         while (i + 1 < ops.length && (ops[i + 1] as PlanOp).op === "thenBy") {
           const next = ops[++i] as Extract<PlanOp, { op: "orderBy" | "thenBy" }>;
           keys.push({ expr: next.expr, desc: next.desc });
         }
-        cur = sortBy(cur, keys);
+        cur = sortBy(cur, keys, scope, rows);
         break;
       }
       case "thenBy":
         // Only reached if a thenBy appears without a preceding orderBy; treat as a fresh sort.
-        cur = sortBy(cur, [{ expr: op.expr, desc: op.desc }]);
+        cur = sortBy(cur, [{ expr: op.expr, desc: op.desc }], scope, rows);
         break;
       case "take":
         cur = cur.slice(0, Math.max(0, op.n));
@@ -57,30 +121,100 @@ export function applyOps(start: unknown[], ops: readonly PlanOp[], rows: RowSour
       case "distinct":
         cur = distinct(cur);
         break;
-      case "groupBy":
-        cur = groupBy(cur, op.expr) as unknown[];
+      case "groupBy": {
+        const ev = navEvalRows(cur, op.expr, scope, rows) ?? cur;
+        cur = groupBy(cur, op.expr, ev) as unknown[];
+        scope = {};
         break;
+      }
       case "join":
+      case "leftJoin":
         cur = hashJoin(cur, op, rows);
+        scope = {};
         break;
+      case "flatMap": {
+        cur = flatMap(cur, op, rows);
+        scope = op.result
+          ? {}
+          : { source: op.target, ...(env.relations ? { relations: env.relations } : {}) };
+        break;
+      }
+      case "include":
+        break; // collected up front; navigations attach to the final rows below
       case "inMemory":
         break; // boundary marker — a no-op inside a pure memory run
-      case "exec":
-        return execute(cur, op);
+      case "exec": {
+        if (rowResult(op.kind)) cur = applyIncludes(cur, includes, rows, env.relations);
+        const ev = op.expr ? navEvalRows(cur, op.expr, scope, rows) : null;
+        return execute(cur, op, ev ?? cur);
+      }
     }
+  }
+  return applyIncludes(cur, includes, rows, env.relations);
+}
+
+const rowResult = (kind: Extract<PlanOp, { op: "exec" }>["kind"]): boolean =>
+  kind === "toArray" || kind === "first" || kind === "single";
+
+/**
+ * Attach each navigation's related rows to the final rows. Parents are copied
+ * on attach; related rows are fetched by key from the row source, refined by
+ * the spec's ops (filter/order — slices apply per parent at attach), and
+ * stitched with the shared engine so every provider agrees on the shape.
+ */
+function applyIncludes(
+  parents: unknown[],
+  specs: readonly IncludeSpec[],
+  rows: RowSource,
+  relations?: RelationsMeta,
+): unknown[] {
+  let cur = parents;
+  for (const spec of specs) {
+    if (cur.length === 0) break;
+    const keys = collectKeys(cur, spec.from, spec.nav);
+    const wanted = new Set(keys.map((k) => canonical(k)));
+    let children = (rows(spec.target) as unknown[]).filter((child) => {
+      const key = rowKey(child, spec.to, spec.nav);
+      return key !== null && key !== undefined && wanted.has(canonical(key));
+    });
+    if (spec.ops && spec.ops.length > 0) {
+      children = applyOps(children, spec.ops, rows, {
+        source: spec.target,
+        ...(relations ? { relations } : {}),
+      }) as unknown[];
+    }
+    if (spec.children && spec.children.length > 0) {
+      children = applyIncludes(children, spec.children, rows, relations);
+    }
+    const ordered = spec.ops?.some((o) => o.op === "orderBy") ?? false;
+    cur = attachChildren(cur, spec, children, spec.from, spec.to, ordered);
   }
   return cur;
 }
 
-function sortBy(rows: unknown[], keys: Array<{ expr: AnyExpr; desc: boolean }>): unknown[] {
-  // Array.prototype.sort is stable in modern engines; that gives thenBy for free.
-  return [...rows].sort((a, b) => {
-    for (const k of keys) {
-      const cmp = compare(invoke(k.expr, a), invoke(k.expr, b));
-      if (cmp !== 0) return k.desc ? -cmp : cmp;
-    }
-    return 0;
-  });
+function sortBy(
+  rows: unknown[],
+  keys: Array<{ expr: AnyExpr; desc: boolean }>,
+  env: PlanEnv,
+  src: RowSource,
+): unknown[] {
+  // Key values are computed once per row (navigation keys evaluate against
+  // augmented copies); Array.prototype.sort is stable in modern engines, which
+  // gives thenBy for free.
+  const decorated = rows.map((r) => ({ r, k: [] as unknown[] }));
+  for (const key of keys) {
+    const ev = navEvalRows(rows, key.expr, env, src) ?? rows;
+    decorated.forEach((d, i) => d.k.push(invoke(key.expr, ev[i])));
+  }
+  return decorated
+    .sort((a, b) => {
+      for (let i = 0; i < keys.length; i++) {
+        const cmp = compare(a.k[i], b.k[i]);
+        if (cmp !== 0) return (keys[i] as { desc: boolean }).desc ? -cmp : cmp;
+      }
+      return 0;
+    })
+    .map((d) => d.r);
 }
 
 /**
@@ -102,15 +236,6 @@ function compare(a: unknown, b: unknown): number {
   return as < bs ? -1 : as > bs ? 1 : 0;
 }
 
-function canonical(v: unknown): string {
-  return JSON.stringify(v, (_k, val) => {
-    if (val && typeof val === "object" && !Array.isArray(val)) {
-      return Object.fromEntries(Object.entries(val as object).sort(([x], [y]) => (x < y ? -1 : 1)));
-    }
-    return val as unknown;
-  });
-}
-
 function distinct(rows: unknown[]): unknown[] {
   const seen = new Set<string>();
   const out: unknown[] = [];
@@ -124,11 +249,16 @@ function distinct(rows: unknown[]): unknown[] {
   return out;
 }
 
-function groupBy(rows: unknown[], keyExpr: AnyExpr): Array<Grouping<unknown, unknown>> {
+function groupBy(
+  rows: unknown[],
+  keyExpr: AnyExpr,
+  evalRows: unknown[],
+): Array<Grouping<unknown, unknown>> {
   const map = new Map<string, { key: unknown; items: unknown[] }>();
   const order: string[] = [];
-  for (const r of rows) {
-    const key = invoke(keyExpr, r);
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    const key = invoke(keyExpr, evalRows[i]);
     const ck = canonical(key);
     let bucket = map.get(ck);
     if (!bucket) {
@@ -148,33 +278,94 @@ function groupBy(rows: unknown[], keyExpr: AnyExpr): Array<Grouping<unknown, unk
   });
 }
 
+/**
+ * A join key that never matches: null/undefined, or a composite (plain object)
+ * with a null/undefined member — mirroring SQL, where `NULL = x` is never true.
+ */
+function joinKey(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "object" && !Array.isArray(value) && !(value instanceof Date)) {
+    for (const v of Object.values(value as Record<string, unknown>)) {
+      if (v === null || v === undefined) return null;
+    }
+  }
+  return canonical(value);
+}
+
 function hashJoin(
   outer: unknown[],
-  op: Extract<PlanOp, { op: "join" }>,
+  op: Extract<PlanOp, { op: "join" | "leftJoin" }>,
   rows: RowSource,
 ): unknown[] {
-  const innerRows = applyOps([...rows(op.inner.source)], op.inner.ops, rows) as unknown[];
+  const left = op.op === "leftJoin";
+  const innerRows = applyOps([...rows(op.inner.source)], op.inner.ops, rows, {
+    source: op.inner.source,
+    ...(op.inner.relations ? { relations: op.inner.relations } : {}),
+  }) as unknown[];
   const index = new Map<string, unknown[]>();
   for (const ir of innerRows) {
-    const key = canonical(invoke(op.innerKey, ir));
+    const key = joinKey(invoke(op.innerKey, ir));
+    if (key === null) continue;
     const bucket = index.get(key);
     if (bucket) bucket.push(ir);
     else index.set(key, [ir]);
   }
   const out: unknown[] = [];
   for (const or of outer) {
-    const matches = index.get(canonical(invoke(op.outerKey, or)));
-    if (!matches) continue;
+    const key = joinKey(invoke(op.outerKey, or));
+    const matches = key === null ? undefined : index.get(key);
+    if (!matches) {
+      if (left) out.push(invoke(op.result, or, null));
+      continue;
+    }
     for (const ir of matches) out.push(invoke(op.result, or, ir));
   }
   return out;
 }
 
-function execute(rows: unknown[], op: Extract<PlanOp, { op: "exec" }>): unknown {
+/**
+ * `evalRows` is aligned with `rows` and carries navigation-augmented copies
+ * when the expr needs them; results always come from the original `rows`.
+ */
+/** Expand each row through its navigation — null keys expand to nothing. */
+function flatMap(
+  parents: unknown[],
+  op: Extract<PlanOp, { op: "flatMap" }>,
+  rows: RowSource,
+): unknown[] {
+  const index = new Map<string, unknown[]>();
+  for (const child of rows(op.target)) {
+    const key = rowKey(child, op.to, op.nav);
+    if (key === null || key === undefined) continue;
+    const ck = canonical(key);
+    const bucket = index.get(ck);
+    if (bucket) bucket.push(child);
+    else index.set(ck, [child]);
+  }
+  const out: unknown[] = [];
+  for (const parent of parents) {
+    const key = rowKey(parent, op.from, op.nav);
+    if (key === null || key === undefined) continue;
+    const matches = index.get(canonical(key));
+    if (!matches) continue;
+    for (const child of matches) {
+      out.push(op.result ? invoke(op.result, parent, child) : child);
+    }
+  }
+  return out;
+}
+
+function execute(
+  rows: unknown[],
+  op: Extract<PlanOp, { op: "exec" }>,
+  evalRows: unknown[],
+): unknown {
+  const test = (i: number): boolean => Boolean(invoke(op.expr as AnyExpr, evalRows[i]));
+  const value = (i: number): number => Number(invoke(op.expr as AnyExpr, evalRows[i]));
   const filtered =
     op.expr &&
-    (op.kind === "first" || op.kind === "single" || op.kind === "count" || op.kind === "any")
-      ? rows.filter((r) => Boolean(invoke(op.expr as AnyExpr, r)))
+    (op.kind === "first" || op.kind === "single" || op.kind === "count" || op.kind === "some")
+      ? rows.filter((_r, i) => test(i))
       : rows;
 
   switch (op.kind) {
@@ -183,7 +374,7 @@ function execute(rows: unknown[], op: Extract<PlanOp, { op: "exec" }>): unknown 
     case "first":
       if (filtered.length === 0) {
         if (op.orNull) return null;
-        throw new Error("Treequel: first() found no element.");
+        throw new Error("Treequel: firstOrThrow() found no element.");
       }
       return filtered[0];
     case "single":
@@ -195,30 +386,23 @@ function execute(rows: unknown[], op: Extract<PlanOp, { op: "exec" }>): unknown 
       return filtered[0];
     case "count":
       return filtered.length;
-    case "any":
+    case "some":
       return filtered.length > 0;
-    case "all":
-      return rows.every((r) => Boolean(invoke(op.expr as AnyExpr, r)));
+    case "every":
+      return rows.every((_r, i) => test(i));
     case "sum":
-      return rows.reduce<number>((acc, r) => acc + Number(invoke(op.expr as AnyExpr, r)), 0);
+      return rows.reduce<number>((acc, _r, i) => acc + value(i), 0);
     case "min":
       return rows.length === 0
         ? null
-        : rows.reduce<number>(
-            (m, r) => Math.min(m, Number(invoke(op.expr as AnyExpr, r))),
-            Infinity,
-          );
+        : rows.reduce<number>((m, _r, i) => Math.min(m, value(i)), Infinity);
     case "max":
       return rows.length === 0
         ? null
-        : rows.reduce<number>(
-            (m, r) => Math.max(m, Number(invoke(op.expr as AnyExpr, r))),
-            -Infinity,
-          );
+        : rows.reduce<number>((m, _r, i) => Math.max(m, value(i)), -Infinity);
     case "avg":
       return rows.length === 0
         ? null
-        : rows.reduce<number>((acc, r) => acc + Number(invoke(op.expr as AnyExpr, r)), 0) /
-            rows.length;
+        : rows.reduce<number>((acc, _r, i) => acc + value(i), 0) / rows.length;
   }
 }

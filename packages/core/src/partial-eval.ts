@@ -47,6 +47,14 @@ export function foldConstants(node: Node, scope: Record<string, unknown>): Node 
         // fall through to structural recursion
       }
     }
+    if (n.kind === "Call" && n.callee.kind === "Member") {
+      // A call that cannot fold whole keeps its method-call shape: fold the
+      // receiver and the arguments, never the callee member itself — a bound
+      // function `Constant` would be untranslatable (`cities.includes(u.id)`
+      // must stay `Constant([…]).includes(u.id)`).
+      const callee = { ...n.callee, object: fold(n.callee.object) };
+      return { ...n, callee, args: n.args.map(fold) };
+    }
     return mapChildren(n, fold);
   };
   return fold(node);

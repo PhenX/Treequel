@@ -8,6 +8,7 @@ import {
   type Capabilities,
   type QueryPlan,
   type QueryProvider,
+  PLAN_OP_KINDS,
   capabilities,
   runPlanInMemory,
 } from "@treequel/linq";
@@ -16,20 +17,6 @@ import { TreequelError } from "@treequel/core";
 export interface MemoryData {
   readonly [source: string]: readonly unknown[];
 }
-
-const ALL_OPS = [
-  "where",
-  "select",
-  "orderBy",
-  "thenBy",
-  "take",
-  "skip",
-  "distinct",
-  "groupBy",
-  "join",
-  "inMemory",
-  "exec",
-];
 
 /** Build an in-memory provider over fixture arrays keyed by source name. */
 export function memoryProvider(data: MemoryData): QueryProvider {
@@ -44,7 +31,7 @@ export function memoryProvider(data: MemoryData): QueryProvider {
   return {
     name: "memory",
     capabilities(): Capabilities {
-      return capabilities(ALL_OPS);
+      return capabilities([...PLAN_OP_KINDS]);
     },
     async execute<T>(plan: QueryPlan): Promise<T> {
       return runPlanInMemory(plan, rows) as T;

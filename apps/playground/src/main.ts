@@ -1,11 +1,12 @@
 import { __expr, type Node, print } from "@treequel/core";
 import { parseFunctionSource } from "@treequel/fallback";
-import { createContext } from "@treequel/linq";
+import { createContext, defineRelations } from "@treequel/linq";
 import { type SchemaMeta, postgres } from "@treequel/provider-postgres";
 import { emitNode } from "@treequel/transform/emit";
 import { serialize } from "@treequel/tree";
 
 const $ = (id: string): HTMLElement => document.getElementById(id) as HTMLElement;
+const samplesEl = $("samples");
 const lambdaEl = $("lambda") as HTMLTextAreaElement;
 const capturesEl = $("captures") as HTMLTextAreaElement;
 const diagnosticsEl = $("diagnostics");
@@ -14,15 +15,142 @@ const emittedEl = $("emitted");
 const sqlEl = $("sql");
 const jsonEl = $("json");
 
+// The demo schema: users → orders → items, with mapped physical columns so
+// the SQL panel shows the logical→physical translation too.
+interface User {
+  id: number;
+  name: string;
+  age: number;
+  active: boolean;
+  city: string | null;
+  orders?: OrderRow[];
+}
+interface OrderRow {
+  id: number;
+  userId: number;
+  total: number;
+  paid: boolean;
+  user?: User | null;
+  items?: ItemRow[];
+}
+interface ItemRow {
+  id: number;
+  orderId: number;
+  sku: string;
+  order?: OrderRow | null;
+}
+interface Schema {
+  users: User;
+  orders: OrderRow;
+  items: ItemRow;
+}
+
+const schema: SchemaMeta = {
+  users: { table: "users" },
+  orders: { table: "orders", columns: { userId: "user_id" } },
+  items: { table: "items", columns: { orderId: "order_id" } },
+};
+
+const relations = defineRelations<Schema>({
+  users: {
+    orders: { kind: "many", target: "orders", from: "id", to: "userId" },
+  },
+  orders: {
+    user: { kind: "one", target: "users", from: "userId", to: "id" },
+    items: { kind: "many", target: "items", from: "id", to: "orderId" },
+  },
+  items: {
+    order: { kind: "one", target: "orders", from: "orderId", to: "id" },
+  },
+});
+
 // A provider whose executor is never called — we only render explain() text.
 const noExec = async (): Promise<{ rows: Array<Record<string, unknown>> }> => ({ rows: [] });
-const schema: SchemaMeta = { users: { table: "users" } };
-const db = createContext<{ users: unknown }>(postgres(noExec, schema)) as {
+const db = createContext<Schema>(postgres(noExec, schema), { relations }) as unknown as {
   users: {
     where(e: unknown): { explain(): Promise<string> };
     select(e: unknown): { explain(): Promise<string> };
   };
 };
+
+interface Sample {
+  readonly label: string;
+  readonly lambda: string;
+  readonly captures: string;
+}
+
+const SAMPLES: readonly Sample[] = [
+  {
+    label: "Filter",
+    lambda: "u => u.age >= minAge && u.name.startsWith(prefix)",
+    captures: '{ "minAge": 18, "prefix": "A" }',
+  },
+  {
+    label: "Projection",
+    lambda: "u => ({ id: u.id, shout: u.name.toUpperCase() })",
+    captures: "",
+  },
+  {
+    label: "Null checks",
+    lambda: "u => u.city === null",
+    captures: "",
+  },
+  {
+    label: "Membership",
+    lambda: "u => cities.includes(u.city)",
+    captures: '{ "cities": ["London", "Paris"] }',
+  },
+  {
+    label: "Ternary",
+    lambda: 'u => ({ name: u.name, tier: u.age > limit ? "senior" : "junior" })',
+    captures: '{ "limit": 30 }',
+  },
+  {
+    label: "some → EXISTS",
+    lambda: "u => u.orders?.some(o => o.total > min)",
+    captures: '{ "min": 100 }',
+  },
+  {
+    label: "every → NOT EXISTS",
+    lambda: "u => u.active && u.orders?.every(o => o.paid)",
+    captures: "",
+  },
+  {
+    label: "Nested relations",
+    lambda: "u => u.orders?.some(o => o.items?.some(i => i.sku === sku))",
+    captures: '{ "sku": "apple" }',
+  },
+  {
+    label: "Count relation",
+    lambda: "u => ({ name: u.name, orderCount: u.orders?.length ?? 0 })",
+    captures: "",
+  },
+  {
+    label: "Filtered count",
+    lambda: "u => ({ name: u.name, big: u.orders?.filter(o => o.total > min).length ?? 0 })",
+    captures: '{ "min": 100 }',
+  },
+  {
+    label: "Sum relation",
+    lambda: "u => ({ name: u.name, spent: u.orders?.reduce((acc, o) => acc + o.total, 0) ?? 0 })",
+    captures: "",
+  },
+];
+
+function renderSamples(): void {
+  for (const sample of SAMPLES) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "sample";
+    button.textContent = sample.label;
+    button.addEventListener("click", () => {
+      lambdaEl.value = sample.lambda;
+      capturesEl.value = sample.captures;
+      void render();
+    });
+    samplesEl.appendChild(button);
+  }
+}
 
 function readCaptures(): Record<string, unknown> {
   const text = capturesEl.value.trim();
@@ -117,6 +245,7 @@ async function render(): Promise<void> {
   }
 }
 
+renderSamples();
 lambdaEl.addEventListener("input", () => void render());
 capturesEl.addEventListener("input", () => void render());
 void render();

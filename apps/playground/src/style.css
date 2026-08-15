@@ -153,3 +153,24 @@ pre {
 pre.error {
   color: var(--error);
 }
+
+.samples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.sample {
+  background: var(--panel);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font:
+    13px/1.4 system-ui,
+    sans-serif;
+  cursor: pointer;
+}
+.sample:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}

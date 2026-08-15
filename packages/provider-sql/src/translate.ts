@@ -2,19 +2,60 @@ import { type Node, TreequelError } from "@treequel/core";
 import { type TableMeta, physicalColumn } from "./schema.js";
 import { type SqlDialect } from "./dialect.js";
 
-/** State threaded through a single expression translation. */
+/**
+ * How a lambda parameter resolves to SQL. A `table` shape maps properties
+ * through schema meta to physical columns; a `derived` shape maps them to the
+ * output aliases of a subquery projection; a `scalar` shape is a single-value
+ * row (`SELECT expr AS "value"`) whose parameter *is* the value.
+ */
+export type ColumnShape =
+  | { readonly kind: "table"; readonly alias: string; readonly meta: TableMeta }
+  | { readonly kind: "derived"; readonly alias: string; readonly columns: readonly string[] | null }
+  | { readonly kind: "scalar"; readonly alias: string };
+
+/** Column name a scalar subquery projects its value under. */
+export const SCALAR_COLUMN = "value";
+
+// NUL delimits value markers: it cannot appear in generated SQL text, so a
+// marker never collides with identifiers, keywords, or literals.
+const NUL = String.fromCharCode(0);
+const MARKER = new RegExp(`${NUL}(\\d+)${NUL}`, "g");
+
+/**
+ * State threaded through a single SQL statement's translation. `param()` emits
+ * a position-independent marker; {@link finalizeSql} rewrites markers to the
+ * dialect's placeholders in *textual* order and reorders the values to match —
+ * translation order and clause order are free to differ (they do: a `WHERE`
+ * folds before the `SELECT` list that precedes it in the statement).
+ */
 export class TranslateContext {
-  readonly values: unknown[] = [];
+  readonly values: unknown[];
+  private readonly shapes: ReadonlyMap<string, ColumnShape> | ColumnShape;
+
   constructor(
-    readonly meta: TableMeta,
-    readonly alias: string,
     readonly dialect: SqlDialect,
+    shapes: ReadonlyMap<string, ColumnShape> | ColumnShape,
     readonly loc?: string,
-  ) {}
+    values: unknown[] = [],
+  ) {
+    this.shapes = shapes;
+    this.values = values;
+  }
+
+  /** A context over new parameter bindings that shares this statement's values. */
+  scoped(shapes: ReadonlyMap<string, ColumnShape> | ColumnShape): TranslateContext {
+    return new TranslateContext(this.dialect, shapes, this.loc, this.values);
+  }
+
+  /** Resolve a lambda parameter. A single (non-map) shape binds every parameter. */
+  shapeOf(param: string): ColumnShape | undefined {
+    if (this.shapes instanceof Map) return this.shapes.get(param);
+    return this.shapes as ColumnShape;
+  }
 
   param(value: unknown): string {
     this.values.push(value);
-    return this.dialect.placeholder(this.values.length);
+    return `${NUL}${this.values.length - 1}${NUL}`;
   }
 
   private located(detail: string): string {
@@ -26,8 +67,37 @@ export class TranslateContext {
   }
 }
 
+/** Rewrite param markers to dialect placeholders in textual order. */
+export function finalizeSql(
+  text: string,
+  values: readonly unknown[],
+  dialect: SqlDialect,
+): { text: string; values: unknown[] } {
+  const ordered: unknown[] = [];
+  const finalText = text.replace(MARKER, (_m, index: string) => {
+    ordered.push(values[Number(index)]);
+    return dialect.placeholder(ordered.length);
+  });
+  return { text: finalText, values: ordered };
+}
+
 export function quoteIdent(id: string): string {
   return `"${id.replace(/"/g, '""')}"`;
+}
+
+/** Column reference for `prop` on rows of the given shape. */
+export function shapeColumn(shape: ColumnShape, prop: string, ctx: TranslateContext): string {
+  switch (shape.kind) {
+    case "table":
+      return `${quoteIdent(shape.alias)}.${quoteIdent(physicalColumn(shape.meta, prop))}`;
+    case "derived":
+      if (shape.columns && !shape.columns.includes(prop)) {
+        return ctx.fail("R2002", `Column '${prop}' is not part of the projected row.`);
+      }
+      return `${quoteIdent(shape.alias)}.${quoteIdent(prop)}`;
+    case "scalar":
+      return ctx.fail("R2002", `A scalar row has no column '${prop}'.`);
+  }
 }
 
 const NUMERIC_BINARY: Record<string, string> = {
@@ -46,14 +116,19 @@ function isNullConstant(n: Node): boolean {
   return n.kind === "Constant" && n.value === null;
 }
 
-/** Translate a (partial-evaluated, param-rooted) tree to a pg SQL fragment. */
+/** Translate a (partial-evaluated, param-rooted) tree to a SQL fragment. */
 export function translate(node: Node, ctx: TranslateContext): string {
   switch (node.kind) {
     case "Constant":
       return node.value === null ? "NULL" : ctx.param(node.value);
 
-    case "Param":
+    case "Param": {
+      const shape = ctx.shapeOf(node.name);
+      if (shape?.kind === "scalar") {
+        return `${quoteIdent(shape.alias)}.${quoteIdent(SCALAR_COLUMN)}`;
+      }
       return ctx.fail("R2001", "Bare row reference is not translatable; project specific columns.");
+    }
 
     case "Capture":
       return ctx.fail(
@@ -102,6 +177,17 @@ export function translate(node: Node, ctx: TranslateContext): string {
   }
 }
 
+function paramShape(node: Node, ctx: TranslateContext): ColumnShape {
+  const shape = ctx.shapeOf((node as Extract<Node, { kind: "Param" }>).name);
+  if (!shape) {
+    return ctx.fail(
+      "R2002",
+      `Lambda parameter '${(node as Extract<Node, { kind: "Param" }>).name}' is not bound to a table here.`,
+    );
+  }
+  return shape;
+}
+
 function translateMember(node: Extract<Node, { kind: "Member" }>, ctx: TranslateContext): string {
   // string/array .length
   if (node.prop === "length") {
@@ -109,13 +195,14 @@ function translateMember(node: Extract<Node, { kind: "Member" }>, ctx: Translate
   }
   // Direct column: Member(Param, col)
   if (node.object.kind === "Param") {
-    return `${quoteIdent(ctx.alias)}.${quoteIdent(physicalColumn(ctx.meta, node.prop))}`;
+    return shapeColumn(paramShape(node.object, ctx), node.prop, ctx);
   }
   // One level of JSONB path: Member(Member(Param, jsonCol), key)
   if (node.object.kind === "Member" && node.object.object.kind === "Param") {
+    const shape = paramShape(node.object.object, ctx);
     const col = node.object.prop;
-    if (ctx.meta.json?.includes(col)) {
-      return `${quoteIdent(ctx.alias)}.${quoteIdent(physicalColumn(ctx.meta, col))}->>'${node.prop.replace(/'/g, "''")}'`;
+    if (shape.kind === "table" && shape.meta.json?.includes(col)) {
+      return `${quoteIdent(shape.alias)}.${quoteIdent(physicalColumn(shape.meta, col))}->>'${node.prop.replace(/'/g, "''")}'`;
     }
     return ctx.fail(
       "R2002",

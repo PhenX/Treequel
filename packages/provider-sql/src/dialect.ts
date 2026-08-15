@@ -25,6 +25,11 @@ export interface SqlDialect {
   nullsSuffix(desc: boolean): string;
   /** True when `OFFSET` must be preceded by a `LIMIT` (SQLite). */
   readonly offsetRequiresLimit: boolean;
+  /**
+   * Max keys per batched `include` fetch. Set when `arrayContains` expands one
+   * placeholder per value (SQLite's variable limit); omit for array parameters.
+   */
+  readonly maxBatchKeys?: number;
   /** Coerce a bound value to what the driver accepts (e.g. boolean → 0/1). */
   coerceValue(value: unknown): unknown;
 }

@@ -31,6 +31,9 @@ export const sqliteDialect: SqlDialect = {
     return desc ? " NULLS FIRST" : " NULLS LAST";
   },
   offsetRequiresLimit: true,
+  // arrayContains expands one `?` per value; stay well under SQLite's
+  // historical 999-variable default.
+  maxBatchKeys: 500,
   coerceValue(value) {
     return typeof value === "boolean" ? (value ? 1 : 0) : value;
   },

@@ -24,7 +24,13 @@ export {
   shapeColumn,
 } from "./context.js";
 export { translate } from "./translate.js";
-export { type SqlDialect, type StringMatch, escapeLike, escapeGlob } from "./dialect.js";
+export {
+  type SqlDialect,
+  type StringMatch,
+  type DatePart,
+  escapeLike,
+  escapeGlob,
+} from "./dialect.js";
 export type { SqlExecutor } from "./include-sql.js";
 export { type SqlProviderOptions, makeSqlProvider } from "./provider.js";
 // Re-exported so dialect packages depend only on this core.

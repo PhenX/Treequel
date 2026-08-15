@@ -228,6 +228,13 @@ function translateCall(node: Extract<Node, { kind: "Call" }>, ctx: TranslateCont
       const fn = method === "ceil" ? "CEIL" : method.toUpperCase();
       return `${fn}(${translate(args[0] as Node, ctx)})`;
     }
+    case "getFullYear":
+      return ctx.dialect.dateExtract("year", translate(recv, ctx));
+    case "getMonth":
+      // JS getMonth() is 0-based (January is 0); calendar months are 1-based.
+      return `(${ctx.dialect.dateExtract("month", translate(recv, ctx))} - 1)`;
+    case "getDate":
+      return ctx.dialect.dateExtract("day", translate(recv, ctx));
     default:
       return ctx.fail(
         "R2001",

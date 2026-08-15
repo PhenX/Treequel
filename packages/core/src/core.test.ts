@@ -108,6 +108,19 @@ describe("partial evaluation", () => {
     expect(folded).toEqual(b.binary(">", b.member(b.param("u"), "age"), b.const(18)));
   });
 
+  it("keeps the method-call shape when only the receiver folds", () => {
+    // `cities.includes(u.city)`: the callee member must survive as
+    // `Constant([…]).includes(…)`, never fold to a bound-function constant.
+    const tree = b.method(b.capture("cities"), "includes", [b.member(b.param("u"), "city")]);
+    const folded = partialEval({ body: tree, scope: () => ({ cities: ["London"] }) });
+    const call = folded as Extract<Node, { kind: "Call" }>;
+    expect(call.kind).toBe("Call");
+    const callee = call.callee as Extract<Node, { kind: "Member" }>;
+    expect(callee.kind).toBe("Member");
+    expect(callee.prop).toBe("includes");
+    expect(callee.object).toEqual(b.const(["London"]));
+  });
+
   it("never folds a Lambda to a value, but folds inside it", () => {
     const tree = b.method(b.member(b.param("u"), "tags"), "some", [
       b.lambda(["t"], b.method(b.param("t"), "startsWith", [b.capture("prefix")])),

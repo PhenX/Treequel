@@ -238,22 +238,22 @@ describe("SQLite provider ≡ memory reference (reified trees on sql.js)", () =>
     );
   });
 
-  it("executors: count / count(pred) / any / all / sum / avg", async () => {
+  it("executors: count / count(pred) / some / every / sum / avg", async () => {
     const pred = expr((u: User) => u.age > 30);
     const total = expr((o: Order) => o.total);
     const positive = expr((u: User) => u.age > 0);
 
     expect(await sqlDb.users.count()).toBe(await memDb.users.count());
     expect(await sqlDb.users.count(pred)).toBe(await memDb.users.count(pred));
-    expect(await sqlDb.users.any(pred)).toBe(await memDb.users.any(pred));
-    expect(await sqlDb.users.all(positive)).toBe(await memDb.users.all(positive));
+    expect(await sqlDb.users.some(pred)).toBe(await memDb.users.some(pred));
+    expect(await sqlDb.users.every(positive)).toBe(await memDb.users.every(positive));
     expect(await sqlDb.orders.sum(total)).toBeCloseTo((await memDb.orders.sum(total)) as number);
     expect(await sqlDb.orders.avg(total)).toBeCloseTo((await memDb.orders.avg(total)) as number);
   });
 
-  it("first / single", async () => {
+  it("firstOrThrow / single", async () => {
     const id = expr((u: User) => u.id);
-    expect((await sqlDb.users.orderBy(id).first()).id).toBe(1);
+    expect((await sqlDb.users.orderBy(id).firstOrThrow()).id).toBe(1);
     const grace = expr((u: User) => u.name === "Grace");
     expect((await sqlDb.users.single(grace)).id).toBe(3);
   });
@@ -541,6 +541,24 @@ describe("SQLite joins & includes — shapes and edges", () => {
     const rows = await sqlDb.users.take(0).toArray();
     expect(rows).toEqual([]);
     expect(await sqlDb.users.take(0).explain()).toContain("LIMIT 0");
+  });
+
+  it("some() over a navigation compiles to a correlated EXISTS", async () => {
+    const text = await sqlDb.users.where((u) => u.orders?.some((o) => o.total > 10)).explain();
+    expect(text).toMatch(/EXISTS \(SELECT 1 FROM "orders" "s\d+"/);
+    expect(text).toMatch(/"s\d+"\."user_id" = "t\d+"\."id"/);
+  });
+
+  it("every() compiles to NOT EXISTS over the negated predicate", async () => {
+    const text = await sqlDb.users.where((u) => u.orders?.every((o) => o.total > 10)).explain();
+    expect(text).toMatch(/NOT EXISTS \(SELECT 1 FROM "orders" .*AND \(NOT/);
+  });
+
+  it("navigation predicates match the reference through mapped columns", async () => {
+    const sql = await sqlDb.users.where((u) => u.orders?.some((o) => o.total >= 10)).toArray();
+    const mem = await memDb.users.where((u) => u.orders?.some((o) => o.total >= 10)).toArray();
+    expect(ids(sql)).toEqual(ids(mem));
+    expect(sql.map((u) => u.name)).toEqual(["Ada"]);
   });
 
   it("rejects a bare-row join projection with R2001", async () => {

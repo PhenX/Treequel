@@ -1,4 +1,5 @@
 import type { Expr } from "@treequel/core";
+import type { RelationsMeta } from "./relations.js";
 
 /** An `Expr` of any function shape — plan ops are heterogeneous. */
 export type AnyExpr = Expr<(...a: never[]) => unknown>;
@@ -8,8 +9,8 @@ export type ExecKind =
   | "first"
   | "single"
   | "count"
-  | "any"
-  | "all"
+  | "some"
+  | "every"
   | "sum"
   | "min"
   | "max"
@@ -75,13 +76,18 @@ export const PLAN_OP_KINDS: readonly string[] = [
   "exec",
 ];
 
-/** The immutable description a provider receives. */
+/**
+ * The immutable description a provider receives. `relations` is the context's
+ * navigation metadata, embedded so predicates over navigations
+ * (`u.orders?.some(…)`) resolve inside providers with no side channel.
+ */
 export interface QueryPlan {
   readonly source: string;
   readonly ops: readonly PlanOp[];
+  readonly relations?: RelationsMeta;
 }
 
 /** Append an op, returning a new plan (Queryable is immutable). */
 export function withOp(plan: QueryPlan, op: PlanOp): QueryPlan {
-  return { source: plan.source, ops: [...plan.ops, op] };
+  return { ...plan, ops: [...plan.ops, op] };
 }

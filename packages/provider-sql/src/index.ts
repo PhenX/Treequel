@@ -18,6 +18,7 @@ import {
   type PlanOp,
   type QueryPlan,
   type QueryProvider,
+  type RelationsMeta,
   attachChildren,
   capabilities,
   collectIncludes,
@@ -40,6 +41,7 @@ export type { SchemaMeta, TableMeta } from "./schema.js";
 export { physicalColumn } from "./schema.js";
 export {
   type ColumnShape,
+  type TranslateEnv,
   SCALAR_COLUMN,
   TranslateContext,
   finalizeSql,
@@ -110,10 +112,15 @@ class Compiler {
   constructor(
     readonly schema: SchemaMeta,
     readonly dialect: SqlDialect,
+    relations?: RelationsMeta,
   ) {
-    // Bindings are supplied per expression via `scoped`; the root context only
-    // carries the shared parameter values of the statement.
-    this.ctx = new TranslateContext(dialect, new Map());
+    // Bindings are supplied per expression via `scoped`; the root context
+    // carries the statement's shared parameter values and the navigation env.
+    this.ctx = new TranslateContext(dialect, new Map(), undefined, [], {
+      ...(relations ? { relations } : {}),
+      schema,
+      alias: () => this.alias("s"),
+    });
   }
 
   alias(prefix: string): string {
@@ -131,7 +138,7 @@ class Compiler {
     const alias = this.alias("t");
     return {
       from: `${quoteIdent(meta.table)} ${quoteIdent(alias)}`,
-      shape: { kind: "table", alias, meta },
+      shape: { kind: "table", alias, meta, source },
       where: [],
       projection: null,
       projectionColumns: null,
@@ -403,7 +410,7 @@ interface Compiled {
 }
 
 function compile(plan: QueryPlan, schema: SchemaMeta, dialect: SqlDialect): Compiled {
-  const compiler = new Compiler(schema, dialect);
+  const compiler = new Compiler(schema, dialect, plan.relations);
   const includes = collectIncludes(plan.ops);
   let exec: Extract<PlanOp, { op: "exec" }> | null = null;
 
@@ -482,10 +489,10 @@ function compile(plan: QueryPlan, schema: SchemaMeta, dialect: SqlDialect): Comp
       );
     }
 
-    case "any":
-    case "all": {
-      withPred(kind === "all"); // ∀p ≡ ¬∃¬p
-      const not = kind === "all" ? "NOT " : "";
+    case "some":
+    case "every": {
+      withPred(kind === "every"); // ∀p ≡ ¬∃¬p
+      const not = kind === "every" ? "NOT " : "";
       return emit(
         `SELECT ${not}EXISTS(${innerSelect()}) AS ${quoteIdent(SCALAR_COLUMN)}`,
         (rows) => Boolean(rows[0]?.[SCALAR_COLUMN]),

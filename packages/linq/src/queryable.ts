@@ -12,7 +12,11 @@ import {
 import type { QueryProvider } from "./provider.js";
 import type { RelationsMeta, SchemaRelations } from "./relations.js";
 
-export type Pred<T> = ((t: T) => boolean) | Expr<(t: T) => boolean>;
+/**
+ * Predicates may return `undefined` (treated as false) so navigation tests
+ * read like ordinary JS: `u => u.orders?.some(o => o.total > 10)`.
+ */
+export type Pred<T> = ((t: T) => boolean | undefined) | Expr<(t: T) => boolean | undefined>;
 export type Proj<T, R> = ((t: T) => R) | Expr<(t: T) => R>;
 export type Key<T, K> = ((t: T) => K) | Expr<(t: T) => K>;
 export type Result2<T, U, R> = ((t: T, u: U) => R) | Expr<(t: T, u: U) => R>;
@@ -65,12 +69,17 @@ export interface Queryable<T> {
   inMemory(): Queryable<T>;
 
   toArray(): Promise<T[]>;
-  first(p?: Pred<T>): Promise<T>;
-  firstOrNull(p?: Pred<T>): Promise<T | null>;
+  /** The first matching row, or `null` — never throws on an empty result. */
+  first(p?: Pred<T>): Promise<T | null>;
+  /** The first matching row; throws when there is none. */
+  firstOrThrow(p?: Pred<T>): Promise<T>;
+  /** Exactly one matching row; throws on zero or more than one. */
   single(p?: Pred<T>): Promise<T>;
   count(p?: Pred<T>): Promise<number>;
-  any(p?: Pred<T>): Promise<boolean>;
-  all(p: Pred<T>): Promise<boolean>;
+  /** True when any row matches — `Array.prototype.some` for queries. */
+  some(p?: Pred<T>): Promise<boolean>;
+  /** True when every row matches — `Array.prototype.every` for queries. */
+  every(p: Pred<T>): Promise<boolean>;
   sum(s: Key<T, number>): Promise<number>;
   min(s: Key<T, number>): Promise<number | null>;
   max(s: Key<T, number>): Promise<number | null>;
@@ -206,7 +215,7 @@ class QueryableImpl<T> implements Ordered<T> {
     const rel = resolveRelation(this.relations, parent.target, name);
     const spec = appendChild(last.spec, { nav: name, ...rel });
     const plan: QueryPlan = {
-      source: this.plan.source,
+      ...this.plan,
       ops: [...this.plan.ops.slice(0, -1), { op: "include", spec }],
     };
     return new QueryableImpl(this.provider, plan, this.relations) as unknown as Includable<
@@ -233,7 +242,7 @@ class QueryableImpl<T> implements Ordered<T> {
     }
     // Split at the boundary: provider runs the prefix, memory runs the suffix.
     const prefixPlan: QueryPlan = {
-      source: full.source,
+      ...full,
       ops: [...full.ops.slice(0, boundary), { op: "exec", kind: "toArray" }],
     };
     precheck(this.provider, prefixPlan);
@@ -245,11 +254,11 @@ class QueryableImpl<T> implements Ordered<T> {
   toArray(): Promise<T[]> {
     return this.run<T[]>("toArray");
   }
-  first(p?: Pred<T>): Promise<T> {
-    return this.run<T>("first", p ? toExpr(p) : undefined);
-  }
-  firstOrNull(p?: Pred<T>): Promise<T | null> {
+  first(p?: Pred<T>): Promise<T | null> {
     return this.run<T | null>("first", p ? toExpr(p) : undefined, true);
+  }
+  firstOrThrow(p?: Pred<T>): Promise<T> {
+    return this.run<T>("first", p ? toExpr(p) : undefined);
   }
   single(p?: Pred<T>): Promise<T> {
     return this.run<T>("single", p ? toExpr(p) : undefined);
@@ -257,11 +266,11 @@ class QueryableImpl<T> implements Ordered<T> {
   count(p?: Pred<T>): Promise<number> {
     return this.run<number>("count", p ? toExpr(p) : undefined);
   }
-  any(p?: Pred<T>): Promise<boolean> {
-    return this.run<boolean>("any", p ? toExpr(p) : undefined);
+  some(p?: Pred<T>): Promise<boolean> {
+    return this.run<boolean>("some", p ? toExpr(p) : undefined);
   }
-  all(p: Pred<T>): Promise<boolean> {
-    return this.run<boolean>("all", toExpr(p));
+  every(p: Pred<T>): Promise<boolean> {
+    return this.run<boolean>("every", toExpr(p));
   }
   sum(s: Key<T, number>): Promise<number> {
     return this.run<number>("sum", toExpr(s));
@@ -297,7 +306,8 @@ export function queryable<T>(
   source: string,
   relations?: RelationsMeta,
 ): Queryable<T> {
-  return new QueryableImpl<T>(provider, { source, ops: [] }, relations);
+  const plan: QueryPlan = { source, ops: [], ...(relations ? { relations } : {}) };
+  return new QueryableImpl<T>(provider, plan, relations);
 }
 
 export type Context<S> = { readonly [K in keyof S]: Queryable<S[K]> };

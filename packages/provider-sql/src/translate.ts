@@ -1,17 +1,32 @@
 import { type Node, TreequelError } from "@treequel/core";
-import { type TableMeta, physicalColumn } from "./schema.js";
+import type { RelationsMeta } from "@treequel/linq";
+import { type SchemaMeta, type TableMeta, physicalColumn } from "./schema.js";
 import { type SqlDialect } from "./dialect.js";
 
 /**
  * How a lambda parameter resolves to SQL. A `table` shape maps properties
- * through schema meta to physical columns; a `derived` shape maps them to the
- * output aliases of a subquery projection; a `scalar` shape is a single-value
- * row (`SELECT expr AS "value"`) whose parameter *is* the value.
+ * through schema meta to physical columns (`source` is its logical source
+ * name, for navigation lookup); a `derived` shape maps them to the output
+ * aliases of a subquery projection; a `scalar` shape is a single-value row
+ * (`SELECT expr AS "value"`) whose parameter *is* the value.
  */
 export type ColumnShape =
-  | { readonly kind: "table"; readonly alias: string; readonly meta: TableMeta }
+  | {
+      readonly kind: "table";
+      readonly alias: string;
+      readonly meta: TableMeta;
+      readonly source?: string;
+    }
   | { readonly kind: "derived"; readonly alias: string; readonly columns: readonly string[] | null }
   | { readonly kind: "scalar"; readonly alias: string };
+
+/** Statement-wide surroundings for navigation subqueries (`EXISTS`). */
+export interface TranslateEnv {
+  readonly relations?: RelationsMeta;
+  readonly schema?: SchemaMeta;
+  /** Allocate a statement-unique table alias. */
+  readonly alias?: () => string;
+}
 
 /** Column name a scalar subquery projects its value under. */
 export const SCALAR_COLUMN = "value";
@@ -30,26 +45,38 @@ const MARKER = new RegExp(`${NUL}(\\d+)${NUL}`, "g");
  */
 export class TranslateContext {
   readonly values: unknown[];
+  readonly env: TranslateEnv;
   private readonly shapes: ReadonlyMap<string, ColumnShape> | ColumnShape;
+  private readonly parent?: TranslateContext;
 
   constructor(
     readonly dialect: SqlDialect,
     shapes: ReadonlyMap<string, ColumnShape> | ColumnShape,
     readonly loc?: string,
     values: unknown[] = [],
+    env: TranslateEnv = {},
+    parent?: TranslateContext,
   ) {
     this.shapes = shapes;
     this.values = values;
+    this.env = env;
+    this.parent = parent;
   }
 
-  /** A context over new parameter bindings that shares this statement's values. */
+  /**
+   * A context over new parameter bindings that shares this statement's values
+   * and env. The current bindings stay visible as the lexical parent scope, so
+   * a nested navigation lambda can still reference the outer row.
+   */
   scoped(shapes: ReadonlyMap<string, ColumnShape> | ColumnShape): TranslateContext {
-    return new TranslateContext(this.dialect, shapes, this.loc, this.values);
+    return new TranslateContext(this.dialect, shapes, this.loc, this.values, this.env, this);
   }
 
   /** Resolve a lambda parameter. A single (non-map) shape binds every parameter. */
   shapeOf(param: string): ColumnShape | undefined {
-    if (this.shapes instanceof Map) return this.shapes.get(param);
+    if (this.shapes instanceof Map) {
+      return this.shapes.get(param) ?? this.parent?.shapeOf(param);
+    }
     return this.shapes as ColumnShape;
   }
 
@@ -244,6 +271,9 @@ function translateCall(node: Extract<Node, { kind: "Call" }>, ctx: TranslateCont
   const args = node.args;
 
   switch (method) {
+    case "some":
+    case "every":
+      return translateNavQuantifier(method, recv, args, ctx);
     case "startsWith":
     case "endsWith":
     case "includes":
@@ -268,6 +298,61 @@ function translateCall(node: Extract<Node, { kind: "Call" }>, ctx: TranslateCont
         `Call '.${method}()' is not translatable by the ${ctx.dialect.name} provider — cross the .inMemory() boundary or extend the dialect.`,
       );
   }
+}
+
+/**
+ * `parent.nav.some(c => …)` → `EXISTS (SELECT 1 FROM child WHERE key AND …)`;
+ * `every` → `NOT EXISTS (… AND NOT …)`, which is vacuously true over an empty
+ * navigation, matching `Array.prototype.every`. The nested lambda translates
+ * in a child scope whose lexical parent is the current scope, so it can still
+ * reference the outer row.
+ */
+function translateNavQuantifier(
+  method: "some" | "every",
+  recv: Node,
+  args: readonly Node[],
+  ctx: TranslateContext,
+): string {
+  const { relations, schema, alias } = ctx.env;
+  if (recv.kind !== "Member" || recv.object.kind !== "Param") {
+    return ctx.fail(
+      "R2001",
+      `.${method}() translates only over a declared navigation collection (\`u.orders?.${method}(…)\`).`,
+    );
+  }
+  const shape = ctx.shapeOf(recv.object.name);
+  const rel =
+    shape?.kind === "table" && shape.source !== undefined
+      ? relations?.[shape.source]?.[recv.prop]
+      : undefined;
+  if (shape?.kind !== "table" || !rel || !schema || !alias) {
+    return ctx.fail(
+      "R2001",
+      `'${recv.prop}' is not a declared navigation here — .${method}() needs a relations map on the context.`,
+    );
+  }
+  const lambda = args[0];
+  if (lambda?.kind !== "Lambda" || lambda.params.length === 0) {
+    return ctx.fail("R2001", `.${method}() over a navigation requires an inline predicate lambda.`);
+  }
+  const childMeta = schema[rel.target];
+  if (!childMeta) {
+    return ctx.fail("R2002", `No schema meta for source '${rel.target}'.`);
+  }
+  const childAlias = alias();
+  const childShape: ColumnShape = {
+    kind: "table",
+    alias: childAlias,
+    meta: childMeta,
+    source: rel.target,
+  };
+  const inner = ctx.scoped(new Map([[lambda.params[0] as string, childShape]]));
+  const key = `${shapeColumn(childShape, rel.to, ctx)} = ${shapeColumn(shape, rel.from, ctx)}`;
+  const body = translate(lambda.body, inner);
+  const from = `FROM ${quoteIdent(childMeta.table)} ${quoteIdent(childAlias)}`;
+  return method === "some"
+    ? `EXISTS (SELECT 1 ${from} WHERE (${key}) AND (${body}))`
+    : `NOT EXISTS (SELECT 1 ${from} WHERE (${key}) AND (NOT (${body})))`;
 }
 
 function translateLike(

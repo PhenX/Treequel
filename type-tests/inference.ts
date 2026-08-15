@@ -53,10 +53,10 @@ type _scalar = Expect<Equal<typeof ages, Queryable<number>>>;
 
 // Executors, with strictNullChecks-sensitive nullability.
 type _toArray = Expect<Equal<Awaited<ReturnType<typeof q.toArray>>, User[]>>;
-type _first = Expect<Equal<Awaited<ReturnType<typeof q.first>>, User>>;
-type _firstOrNull = Expect<Equal<Awaited<ReturnType<typeof q.firstOrNull>>, User | null>>;
+type _first = Expect<Equal<Awaited<ReturnType<typeof q.first>>, User | null>>;
+type _firstOrThrow = Expect<Equal<Awaited<ReturnType<typeof q.firstOrThrow>>, User>>;
 type _count = Expect<Equal<Awaited<ReturnType<typeof q.count>>, number>>;
-type _any = Expect<Equal<Awaited<ReturnType<typeof q.any>>, boolean>>;
+type _some = Expect<Equal<Awaited<ReturnType<typeof q.some>>, boolean>>;
 type _sum = Expect<Equal<Awaited<ReturnType<typeof q.sum>>, number>>;
 type _min = Expect<Equal<Awaited<ReturnType<typeof q.min>>, number | null>>;
 
@@ -189,3 +189,8 @@ navDb.orders.leftJoin(
   // @ts-expect-error — `u` may be null; unguarded access is rejected.
   (o, u) => ({ who: u.name }),
 );
+
+// Navigation predicates read like plain JS: optional chaining may yield
+// `boolean | undefined`, and Pred accepts it.
+navDb.users.where((u) => u.orders?.some((o) => o.total > 10));
+navDb.users.every((u) => u.orders?.every((o) => o.total > 0));

@@ -21,6 +21,9 @@ interface QueryProvider {
   `orderBy`, `take`, `join`/`leftJoin` with a nested inner plan, executors, …), each carrying an `Expr`.
 - An `include` op carries a self-contained `IncludeSpec` — navigation name, target source, key pair, cardinality,
   nested children. Providers never read relation metadata; everything needed to fetch and attach is in the spec.
+- The plan also carries the context's `relations` map, so predicates over navigations
+  (`u.orders?.some(o => …)`) resolve inside your translator — the SQL core turns them into correlated
+  `EXISTS`/`NOT EXISTS` subqueries via the `TranslateEnv` on its `TranslateContext`.
 
 ## Implementing includes
 

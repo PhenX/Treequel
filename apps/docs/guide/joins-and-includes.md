@@ -88,6 +88,33 @@ SQL providers run includes as **split queries**: one batched fetch per navigatio
 rows are never duplicated by a join, take/skip apply to parents alone, and a query with two navigations costs exactly
 three statements. `explain()` lists the batched fetches under the root SQL.
 
+## Filtering by navigations
+
+Predicates test a navigation with `some`/`every` — the same methods arrays have, written the same way:
+
+```ts
+const bigSpenders = await db.users
+  .where((u) => u.orders?.some((o) => o.total > 100))
+  .toArray();
+
+const allPaid = await db.users
+  .where((u) => u.active && u.orders?.every((o) => o.paid))
+  .toArray();
+```
+
+- SQL providers compile these to correlated subqueries: `EXISTS (SELECT 1 FROM "orders" … WHERE key AND predicate)`,
+  and `NOT EXISTS (… AND NOT predicate)` for `every` — one query, no rows transferred.
+- `every` over an empty navigation is **true**, exactly like `Array.prototype.every`.
+- Write the optional chain (`u.orders?.some(…)`): navigation properties are optional on row types, and predicates may
+  return `undefined` (treated as false). Negation (`!u.orders?.some(…)`) and nesting
+  (`u.orders?.some(o => o.items?.some(…))`) both translate.
+- The memory provider resolves the same predicates by attaching the navigations before evaluating, so results match
+  SQL row for row. This path reads the expression tree: without the build plugin, add
+  `import "@treequel/fallback/register"` — a navigation predicate with no tree available is refused with a
+  teachable error, never evaluated against absent data.
+- `include` **loads** related rows; `some`/`every` **filter** by them. An `include` is not visible to `where` — same
+  rule as EF Core.
+
 ### The rules
 
 - **Selectors are navigation paths, not expressions.** `include(u => u.orders)` — a single property access. It is

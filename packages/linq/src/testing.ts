@@ -149,7 +149,7 @@ export function defaultCases(): ConformanceCase[] {
       name: "count with predicate",
       run: (db) => users(db).count(expr((u: U) => u.age > 30)),
     },
-    { name: "any", run: (db) => users(db).any(expr((u: U) => u.age > 90)) },
+    { name: "some", run: (db) => users(db).some(expr((u: U) => u.age > 90)) },
     { name: "sum", run: (db) => orders(db).sum(expr((o: O) => o.total)) },
     {
       name: "select distinct city",
@@ -334,7 +334,7 @@ export function defaultCases(): ConformanceCase[] {
           .sum(expr((r: { total: number; age: number }) => r.age)),
     },
     {
-      name: "any over a joined projection",
+      name: "some over a joined projection",
       run: (db) =>
         orders(db)
           .join(
@@ -343,10 +343,10 @@ export function defaultCases(): ConformanceCase[] {
             expr((u: U) => u.id),
             expr((o: O, u: U) => ({ total: o.total, active: u.active })),
           )
-          .any(expr((r: { total: number; active: boolean }) => r.total > 15)),
+          .some(expr((r: { total: number; active: boolean }) => r.total > 15)),
     },
     {
-      name: "firstOrNull over an empty joined result",
+      name: "first over an empty joined result is null",
       run: (db) =>
         orders(db)
           .join(
@@ -356,7 +356,7 @@ export function defaultCases(): ConformanceCase[] {
             expr((o: O, _u: U) => ({ order: o.id, total: o.total })),
           )
           .where(expr((r: { order: number; total: number }) => r.total > 9999))
-          .firstOrNull(),
+          .first(),
     },
     {
       name: "take zero yields no rows",
@@ -404,6 +404,45 @@ export function defaultCases(): ConformanceCase[] {
           .include((o) => o.user)
           .include((o) => o.items)
           .toArray(),
+    },
+    {
+      name: "some over a navigation filters like EXISTS",
+      run: (db) =>
+        users(db)
+          .where(expr((u: U) => u.orders?.some((o) => o.total >= 10)))
+          .toArray(),
+    },
+    {
+      name: "every over a navigation is vacuously true without children",
+      run: (db) =>
+        users(db)
+          .where(expr((u: U) => u.orders?.every((o) => o.total >= 10)))
+          .toArray(),
+    },
+    {
+      name: "negated navigation some",
+      run: (db) =>
+        users(db)
+          .where(expr((u: U) => !u.orders?.some((o) => o.total > 0)))
+          .toArray(),
+    },
+    {
+      name: "navigation some combined with a column predicate",
+      run: (db) =>
+        users(db)
+          .where(expr((u: U) => u.active && u.orders?.some((o) => o.total > 5)))
+          .toArray(),
+    },
+    {
+      name: "navigation some nests two levels",
+      run: (db) =>
+        users(db)
+          .where(expr((u: U) => u.orders?.some((o) => o.items?.some((i) => i.sku === "apple"))))
+          .toArray(),
+    },
+    {
+      name: "navigation some in an executor position",
+      run: (db) => users(db).count(expr((u: U) => u.orders?.some((o) => o.total > 5))),
     },
   ];
 }

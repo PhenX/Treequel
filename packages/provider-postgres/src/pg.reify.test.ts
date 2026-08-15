@@ -208,22 +208,22 @@ describe("pg provider ≡ memory reference (reified trees run on PGlite)", () =>
     );
   });
 
-  it("executors: count / count(pred) / any / all / sum / avg", async () => {
+  it("executors: count / count(pred) / some / every / sum / avg", async () => {
     const pred = expr((u: User) => u.age > 30);
     const total = expr((o: Order) => o.total);
     const positive = expr((u: User) => u.age > 0);
 
     expect(await sqlDb.users.count()).toBe(await memDb.users.count());
     expect(await sqlDb.users.count(pred)).toBe(await memDb.users.count(pred));
-    expect(await sqlDb.users.any(pred)).toBe(await memDb.users.any(pred));
-    expect(await sqlDb.users.all(positive)).toBe(await memDb.users.all(positive));
+    expect(await sqlDb.users.some(pred)).toBe(await memDb.users.some(pred));
+    expect(await sqlDb.users.every(positive)).toBe(await memDb.users.every(positive));
     expect(await sqlDb.orders.sum(total)).toBeCloseTo((await memDb.orders.sum(total)) as number);
     expect(await sqlDb.orders.avg(total)).toBeCloseTo((await memDb.orders.avg(total)) as number);
   });
 
-  it("first / single", async () => {
+  it("firstOrThrow / single", async () => {
     const id = expr((u: User) => u.id);
-    expect((await sqlDb.users.orderBy(id).first()).id).toBe(1);
+    expect((await sqlDb.users.orderBy(id).firstOrThrow()).id).toBe(1);
     const grace = expr((u: User) => u.name === "Grace");
     expect((await sqlDb.users.single(grace)).id).toBe(3);
   });
@@ -332,10 +332,10 @@ describe("pg includes (split queries) ≡ memory reference", () => {
     expect(rows.map((o) => o.user?.name ?? null)).toEqual(["Ada", "Ada", "Grace", null]);
   });
 
-  it("include() on firstOrNull attaches to the single row", async () => {
-    const ada = await sqlDb.users.include((u) => u.orders).firstOrNull((u) => u.id === 1);
+  it("include() on a nullable first() attaches to the single row", async () => {
+    const ada = await sqlDb.users.include((u) => u.orders).first((u) => u.id === 1);
     expect(ada?.orders.map((o) => o.id).sort()).toEqual([1, 2]);
-    const nobody = await sqlDb.users.include((u) => u.orders).firstOrNull((u) => u.id === 99);
+    const nobody = await sqlDb.users.include((u) => u.orders).first((u) => u.id === 99);
     expect(nobody).toBeNull();
   });
 

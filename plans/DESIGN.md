@@ -489,12 +489,13 @@ interface Queryable<T> {
   // include/thenInclude (ADR-0004): nav selectors are probed (single property
   // access over `compiled`), never captured; Loaded<> marks the nav required.
   include<R>(nav: NavSelector<T, R>): Includable<Loaded<T, KeysWithValue<T,R>>, NavElement<R>>;
-  // executors (async — providers may be remote)
+  // executors (async — providers may be remote); names follow JS (Array
+  // some/every, Prisma-style nullable first) rather than LINQ (ADR-0005)
   toArray(): Promise<T[]>;
-  first(p?: Pred<T>): Promise<T>; firstOrNull(p?: Pred<T>): Promise<T | null>;
+  first(p?: Pred<T>): Promise<T | null>; firstOrThrow(p?: Pred<T>): Promise<T>;
   single(p?: Pred<T>): Promise<T>;
   count(p?: Pred<T>): Promise<number>;
-  any(p?: Pred<T>): Promise<boolean>; all(p: Pred<T>): Promise<boolean>;
+  some(p?: Pred<T>): Promise<boolean>; every(p: Pred<T>): Promise<boolean>;
   sum(s: Key<T, number>): Promise<number>; min/max/avg(...): Promise<...>;
   inMemory(): Queryable<T>;                       // explicit client-eval boundary (§10.4, ADR-11):
                                                   // provider executes the prefix; the rest of the chain
@@ -528,7 +529,7 @@ type PlanOp =
   | { op:"distinct" } | { op:"groupBy"; expr: Expr<any> }
   | { op:"join"|"leftJoin"; inner: QueryPlan; outerKey: Expr<any>; innerKey: Expr<any>; result: Expr<any> }
   | { op:"include"; spec: IncludeSpec }          // self-contained: nav, target, from/to keys, kind, children (ADR-0004)
-  | { op:"exec"; kind:"toArray"|"first"|"single"|"count"|"any"|"all"|"sum"|"min"|"max"|"avg"; expr?: Expr<any>; orNull?: boolean };
+  | { op:"exec"; kind:"toArray"|"first"|"single"|"count"|"some"|"every"|"sum"|"min"|"max"|"avg"; expr?: Expr<any>; orNull?: boolean };
 
 interface QueryProvider {
   readonly name: string;
@@ -569,7 +570,8 @@ Core translation table (pg dialect):
 | `select` ObjectLit | projection list with aliases; nested objects → `jsonb_build_object` (flag-gated) |
 | ops `where/orderBy/take/skip/distinct/join/leftJoin` | `WHERE` (ANDed), `ORDER BY`, `LIMIT/OFFSET`, `DISTINCT`, `INNER/LEFT JOIN ON` — compiled as a layer stack: an op that would change meaning under SQL clause order wraps the current SELECT into a derived table (ADR-0004); `groupBy` stays memory-only in v1 |
 | `include` | split queries: per navigation one batched fetch (`= ANY($n)` pg / chunked `IN` sqlite via `dialect.maxBatchKeys`), stitched by the shared helpers in `linq`; attaches to final rows only |
-| executors | `count`→`COUNT(*)`, `any`→`EXISTS(...)`, `first`→`LIMIT 1` (+`single` → `LIMIT 2` + runtime cardinality check) |
+| `nav.some(p)` / `nav.every(p)` in predicates | correlated `EXISTS (SELECT 1 …)` / `NOT EXISTS (… NOT p)` against the navigation's target (relations ride on the plan; the nested lambda translates in a lexical child scope) |
+| executors | `count`→`COUNT(*)`, `some`→`EXISTS(...)`, `first`→`LIMIT 1` (+`single` → `LIMIT 2` + runtime cardinality check) |
 
 Schema meta is minimal and explicit in v1: `{ users: { table:"users", columns:{ id:"id", createdAt:"created_at" }, json?: ["meta"] } }`. No introspection in v1 (providers may add it).
 
@@ -605,7 +607,7 @@ db.users
 
 ## 11. Type system design
 
-- **Union acceptance** `F | Expr<F>`: contextual typing of lambda parameters through a union of a function type and an object type with an optional phantom function property is the risky spot. Mitigations, in order: (1) single non-overloaded signatures; (2) phantom key optional and `in`-variance-neutral (`[brand]?: F`); (3) a `type-tests/` suite (vitest + expect-type) asserting: param inference in `where`, return inference in `select` incl. object-literal widening, `strictNullChecks` behavior for `firstOrNull`, no excess-property leakage of brand in errors. If inference degrades in some TS version, plan B is `Pred<T> = (t: T) => boolean` in the *public* signature with the transform+`expr()` both producing values that still structurally match via the optional-brand trick — decided by the type tests, which run against TS `latest` and `next` nightly in CI.
+- **Union acceptance** `F | Expr<F>`: contextual typing of lambda parameters through a union of a function type and an object type with an optional phantom function property is the risky spot. Mitigations, in order: (1) single non-overloaded signatures; (2) phantom key optional and `in`-variance-neutral (`[brand]?: F`); (3) a `type-tests/` suite (vitest + expect-type) asserting: param inference in `where`, return inference in `select` incl. object-literal widening, `strictNullChecks` behavior for the nullable `first`, no excess-property leakage of brand in errors. If inference degrades in some TS version, plan B is `Pred<T> = (t: T) => boolean` in the *public* signature with the transform+`expr()` both producing values that still structurally match via the optional-brand trick — decided by the type tests, which run against TS `latest` and `next` nightly in CI.
 - **Error ergonomics:** never require users to write `Expr<...>`; docs always show plain lambdas. `Grouping<K,T>` mirrors C#: `{ key: K } & Iterable<T>` with provider-defined materialization.
 - **`strict` everywhere**; public API passes `--isolatedDeclarations` (keeps .d.ts generation trivial and fast under tsdown).
 

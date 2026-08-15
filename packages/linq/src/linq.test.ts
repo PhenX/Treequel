@@ -118,19 +118,19 @@ describe("Queryable over the memory provider", () => {
     expect(rows.map((u) => u.name)).toEqual(["Alan", "Ada", "Bob", "Grace"]);
   });
 
-  it("executors: first / firstOrNull / single / count / any / all / sum / avg", async () => {
-    expect(
-      (
-        await db()
-          .users.orderBy((u) => u.id)
-          .first()
-      ).id,
-    ).toBe(1);
-    expect(await db().users.firstOrNull((u) => u.age > 100)).toBeNull();
+  it("executors: first / firstOrThrow / single / count / some / every / sum / avg", async () => {
+    const firstUser = await db()
+      .users.orderBy((u) => u.id)
+      .first();
+    expect(firstUser?.id).toBe(1);
+    // first() never throws — an empty result is null (firstOrThrow throws).
+    expect(await db().users.first((u) => u.age > 100)).toBeNull();
+    await expect(db().users.firstOrThrow((u) => u.age > 100)).rejects.toThrow(/no element/);
+    expect((await db().users.firstOrThrow((u) => u.name === "Ada")).id).toBe(1);
     expect((await db().users.single((u) => u.name === "Grace")).id).toBe(3);
     expect(await db().users.count((u) => u.age >= 18)).toBe(3);
-    expect(await db().users.any((u) => u.age < 18)).toBe(true);
-    expect(await db().users.all((u) => u.age > 0)).toBe(true);
+    expect(await db().users.some((u) => u.age < 18)).toBe(true);
+    expect(await db().users.every((u) => u.age > 0)).toBe(true);
     expect(await db().orders.sum((o) => o.total)).toBe(42);
     expect(await db().orders.avg((o) => o.total)).toBeCloseTo(42 / 4);
   });
@@ -443,6 +443,17 @@ describe("fail-fast behavior", () => {
         .include((u) => u.orders)
         .toArray(),
     ).rejects.toThrow(/after the boundary/);
+  });
+
+  it("refuses a navigation predicate when no expression tree is available", async () => {
+    // No build plugin and no fallback registered in this file: evaluating the
+    // lambda against rows without `orders` would be silently wrong, so it must
+    // fail with a teachable error instead.
+    await expect(
+      db()
+        .users.where((u) => u.orders?.some((o) => o.total > 5))
+        .toArray(),
+    ).rejects.toThrow(/navigation 'orders'/);
   });
 });
 

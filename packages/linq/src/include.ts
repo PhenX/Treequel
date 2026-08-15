@@ -1,6 +1,6 @@
-import { TreequelError, isExpr } from "@treequel/core";
+import { type Node, TreequelError, children, isExpr } from "@treequel/core";
 import { canonical } from "./canon.js";
-import type { IncludeSpec, PlanOp } from "./plan.js";
+import type { AnyExpr, IncludeSpec, PlanOp } from "./plan.js";
 import type { Relation, RelationsMeta } from "./relations.js";
 
 /**
@@ -116,6 +116,103 @@ export function collectKeys(rows: readonly unknown[], prop: string, nav: string)
     }
   }
   return keys;
+}
+
+/**
+ * Navigations referenced by a predicate/selector tree, as include specs: a
+ * `Member(param, nav)` hit becomes a spec, and a `.some(…)`/`.every(…)` call
+ * over it descends into the nested lambda against the navigation's target.
+ * Rows augmented with these specs make the compiled lambda evaluable in
+ * memory — the exact rows SQL reasons about with correlated subqueries.
+ */
+export function predicateSpecs(
+  body: Node,
+  param: string | undefined,
+  source: string,
+  relations: RelationsMeta | undefined,
+): IncludeSpec[] {
+  if (!param || !relations) return [];
+  const specs: IncludeSpec[] = [];
+  const navOf = (n: Node): Relation | undefined =>
+    n.kind === "Member" && n.object.kind === "Param" && n.object.name === param
+      ? relations[source]?.[n.prop]
+      : undefined;
+
+  const walk = (n: Node): void => {
+    if (n.kind === "Call" && n.callee.kind === "Member") {
+      const rel = navOf(n.callee.object);
+      const lambda = n.args[0];
+      if (
+        rel &&
+        (n.callee.prop === "some" || n.callee.prop === "every") &&
+        lambda?.kind === "Lambda"
+      ) {
+        specs.push({
+          nav: (n.callee.object as Extract<Node, { kind: "Member" }>).prop,
+          ...rel,
+          children: predicateSpecs(lambda.body, lambda.params[0], rel.target, relations),
+        });
+        for (const arg of n.args.slice(1)) walk(arg);
+        return;
+      }
+    }
+    const rel = navOf(n);
+    if (rel) {
+      specs.push({ nav: (n as Extract<Node, { kind: "Member" }>).prop, ...rel });
+      return;
+    }
+    for (const child of children(n)) walk(child);
+  };
+  walk(body);
+  return mergeIncludeSpecs(specs);
+}
+
+/** `expr.body` when a tree is available; `null` when no plugin/fallback ran. */
+export function tryBody(e: AnyExpr): Node | null {
+  try {
+    return e.body;
+  } catch (err) {
+    if (err instanceof TreequelError && err.code === "R3001") return null;
+    throw err;
+  }
+}
+
+/**
+ * Best-effort guard for tree-less lambdas: invoke `compiled` with a recording
+ * proxy row and report which root properties it touches. Lets the memory
+ * engine refuse navigation predicates it cannot resolve instead of silently
+ * evaluating them against absent data.
+ */
+export function touchedRootProps(fn: (...a: never[]) => unknown): Set<string> {
+  const touched = new Set<string>();
+  const inner: unknown = makeOpaqueProxy();
+  const root: object = new Proxy(Object.create(null) as object, {
+    get(_t, prop) {
+      if (typeof prop === "string") touched.add(prop);
+      else if (prop === Symbol.toPrimitive) return () => "";
+      return inner;
+    },
+  });
+  try {
+    (fn as (x: unknown) => unknown)(root);
+  } catch {
+    // Opaque helpers may throw on proxy values; the touch log stays valid.
+  }
+  return touched;
+}
+
+function makeOpaqueProxy(): unknown {
+  const target = (): void => undefined;
+  const proxy: unknown = new Proxy(target, {
+    get(_t, prop) {
+      if (prop === Symbol.toPrimitive) return () => "";
+      return proxy;
+    },
+    apply() {
+      return proxy;
+    },
+  });
+  return proxy;
 }
 
 /** Read a stitch key strictly: a row without the property is a modeling error. */

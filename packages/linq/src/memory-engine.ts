@@ -1,6 +1,16 @@
+import { TreequelError } from "@treequel/core";
 import { canonical } from "./canon.js";
-import { attachChildren, collectIncludes, collectKeys, rowKey } from "./include.js";
+import {
+  attachChildren,
+  collectIncludes,
+  collectKeys,
+  predicateSpecs,
+  rowKey,
+  touchedRootProps,
+  tryBody,
+} from "./include.js";
 import type { AnyExpr, IncludeSpec, PlanOp, QueryPlan } from "./plan.js";
+import type { RelationsMeta } from "./relations.js";
 
 /**
  * The reference in-memory semantics: apply plan ops to plain arrays using each
@@ -21,20 +31,65 @@ export type RowSource = (source: string) => readonly unknown[];
 const invoke = (e: AnyExpr, ...args: unknown[]): unknown =>
   (e.compiled as (...a: unknown[]) => unknown)(...args);
 
+/** Where the current rows came from — resolves navigations in predicates. */
+export interface PlanEnv {
+  readonly source?: string;
+  readonly relations?: RelationsMeta;
+}
+
 export function runPlanInMemory(plan: QueryPlan, rows: RowSource): unknown {
-  return applyOps([...rows(plan.source)], plan.ops, rows);
+  return applyOps([...rows(plan.source)], plan.ops, rows, {
+    source: plan.source,
+    ...(plan.relations ? { relations: plan.relations } : {}),
+  });
+}
+
+/**
+ * Rows to evaluate a predicate against: when its tree references declared
+ * navigations, a copy of each row with those navigations attached (the rows a
+ * SQL provider reasons about via correlated subqueries); otherwise `null`,
+ * and the predicate runs over the rows as-is. Without a tree (no plugin, no
+ * fallback), a compiled lambda that touches a navigation is refused rather
+ * than silently evaluated against absent data.
+ */
+function navEvalRows(cur: unknown[], e: AnyExpr, env: PlanEnv, rows: RowSource): unknown[] | null {
+  const navs = env.source ? env.relations?.[env.source] : undefined;
+  if (!navs || cur.length === 0) return null;
+  const body = tryBody(e);
+  if (body === null) {
+    for (const prop of touchedRootProps(e.compiled)) {
+      if (navs[prop]) {
+        throw new TreequelError(
+          "R3001",
+          `This lambda reads the navigation '${prop}', which needs an expression tree to resolve. ` +
+            'Enable the @treequel/vite build plugin or `import "@treequel/fallback/register"`.',
+        );
+      }
+    }
+    return null;
+  }
+  const specs = predicateSpecs(body, e.params[0], env.source as string, env.relations);
+  if (specs.length === 0) return null;
+  return applyIncludes(cur, specs, rows);
 }
 
 /** Apply a sequence of ops to an array; an `exec` op returns the final result. */
-export function applyOps(start: unknown[], ops: readonly PlanOp[], rows: RowSource): unknown {
+export function applyOps(
+  start: unknown[],
+  ops: readonly PlanOp[],
+  rows: RowSource,
+  env: PlanEnv = {},
+): unknown {
   const includes = collectIncludes(ops);
   let cur = start;
   for (let i = 0; i < ops.length; i++) {
     const op = ops[i] as PlanOp;
     switch (op.op) {
-      case "where":
-        cur = cur.filter((r) => Boolean(invoke(op.expr, r)));
+      case "where": {
+        const ev = navEvalRows(cur, op.expr, env, rows) ?? cur;
+        cur = cur.filter((_r, j) => Boolean(invoke(op.expr, ev[j])));
         break;
+      }
       case "select":
         cur = cur.map((r) => invoke(op.expr, r));
         break;
@@ -71,9 +126,11 @@ export function applyOps(start: unknown[], ops: readonly PlanOp[], rows: RowSour
         break; // collected up front; navigations attach to the final rows below
       case "inMemory":
         break; // boundary marker — a no-op inside a pure memory run
-      case "exec":
+      case "exec": {
         if (rowResult(op.kind)) cur = applyIncludes(cur, includes, rows);
-        return execute(cur, op);
+        const ev = op.expr ? navEvalRows(cur, op.expr, env, rows) : null;
+        return execute(cur, op, ev ?? cur);
+      }
     }
   }
   return applyIncludes(cur, includes, rows);
@@ -196,7 +253,10 @@ function hashJoin(
   rows: RowSource,
 ): unknown[] {
   const left = op.op === "leftJoin";
-  const innerRows = applyOps([...rows(op.inner.source)], op.inner.ops, rows) as unknown[];
+  const innerRows = applyOps([...rows(op.inner.source)], op.inner.ops, rows, {
+    source: op.inner.source,
+    ...(op.inner.relations ? { relations: op.inner.relations } : {}),
+  }) as unknown[];
   const index = new Map<string, unknown[]>();
   for (const ir of innerRows) {
     const key = joinKey(invoke(op.innerKey, ir));
@@ -218,11 +278,21 @@ function hashJoin(
   return out;
 }
 
-function execute(rows: unknown[], op: Extract<PlanOp, { op: "exec" }>): unknown {
+/**
+ * `evalRows` is aligned with `rows` and carries navigation-augmented copies
+ * when the expr needs them; results always come from the original `rows`.
+ */
+function execute(
+  rows: unknown[],
+  op: Extract<PlanOp, { op: "exec" }>,
+  evalRows: unknown[],
+): unknown {
+  const test = (i: number): boolean => Boolean(invoke(op.expr as AnyExpr, evalRows[i]));
+  const value = (i: number): number => Number(invoke(op.expr as AnyExpr, evalRows[i]));
   const filtered =
     op.expr &&
-    (op.kind === "first" || op.kind === "single" || op.kind === "count" || op.kind === "any")
-      ? rows.filter((r) => Boolean(invoke(op.expr as AnyExpr, r)))
+    (op.kind === "first" || op.kind === "single" || op.kind === "count" || op.kind === "some")
+      ? rows.filter((_r, i) => test(i))
       : rows;
 
   switch (op.kind) {
@@ -231,7 +301,7 @@ function execute(rows: unknown[], op: Extract<PlanOp, { op: "exec" }>): unknown 
     case "first":
       if (filtered.length === 0) {
         if (op.orNull) return null;
-        throw new Error("Treequel: first() found no element.");
+        throw new Error("Treequel: firstOrThrow() found no element.");
       }
       return filtered[0];
     case "single":
@@ -243,30 +313,23 @@ function execute(rows: unknown[], op: Extract<PlanOp, { op: "exec" }>): unknown 
       return filtered[0];
     case "count":
       return filtered.length;
-    case "any":
+    case "some":
       return filtered.length > 0;
-    case "all":
-      return rows.every((r) => Boolean(invoke(op.expr as AnyExpr, r)));
+    case "every":
+      return rows.every((_r, i) => test(i));
     case "sum":
-      return rows.reduce<number>((acc, r) => acc + Number(invoke(op.expr as AnyExpr, r)), 0);
+      return rows.reduce<number>((acc, _r, i) => acc + value(i), 0);
     case "min":
       return rows.length === 0
         ? null
-        : rows.reduce<number>(
-            (m, r) => Math.min(m, Number(invoke(op.expr as AnyExpr, r))),
-            Infinity,
-          );
+        : rows.reduce<number>((m, _r, i) => Math.min(m, value(i)), Infinity);
     case "max":
       return rows.length === 0
         ? null
-        : rows.reduce<number>(
-            (m, r) => Math.max(m, Number(invoke(op.expr as AnyExpr, r))),
-            -Infinity,
-          );
+        : rows.reduce<number>((m, _r, i) => Math.max(m, value(i)), -Infinity);
     case "avg":
       return rows.length === 0
         ? null
-        : rows.reduce<number>((acc, r) => acc + Number(invoke(op.expr as AnyExpr, r)), 0) /
-            rows.length;
+        : rows.reduce<number>((acc, _r, i) => acc + value(i), 0) / rows.length;
   }
 }

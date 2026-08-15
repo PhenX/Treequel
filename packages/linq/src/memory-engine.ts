@@ -1,14 +1,8 @@
 import { TreequelError } from "@treequel/core";
 import { canonical } from "./canon.js";
-import {
-  attachChildren,
-  collectIncludes,
-  collectKeys,
-  predicateSpecs,
-  rowKey,
-  touchedRootProps,
-  tryBody,
-} from "./include.js";
+import { collectIncludes } from "./include-spec.js";
+import { predicateSpecs, touchedRootProps, tryBody } from "./navpredicates.js";
+import { attachChildren, collectKeys, rowKey } from "./stitch.js";
 import type { AnyExpr, IncludeSpec, PlanOp, QueryPlan } from "./plan.js";
 import type { RelationsMeta } from "./relations.js";
 

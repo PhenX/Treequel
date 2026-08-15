@@ -5,7 +5,7 @@ replaceable by ≤ 50 lines of plain Node is replaced instead. One compiler vend
 
 ## Runtime dependencies
 
-Runtime packages (`tree`, `core`, `linq`, `provider-memory`, `provider-sql`) carry **zero** production dependencies —
+Runtime packages (`tree`, `core`, `linq`, `provider-memory`, `sql-core`) carry **zero** production dependencies —
 `scripts/check-graph.mjs` fails CI if any appear.
 
 | Package | Dependency | Why it can't reasonably be vendored |

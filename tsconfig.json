@@ -10,7 +10,7 @@
     { "path": "packages/vite" },
     { "path": "packages/linq" },
     { "path": "packages/provider-memory" },
-    { "path": "packages/provider-sql" },
+    { "path": "packages/sql-core" },
     { "path": "packages/provider-postgres" },
     { "path": "packages/provider-sqlite" },
     { "path": "packages/ts-plugin" },

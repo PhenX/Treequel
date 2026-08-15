@@ -1,57 +1,24 @@
 import { createRequire } from "node:module";
 import initSqlJs from "sql.js";
 import { memoryProvider } from "@treequel/provider-memory";
-import { type Context, createContext, defineRelations, expr } from "@treequel/linq";
-import { type Fixtures, defaultRelations, runConformance } from "@treequel/linq/testing";
-import { makeSqlProvider } from "@treequel/provider-sql";
+import { type Context, createContext, expr } from "@treequel/linq";
+import {
+  type Fixtures,
+  type SampleItem as Item,
+  type SampleOrder as Order,
+  type SampleSchema as Schema,
+  type SampleUser as User,
+  defaultRelations,
+  multiset,
+  runConformance,
+  sampleItems as items,
+  sampleOrders as orders,
+  sampleRelations as relations,
+  sampleUsers as users,
+} from "@treequel/linq/testing";
+import { makeSqlProvider } from "@treequel/sql-core";
 import { beforeAll, describe, expect, it } from "vitest";
 import { type SchemaMeta, type SqlExecutor, sqlite, sqliteDialect } from "./index.js";
-
-interface User {
-  id: number;
-  name: string;
-  age: number;
-  active: boolean;
-  city: string | null;
-  orders?: Order[];
-}
-interface Order {
-  id: number;
-  userId: number | null;
-  total: number;
-  user?: User | null;
-  items?: Item[];
-}
-interface Item {
-  id: number;
-  orderId: number;
-  sku: string;
-}
-interface Schema {
-  users: User;
-  orders: Order;
-  items: Item;
-}
-
-const users: User[] = [
-  { id: 1, name: "Ada", age: 36, active: true, city: "London" },
-  { id: 2, name: "Alan", age: 41, active: false, city: "London" },
-  { id: 3, name: "Grace", age: 45, active: true, city: null },
-  { id: 4, name: "Bob", age: 17, active: true, city: "NYC" },
-  { id: 5, name: "50%off", age: 25, active: true, city: "Paris" },
-  { id: 6, name: "a_b", age: 30, active: false, city: "Paris" },
-];
-const orders: Order[] = [
-  { id: 1, userId: 1, total: 10.5 },
-  { id: 2, userId: 1, total: 20 },
-  { id: 3, userId: 3, total: 5 },
-  { id: 4, userId: null, total: 7 },
-];
-const items: Item[] = [
-  { id: 1, orderId: 1, sku: "apple" },
-  { id: 2, orderId: 1, sku: "pear" },
-  { id: 3, orderId: 3, sku: "plum" },
-];
 
 // Mapped physical columns on purpose: include stitching must read `user_id`.
 const schema: SchemaMeta = {
@@ -59,16 +26,6 @@ const schema: SchemaMeta = {
   orders: { table: "orders", columns: { userId: "user_id" } },
   items: { table: "items", columns: { orderId: "order_id" } },
 };
-
-const relations = defineRelations<Schema>({
-  users: {
-    orders: { kind: "many", target: "orders", from: "id", to: "userId" },
-  },
-  orders: {
-    user: { kind: "one", target: "users", from: "userId", to: "id" },
-    items: { kind: "many", target: "items", from: "id", to: "orderId" },
-  },
-});
 
 interface SqlJsDb {
   run(sql: string, params?: unknown[]): void;
@@ -132,13 +89,6 @@ beforeAll(async () => {
   executor = makeExecutor(db);
 });
 
-const canon = (v: unknown): string =>
-  JSON.stringify(v, (_k, val) =>
-    val && typeof val === "object" && !Array.isArray(val)
-      ? Object.fromEntries(Object.entries(val as object).sort(([a], [b]) => (a < b ? -1 : 1)))
-      : (val as unknown),
-  );
-const multiset = (a: unknown[]): string[] => a.map(canon).sort();
 const ids = (rs: User[]): number[] => rs.map((u) => u.id).sort((a, b) => a - b);
 
 describe("SQLite provider ≡ memory reference (reified trees on sql.js)", () => {

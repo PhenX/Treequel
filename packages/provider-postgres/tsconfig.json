@@ -4,7 +4,7 @@
     "rootDir": "src",
     "outDir": "dist"
   },
-  "references": [{ "path": "../provider-sql" }],
+  "references": [{ "path": "../sql-core" }],
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.test.ts"]
 }

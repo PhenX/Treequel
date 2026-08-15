@@ -1,6 +1,6 @@
 /**
  * `@treequel/provider-sqlite` — compiles a query plan to parameterized SQLite
- * over the shared `@treequel/provider-sql` translator. Emits positional `?`
+ * over the shared `@treequel/sql-core` translator. Emits positional `?`
  * parameters, case-sensitive `GLOB` matching, and Postgres-style null ordering,
  * so results match the memory reference provider. Driver-agnostic: supply an
  * `executor` over `better-sqlite3`, `node:sqlite`, sql.js, or similar. SQLite
@@ -12,16 +12,11 @@ import {
   type SqlExecutor,
   type SqlProviderOptions,
   makeSqlProvider,
-} from "@treequel/provider-sql";
+} from "@treequel/sql-core";
 import { sqliteDialect } from "./dialect.js";
 
 export { sqliteDialect } from "./dialect.js";
-export type {
-  SchemaMeta,
-  TableMeta,
-  SqlExecutor,
-  SqlProviderOptions,
-} from "@treequel/provider-sql";
+export type { SchemaMeta, TableMeta, SqlExecutor, SqlProviderOptions } from "@treequel/sql-core";
 
 /** Build a SQLite provider from a driver executor and schema metadata. */
 export function sqlite(

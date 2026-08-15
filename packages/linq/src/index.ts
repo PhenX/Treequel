@@ -21,7 +21,8 @@ export {
   type SchemaRelations,
   defineRelations,
 } from "./relations.js";
-export { attachChildren, collectIncludes, collectKeys, mergeIncludeSpecs } from "./include.js";
+export { collectIncludes, mergeIncludeSpecs } from "./include-spec.js";
+export { attachChildren, collectKeys } from "./stitch.js";
 export {
   type Context,
   type ContextOptions,

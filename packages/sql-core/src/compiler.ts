@@ -1,98 +1,37 @@
 /**
- * `@treequel/provider-sql` — the shared SQL-translation core. Holds the
- * dialect-agnostic translator, the `SqlDialect` seam, and the provider builder
- * `makeSqlProvider`; the concrete Postgres and SQLite providers (and any
- * third-party dialect) are thin packages that supply a `SqlDialect` and call it.
- *
- * A plan compiles to a stack of SELECT layers: each operator either extends the
- * current layer or, when SQL evaluation order would change the meaning (a
- * `where` over a projection, a `distinct` under a `take`, a join onto a
- * filtered layer), wraps it into a derived table and continues on top. Joins
- * become real `INNER/LEFT JOIN` clauses; `include` runs as split queries —
- * one batched fetch per navigation, stitched with the shared engine from
- * `@treequel/linq`, so no join duplication ever inflates the parent rows.
+ * The layer-stack SELECT builder. A {@link Layer} is one SELECT under
+ * construction; the {@link Compiler} folds each plan op into the current layer
+ * or, when SQL evaluation order would change the meaning (a `where` over a
+ * projection, a `distinct` under a `take`, a join onto a filtered layer), wraps
+ * it into a derived table and continues on top. Joins become real JOIN clauses;
+ * projections, groups and navigation subqueries render through {@link translate}.
  */
-import {
-  type AnyExpr,
-  type IncludeSpec,
-  type PlanOp,
-  type QueryPlan,
-  type QueryProvider,
-  type RelationsMeta,
-  attachChildren,
-  capabilities,
-  collectIncludes,
-  collectKeys,
-} from "@treequel/linq";
 import { type Node, TreequelError, partialEval } from "@treequel/core";
-import { type SchemaMeta, type TableMeta, physicalColumn } from "./schema.js";
+import type { AnyExpr, PlanOp, QueryPlan, RelationsMeta } from "@treequel/linq";
 import {
   type ColumnShape,
   SCALAR_COLUMN,
   TranslateContext,
-  finalizeSql,
   quoteIdent,
   shapeColumn,
-  translate,
-} from "./translate.js";
-import { type SqlDialect } from "./dialect.js";
-
-export type { SchemaMeta, TableMeta } from "./schema.js";
-export { physicalColumn } from "./schema.js";
-export {
-  type ColumnShape,
-  type TranslateEnv,
-  SCALAR_COLUMN,
-  TranslateContext,
-  finalizeSql,
-  quoteIdent,
-  shapeColumn,
-  translate,
-} from "./translate.js";
-export type { SqlDialect, StringMatch } from "./dialect.js";
-export { escapeLike, escapeGlob } from "./dialect.js";
-// Re-exported so dialect packages depend only on this core.
-export type { QueryProvider } from "@treequel/linq";
-
-/** A driver-agnostic query runner. */
-export type SqlExecutor = (
-  text: string,
-  values: unknown[],
-) => Promise<{ rows: Array<Record<string, unknown>> }>;
-
-export interface SqlProviderOptions {
-  readonly name?: string;
-}
-
-const SUPPORTED_OPS = [
-  "where",
-  "select",
-  "orderBy",
-  "thenBy",
-  "take",
-  "skip",
-  "distinct",
-  "join",
-  "leftJoin",
-  "include",
-  "flatMap",
-  "groupBy",
-  "exec",
-];
+} from "./context.js";
+import type { SqlDialect } from "./dialect.js";
+import type { SchemaMeta, TableMeta } from "./schema.js";
+import { translate } from "./translate.js";
 
 function fold(expr: AnyExpr): Node {
   return partialEval({ body: expr.body, scope: expr.scope });
 }
 
 /** A layer's row shape — groups exist only inside projection scopes. */
-type RowShape = Exclude<ColumnShape, { kind: "group" }>;
+export type RowShape = Exclude<ColumnShape, { kind: "group" }>;
 
 /**
  * One SELECT under construction. `shape` resolves the *input* row of the layer
  * (its FROM clause); once `projection` is set, later operators wrap the layer
  * so they see the projected row instead.
  */
-interface Layer {
+export interface Layer {
   from: string;
   shape: RowShape;
   where: string[];
@@ -117,7 +56,7 @@ function selectList(layer: Layer): string {
   return layer.projection ?? `${quoteIdent(layer.shape.alias)}.*`;
 }
 
-class Compiler {
+export class Compiler {
   private aliasN = 0;
   readonly ctx: TranslateContext;
 
@@ -569,314 +508,4 @@ class Compiler {
         );
     }
   }
-}
-
-interface Compiled {
-  readonly text: string;
-  readonly values: unknown[];
-  readonly post: (rows: Array<Record<string, unknown>>) => unknown;
-  /** Row-shaped results (`toArray`/`first`/`single`) can carry includes. */
-  readonly rowKind: "toArray" | "one" | null;
-  readonly includes: readonly IncludeSpec[];
-  /** Maps a logical key property to its name on the result rows. */
-  readonly keyProp: (logical: string) => string;
-}
-
-function compile(plan: QueryPlan, schema: SchemaMeta, dialect: SqlDialect): Compiled {
-  const compiler = new Compiler(schema, dialect, plan.relations);
-  const includes = collectIncludes(plan.ops);
-  let exec: Extract<PlanOp, { op: "exec" }> | null = null;
-
-  let layer = compiler.freshLayer(plan.source);
-  for (const op of plan.ops) {
-    if (op.op === "include") continue;
-    if (op.op === "exec") {
-      exec = op;
-      continue;
-    }
-    layer = compiler.foldOp(layer, op);
-  }
-
-  const kind = exec?.kind ?? "toArray";
-  if (layer.pendingGroup && (kind === "toArray" || kind === "first" || kind === "single")) {
-    throw new TreequelError(
-      "R2001",
-      "Materializing raw groups is memory-only (v1) — project them with select(g => …) first.",
-    );
-  }
-  const withPred = (negate = false): void => {
-    if (exec?.expr) {
-      const e = exec.expr;
-      layer = compiler.foldWhere(layer, (l) => {
-        const cond = compiler.translateWith(e, l.shape);
-        return negate ? `(NOT ${cond})` : cond;
-      });
-    }
-  };
-
-  // Assembled after the exec is folded, so closures see the final layer.
-  const emit = (
-    rawText: string,
-    post: Compiled["post"],
-    rowKind: Compiled["rowKind"],
-  ): Compiled => {
-    const final = finalizeSql(rawText, compiler.ctx.values, dialect);
-    const keyProp = (logical: string): string =>
-      layer.shape.kind === "table" && layer.projection === null
-        ? physicalColumn(layer.shape.meta, logical)
-        : logical;
-    return { text: final.text, values: final.values, post, rowKind, includes, keyProp };
-  };
-  const mapRow = (r: Record<string, unknown>): unknown => (layer.scalar ? r[SCALAR_COLUMN] : r);
-  /** `SELECT 1` body for row-existence/count shells, unless shaping matters. */
-  const innerSelect = (): string =>
-    layer.projection === null && !layer.distinct
-      ? compiler.render(layer, "1")
-      : compiler.render(layer);
-
-  switch (kind) {
-    case "toArray":
-      return emit(compiler.render(layer), (rows) => rows.map(mapRow), "toArray");
-
-    case "first":
-    case "single": {
-      withPred();
-      layer = compiler.foldTake(layer, kind === "first" ? 1 : 2);
-      const orNull = exec?.orNull ?? false;
-      return emit(
-        compiler.render(layer),
-        (rows) => {
-          if (kind === "single" && rows.length > 1) {
-            throw new Error("Treequel: single() found more than one element.");
-          }
-          if (rows.length === 0) {
-            if (orNull) return null;
-            throw new Error(`Treequel: ${kind}() found no element.`);
-          }
-          return mapRow(rows[0] as Record<string, unknown>);
-        },
-        "one",
-      );
-    }
-
-    case "count": {
-      withPred();
-      return emit(
-        `SELECT ${dialect.floatCast("COUNT(*)")} AS ${quoteIdent(SCALAR_COLUMN)} FROM (${innerSelect()}) ${quoteIdent(compiler.alias("d"))}`,
-        (rows) => Number(rows[0]?.[SCALAR_COLUMN] ?? 0),
-        null,
-      );
-    }
-
-    case "some":
-    case "every": {
-      withPred(kind === "every"); // ∀p ≡ ¬∃¬p
-      const not = kind === "every" ? "NOT " : "";
-      return emit(
-        `SELECT ${not}EXISTS(${innerSelect()}) AS ${quoteIdent(SCALAR_COLUMN)}`,
-        (rows) => Boolean(rows[0]?.[SCALAR_COLUMN]),
-        null,
-      );
-    }
-
-    case "sum":
-    case "min":
-    case "max":
-    case "avg": {
-      const wrapped = compiler.wrap(layer);
-      const selector = compiler.translateWith(exec?.expr as AnyExpr, wrapped.shape);
-      const agg =
-        kind === "sum"
-          ? dialect.floatCast(`COALESCE(SUM(${selector}), 0)`)
-          : kind === "avg"
-            ? dialect.floatCast(`AVG(${selector})`)
-            : `${kind.toUpperCase()}(${selector})`;
-      return emit(
-        `SELECT ${agg} AS ${quoteIdent(SCALAR_COLUMN)} FROM ${wrapped.from}`,
-        (rows) => {
-          const v = rows[0]?.[SCALAR_COLUMN];
-          if (v === null || v === undefined) return kind === "sum" ? 0 : null;
-          return Number(v);
-        },
-        null,
-      );
-    }
-  }
-}
-
-/** Fetch and attach one level of navigations via batched split queries. */
-/** Fetch one chunk of related rows, applying the spec's refinement ops. */
-async function fetchRefinedChunk(
-  spec: IncludeSpec,
-  chunk: readonly unknown[],
-  schema: SchemaMeta,
-  dialect: SqlDialect,
-  executor: SqlExecutor,
-  relations: RelationsMeta | undefined,
-): Promise<Array<Record<string, unknown>>> {
-  const compiler = new Compiler(schema, dialect, relations);
-  let layer = compiler.freshLayer(spec.target);
-  const orderParts: string[] = [];
-  for (const op of spec.ops ?? []) {
-    if (op.op === "where") {
-      layer = compiler.foldWhere(layer, (l) => compiler.translateWith(op.expr, l.shape));
-    } else if (op.op === "orderBy" || op.op === "thenBy") {
-      orderParts.push(
-        `${compiler.translateWith(op.expr, layer.shape)} ${op.desc ? "DESC" : "ASC"}${dialect.nullsSuffix(op.desc)}`,
-      );
-    } else {
-      throw new TreequelError(
-        "R2001",
-        `An include refinement supports where/orderBy only (got '${op.op}').`,
-      );
-    }
-  }
-  layer = compiler.foldWhere(layer, (l) => {
-    const col = shapeColumn(l.shape, spec.to, compiler.ctx);
-    return dialect.arrayContains(col, chunk, compiler.ctx);
-  });
-
-  let raw: string;
-  if (spec.take !== undefined || spec.skip !== undefined) {
-    if (dialect.windowFunctions === false) {
-      throw new TreequelError(
-        "R2001",
-        `Per-parent include slices need window functions, which the ${dialect.name} dialect disables.`,
-      );
-    }
-    // Per-parent slice: number the rows inside each parent's partition.
-    const alias = quoteIdent(layer.shape.alias);
-    const partition = shapeColumn(layer.shape, spec.to, compiler.ctx);
-    const over = `PARTITION BY ${partition}${orderParts.length > 0 ? ` ORDER BY ${orderParts.join(", ")}` : ""}`;
-    const inner = compiler.render(
-      layer,
-      `${alias}.*, ROW_NUMBER() OVER (${over}) AS ${quoteIdent(ROW_MARK)}`,
-    );
-    const lo = spec.skip ?? 0;
-    const hi = spec.take !== undefined ? lo + spec.take : null;
-    const w = quoteIdent("w");
-    const rn = `${w}.${quoteIdent(ROW_MARK)}`;
-    raw = `SELECT ${w}.* FROM (${inner}) ${w} WHERE ${rn} > ${lo}${hi !== null ? ` AND ${rn} <= ${hi}` : ""} ORDER BY ${partitionAlias(partition, w)}, ${rn}`;
-  } else {
-    layer.orderBy.push(...orderParts);
-    raw = compiler.render(layer);
-  }
-
-  const { text, values } = finalizeSql(raw, compiler.ctx.values, dialect);
-  const result = await executor(
-    text,
-    values.map((v) => dialect.coerceValue(v)),
-  );
-  return result.rows;
-}
-
-const ROW_MARK = "__tql_rn";
-
-/** Rewrite an inner column reference to the wrapper alias for the outer ORDER BY. */
-function partitionAlias(partition: string, wrapper: string): string {
-  const dot = partition.lastIndexOf(".");
-  return `${wrapper}${dot === -1 ? `.${partition}` : partition.slice(dot)}`;
-}
-
-async function stitchIncludes(
-  parents: unknown[],
-  specs: readonly IncludeSpec[],
-  keyProp: (logical: string) => string,
-  schema: SchemaMeta,
-  dialect: SqlDialect,
-  executor: SqlExecutor,
-  relations: RelationsMeta | undefined,
-): Promise<unknown[]> {
-  let cur = parents;
-  for (const spec of specs) {
-    if (cur.length === 0) break;
-    const parentProp = keyProp(spec.from);
-    const meta = schema[spec.target];
-    if (!meta) throw new TreequelError("R2002", `No schema meta for source '${spec.target}'.`);
-    const childProp = physicalColumn(meta, spec.to);
-    const keys = collectKeys(cur, parentProp, spec.nav);
-    let children: unknown[] = [];
-    if (keys.length > 0) {
-      const batch = dialect.maxBatchKeys ?? keys.length;
-      for (let i = 0; i < keys.length; i += batch) {
-        const chunk = keys.slice(i, i + batch);
-        const rows = await fetchRefinedChunk(spec, chunk, schema, dialect, executor, relations);
-        for (const row of rows) {
-          delete row[ROW_MARK];
-          children.push(row);
-        }
-      }
-    }
-    if (spec.children && spec.children.length > 0) {
-      children = await stitchIncludes(
-        children,
-        spec.children,
-        (logical) => physicalColumn(meta, logical),
-        schema,
-        dialect,
-        executor,
-        relations,
-      );
-    }
-    // SQL already applied the per-parent slice in the window fetch.
-    const { take: _take, skip: _skip, ...attachSpec } = spec;
-    const ordered = spec.ops?.some((o) => o.op === "orderBy") ?? false;
-    cur = attachChildren(cur, attachSpec, children, parentProp, childProp, ordered);
-  }
-  return cur;
-}
-
-function explainIncludes(specs: readonly IncludeSpec[], schema: SchemaMeta, depth = 0): string {
-  let out = "";
-  for (const spec of specs) {
-    const table = schema[spec.target]?.table ?? spec.target;
-    out += `\n-- include ${"  ".repeat(depth)}${spec.nav}: batched SELECT FROM ${quoteIdent(table)} WHERE ${quoteIdent(physicalColumn(schema[spec.target] ?? { table }, spec.to))} IN (parent keys)`;
-    if (spec.children) out += explainIncludes(spec.children, schema, depth + 1);
-  }
-  return out;
-}
-
-/**
- * Build a `QueryProvider` from a `SqlDialect`, a driver `executor`, and schema
- * metadata. The concrete provider packages (and third-party dialects) call this
- * with their dialect; `defaultName` names the provider unless `options.name`
- * overrides it.
- */
-export function makeSqlProvider(
-  dialect: SqlDialect,
-  defaultName: string,
-  executor: SqlExecutor,
-  schema: SchemaMeta,
-  options: SqlProviderOptions = {},
-): QueryProvider {
-  return {
-    name: options.name ?? defaultName,
-    capabilities() {
-      return capabilities(SUPPORTED_OPS);
-    },
-    async execute<T>(plan: QueryPlan): Promise<T> {
-      const { text, values, post, rowKind, includes, keyProp } = compile(plan, schema, dialect);
-      const result = await executor(
-        text,
-        values.map((v) => dialect.coerceValue(v)),
-      );
-      const out = post(result.rows);
-      if (includes.length === 0 || rowKind === null) return out as T;
-      const parents = rowKind === "toArray" ? (out as unknown[]) : out === null ? [] : [out];
-      const stitched = await stitchIncludes(
-        parents,
-        includes,
-        keyProp,
-        schema,
-        dialect,
-        executor,
-        plan.relations,
-      );
-      return (rowKind === "toArray" ? stitched : (stitched[0] ?? null)) as T;
-    },
-    async explain(plan: QueryPlan): Promise<string> {
-      const { text, includes } = compile(plan, schema, dialect);
-      return text + explainIncludes(includes, schema);
-    },
-  };
 }

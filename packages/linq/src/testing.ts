@@ -13,7 +13,7 @@ import { runPlanInMemory } from "./memory-engine.js";
 import { PLAN_OP_KINDS } from "./plan.js";
 import type { QueryPlan } from "./plan.js";
 import type { QueryProvider } from "./provider.js";
-import type { RelationsMeta } from "./relations.js";
+import { type RelationsMeta, type SchemaRelations, defineRelations } from "./relations.js";
 import { type Context, type ContextOptions, type Queryable, createContext } from "./queryable.js";
 
 export interface Fixtures {
@@ -59,10 +59,76 @@ function equal(expected: unknown, actual: unknown, ordered: boolean): boolean {
 }
 
 /**
- * Relations matching the standard corpus fixtures (`users` → `orders` →
- * `items`). Pass to `runConformance` (and mirror in provider schemas) when
- * running the default cases.
+ * The row types the standard corpus and fixtures are written against. Provider
+ * test suites import these instead of redeclaring them.
  */
+export interface SampleUser {
+  id: number;
+  name: string;
+  age: number;
+  active: boolean;
+  city: string | null;
+  orders?: SampleOrder[];
+}
+export interface SampleOrder {
+  id: number;
+  userId: number | null;
+  total: number;
+  user?: SampleUser | null;
+  items?: SampleItem[];
+}
+export interface SampleItem {
+  id: number;
+  orderId: number;
+  sku: string;
+}
+export interface SampleSchema {
+  users: SampleUser;
+  orders: SampleOrder;
+  items: SampleItem;
+}
+
+/** The canonical fixture rows (`users` → `orders` → `items`) the corpus runs on. */
+export const sampleUsers: SampleUser[] = [
+  { id: 1, name: "Ada", age: 36, active: true, city: "London" },
+  { id: 2, name: "Alan", age: 41, active: false, city: "London" },
+  { id: 3, name: "Grace", age: 45, active: true, city: null },
+  { id: 4, name: "Bob", age: 17, active: true, city: "NYC" },
+  { id: 5, name: "50%off", age: 25, active: true, city: "Paris" },
+  { id: 6, name: "a_b", age: 30, active: false, city: "Paris" },
+];
+export const sampleOrders: SampleOrder[] = [
+  { id: 1, userId: 1, total: 10.5 },
+  { id: 2, userId: 1, total: 20 },
+  { id: 3, userId: 3, total: 5 },
+  { id: 4, userId: null, total: 7 },
+];
+export const sampleItems: SampleItem[] = [
+  { id: 1, orderId: 1, sku: "apple" },
+  { id: 2, orderId: 1, sku: "pear" },
+  { id: 3, orderId: 3, sku: "plum" },
+];
+
+/** The fixtures as a {@link Fixtures} map, ready to hand to `runConformance`. */
+export function defaultFixtures(): Fixtures {
+  return { users: sampleUsers, orders: sampleOrders, items: sampleItems };
+}
+
+/**
+ * Relations matching the standard corpus fixtures (`users` → `orders` →
+ * `items`). Pass to `createContext`/`runConformance` (and mirror in provider
+ * schemas) when running the default cases.
+ */
+export const sampleRelations: SchemaRelations<SampleSchema> = defineRelations<SampleSchema>({
+  users: {
+    orders: { kind: "many", target: "orders", from: "id", to: "userId" },
+  },
+  orders: {
+    user: { kind: "one", target: "users", from: "userId", to: "id" },
+    items: { kind: "many", target: "items", from: "id", to: "orderId" },
+  },
+});
+
 export function defaultRelations(): RelationsMeta {
   return {
     users: {
@@ -75,22 +141,20 @@ export function defaultRelations(): RelationsMeta {
   };
 }
 
+/** Canonical, order-independent comparison key for an array of result rows. */
+export function multiset(rows: readonly unknown[]): string[] {
+  return rows.map((r) => canonical(r)).sort();
+}
+
 /**
  * The standard behavioral corpus. Every lambda is wrapped in `expr()` so the
  * build plugin reifies it regardless of how the surrounding harness passes the
  * context around.
  */
 export function defaultCases(): ConformanceCase[] {
-  type U = {
-    id: number;
-    name: string;
-    age: number;
-    active: boolean;
-    city: string | null;
-    orders?: O[];
-  };
-  type O = { id: number; userId: number | null; total: number; user?: U | null; items?: I[] };
-  type I = { id: number; orderId: number; sku: string };
+  type U = SampleUser;
+  type O = SampleOrder;
+  type I = SampleItem;
   const users = (db: Context<Record<string, unknown>>) => db.users as unknown as Queryable<U>;
   const orders = (db: Context<Record<string, unknown>>) => db.orders as unknown as Queryable<O>;
   const items = (db: Context<Record<string, unknown>>) => db.items as unknown as Queryable<I>;
@@ -499,6 +563,8 @@ export function defaultCases(): ConformanceCase[] {
     {
       name: "membership against a captured array",
       run: (db) => {
+        // A captured array whose `.includes` is what this case translates to SQL.
+        // oxlint-disable-next-line unicorn/prefer-set-has
         const cities: Array<string | null> = ["London", "NYC"];
         return users(db)
           .where(expr((u: U) => cities.includes(u.city)))

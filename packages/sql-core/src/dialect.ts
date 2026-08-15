@@ -2,6 +2,9 @@ import type { TranslateContext } from "./context.js";
 
 export type StringMatch = "startsWith" | "endsWith" | "includes";
 
+/** Calendar field a date getter reads. `month` is 1-based (the translator maps `getMonth`'s 0-based value). */
+export type DatePart = "year" | "month" | "day";
+
 /**
  * The parts of SQL generation that differ between databases. One implementation
  * per target; `translate` and `compile` stay dialect-agnostic and delegate here.
@@ -17,6 +20,14 @@ export interface SqlDialect {
   floatCast(expr: string): string;
   /** Case-sensitive prefix/suffix/substring test of `recv` against a constant `literal`. */
   stringMatch(kind: StringMatch, recv: string, literal: string, ctx: TranslateContext): string;
+  /**
+   * Extract a calendar field of the timestamp `expr` as an integer. `month` is
+   * 1-based (calendar), matching `EXTRACT`/`strftime`; the translator subtracts
+   * one for JS's 0-based `getMonth`. Fields are read in UTC — SQLite's `strftime`
+   * is UTC-only and Postgres reads the stored instant — so this matches the JS
+   * `getFullYear`/`getMonth`/`getDate` reference when the process runs in UTC.
+   */
+  dateExtract(part: DatePart, expr: string): string;
   /** Membership of `needle` in a constant array `values`. */
   arrayContains(needle: string, values: readonly unknown[], ctx: TranslateContext): string;
   /** `base ** exponent`. */

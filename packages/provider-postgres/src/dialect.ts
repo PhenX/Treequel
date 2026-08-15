@@ -17,6 +17,10 @@ export const pgDialect: SqlDialect = {
   arrayContains(needle, values, ctx) {
     return `(${needle} = ANY(${ctx.param(values)}))`;
   },
+  dateExtract(part, expr) {
+    const field = part === "year" ? "YEAR" : part === "month" ? "MONTH" : "DAY";
+    return `CAST(EXTRACT(${field} FROM ${expr}) AS INTEGER)`;
+  },
   power(base, exponent) {
     return `POWER(${base}, ${exponent})`;
   },

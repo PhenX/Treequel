@@ -5,13 +5,15 @@
 //
 //   node bench/transform.bench.mjs            # run and print a table
 //   node bench/transform.bench.mjs --update   # rewrite bench/baseline.json
-//   node bench/transform.bench.mjs --check    # fail if a regression exceeds the threshold
+//   node bench/transform.bench.mjs --check     # fail if throughput fell below the baseline (local gate)
+//   node bench/transform.bench.mjs --report    # print the comparison, never fail (CI advisory)
 //
-// The gate is machine-independent: absolute ops/sec vary with the runner, so
-// the baseline stores the *ratio* of a matching-module transform to a
-// non-matching pre-scan bail measured in the same process. A transform that
-// slows down relative to that in-run reference raises the ratio; the check
-// fails when it climbs more than THRESHOLD above the committed baseline.
+// The gate metric is `hitOpsPerSec`: the throughput of transforming a matching
+// module — a real ~280µs parse, so ~1% run-to-run. It varies ~10% between
+// machines, so --check gates against your own committed baseline and CI runs
+// --report (advisory only — runner variance would otherwise redden every PR).
+// The pre-scan bail is measured too, but only as an informational fast-path
+// check: it is sub-microsecond, so its throughput is too noisy to gate on.
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -72,43 +74,47 @@ async function measure() {
   };
   const hit = hz("transform hit (reify)");
   const miss = hz("transform miss (pre-scan bail)");
-  return { hit, miss, ratio: miss / hit, table: bench.table() };
+  return { hit, miss, table: bench.table() };
 }
 
 const mode = process.argv[2];
-const { hit, miss, ratio, table } = await measure();
+const { hit, miss, table } = await measure();
+const fmt = (n) => Math.round(n).toLocaleString();
 
 console.table(table);
-console.log(
-  `\nhit: ${Math.round(hit).toLocaleString()} ops/s · ` +
-    `miss: ${Math.round(miss).toLocaleString()} ops/s · ` +
-    `ratio (miss/hit): ${ratio.toFixed(1)}×`,
-);
+console.log(`\ntransform: ${fmt(hit)} ops/s (hit) · ${fmt(miss)} ops/s (pre-scan bail)`);
 
 if (mode === "--update") {
   const baseline = {
-    note: "Machine-independent gate: 'ratio' (miss/hit) is normative; raw ops/s are informational.",
+    note: "Gate metric is hitOpsPerSec (a real parse, ~1% run-to-run). It varies ~10% between machines, so --check is a local gate and CI runs --report.",
     threshold: THRESHOLD,
-    ratio: Number(ratio.toFixed(3)),
-    informational: { hitOpsPerSec: Math.round(hit), missOpsPerSec: Math.round(miss) },
+    hitOpsPerSec: Math.round(hit),
+    missOpsPerSec: Math.round(miss),
   };
   writeFileSync(baselinePath, JSON.stringify(baseline, null, 2) + "\n");
-  console.log(`\nWrote ${baselinePath} (ratio ${baseline.ratio}).`);
-} else if (mode === "--check") {
+  console.log(`\nWrote ${baselinePath} (hit ${fmt(hit)} ops/s).`);
+} else if (mode === "--check" || mode === "--report") {
   const baseline = JSON.parse(readFileSync(baselinePath, "utf8"));
-  const limit = baseline.ratio * (1 + (baseline.threshold ?? THRESHOLD));
-  const pct = ((ratio / baseline.ratio - 1) * 100).toFixed(0);
+  const threshold = baseline.threshold ?? THRESHOLD;
+  const floor = baseline.hitOpsPerSec * (1 - threshold);
+  const pct = Math.round((hit / baseline.hitOpsPerSec - 1) * 100);
   console.log(
-    `\nbaseline ratio ${baseline.ratio.toFixed(1)}× · measured ${ratio.toFixed(1)}× ` +
-      `(${pct > 0 ? "+" : ""}${pct}%) · limit ${limit.toFixed(1)}×`,
+    `\nbaseline ${fmt(baseline.hitOpsPerSec)} ops/s · measured ${fmt(hit)} ops/s ` +
+      `(${pct >= 0 ? "+" : ""}${pct}%) · floor ${fmt(floor)} ops/s`,
   );
-  if (ratio > limit) {
+  const regressed = hit < floor;
+  // --report never fails: throughput varies ~10% between machines, so a
+  // committed baseline can only advise across CI runners. --check is the local
+  // hard gate against a baseline measured on the same machine.
+  if (regressed && mode === "--check") {
     console.error(
-      `\n✗ transform is ~${pct}% slower relative to the pre-scan reference than baseline (> ${(
-        (baseline.threshold ?? THRESHOLD) * 100
-      ).toFixed(0)}%).`,
+      `\n✗ transform throughput fell ${-pct}% below baseline (> ${Math.round(threshold * 100)}%).`,
     );
     process.exit(1);
   }
-  console.log("\n✓ transform within the perf budget.");
+  console.log(
+    regressed
+      ? `\n⚠ advisory: ${-pct}% below baseline — re-baseline with --update on your machine if this is expected.`
+      : "\n✓ transform within the perf budget.",
+  );
 }

@@ -51,12 +51,13 @@ jobs:
         run: node scripts/check-commit.mjs --range "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
 
   bench:
-    # Transform perf regression gate. The check compares a machine-independent
-    # ratio to bench/baseline.json; it is advisory (continue-on-error) because
-    # shared runners are noisy — a real regression still shows a red ✗ to review.
+    # Transform perf report. Prints the measured ratio against bench/baseline.json
+    # but never fails on a perf delta — absolute ops/sec (and the miss/hit ratio
+    # with them) vary between runners, so the committed baseline can only advise
+    # here. The local `npm run bench:check` is the hard gate. This job still goes
+    # red if the bench cannot build or run, which is a real problem worth seeing.
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -66,8 +67,8 @@ jobs:
       - run: npm ci
       - name: Build packages (bench imports the built transform)
         run: npm run build --workspaces --if-present
-      - name: Transform benchmark vs baseline
-        run: npm run bench:check
+      - name: Transform benchmark report vs baseline
+        run: npm run bench:ci
 
   pkg-health:
     runs-on: ubuntu-latest

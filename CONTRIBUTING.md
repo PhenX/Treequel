@@ -45,9 +45,10 @@ npm run bench          # print a table
 npm run bench:check    # compare against bench/baseline.json
 ```
 
-The gate is a machine-independent ratio (a matching-module transform vs a pre-scan bail), so absolute ops/sec never
-enter the comparison. Regenerate the baseline with `node bench/transform.bench.mjs --update` when an intentional change
-moves it. CI runs `bench:check` on pull requests as an advisory job.
+The baseline is a ratio (a matching-module transform vs a pre-scan bail), which cancels most but not all machine speed —
+it still drifts between runners, so `bench:check` is a **local** hard gate against your own baseline. Regenerate that
+baseline with `node bench/transform.bench.mjs --update` when an intentional change moves it. CI runs `bench:ci`
+(`--report`) on pull requests: it prints the delta but never fails on perf alone.
 
 ## Commit messages & PR titles
 

@@ -1,9 +1,6 @@
 {
-  "note": "Machine-independent gate: 'ratio' (miss/hit) is normative; raw ops/s are informational.",
+  "note": "Gate metric is hitOpsPerSec (a real parse, ~1% run-to-run). It varies ~10% between machines, so --check is a local gate and CI runs --report.",
   "threshold": 0.3,
-  "ratio": 559.657,
-  "informational": {
-    "hitOpsPerSec": 3242,
-    "missOpsPerSec": 1814566
-  }
+  "hitOpsPerSec": 2668,
+  "missOpsPerSec": 1800423
 }

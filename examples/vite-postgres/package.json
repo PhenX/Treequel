@@ -10,7 +10,7 @@
   "dependencies": {
     "@treequel/linq": "*",
     "@treequel/provider-memory": "*",
-    "@treequel/provider-sql": "*"
+    "@treequel/provider-postgres": "*"
   },
   "devDependencies": {
     "@treequel/vite": "*"

@@ -1,6 +1,6 @@
 import { type Node, TreequelError } from "@treequel/core";
 import { type TableMeta, physicalColumn } from "./schema.js";
-import { type SqlDialect, pgDialect } from "./dialect.js";
+import { type SqlDialect } from "./dialect.js";
 
 /** State threaded through a single expression translation. */
 export class TranslateContext {
@@ -8,7 +8,7 @@ export class TranslateContext {
   constructor(
     readonly meta: TableMeta,
     readonly alias: string,
-    readonly dialect: SqlDialect = pgDialect,
+    readonly dialect: SqlDialect,
     readonly loc?: string,
   ) {}
 

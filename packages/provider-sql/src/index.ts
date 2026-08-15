@@ -1,8 +1,10 @@
 /**
- * `@treequel/provider-sql` — translates a plan to parameterized SQL.
- * Pipeline per plan: partial-eval every expr → translate with a dialect
- * (Postgres or SQLite) → emit `{ text, values }` (constants become bound
- * params, never interpolated). Driver-agnostic: you supply an `executor`.
+ * `@treequel/provider-sql` — the shared SQL-translation core. Holds the
+ * dialect-agnostic translator, the `SqlDialect` seam, and the provider builder
+ * `makeSqlProvider`; the concrete Postgres and SQLite providers (and any
+ * third-party dialect) are thin packages that supply a `SqlDialect` and call it.
+ * Pipeline per plan: partial-eval every expr → translate with a dialect → emit
+ * `{ text, values }` (constants become bound params, never interpolated).
  */
 import {
   type AnyExpr,
@@ -14,12 +16,14 @@ import {
 import { type Node, TreequelError, partialEval } from "@treequel/core";
 import { type SchemaMeta, type TableMeta } from "./schema.js";
 import { TranslateContext, quoteIdent, translate } from "./translate.js";
-import { type SqlDialect, pgDialect, sqliteDialect } from "./dialect.js";
+import { type SqlDialect } from "./dialect.js";
 
 export type { SchemaMeta, TableMeta } from "./schema.js";
 export { TranslateContext, quoteIdent, translate } from "./translate.js";
 export type { SqlDialect, StringMatch } from "./dialect.js";
-export { pgDialect, sqliteDialect } from "./dialect.js";
+export { escapeLike, escapeGlob } from "./dialect.js";
+// Re-exported so dialect packages depend only on this core.
+export type { QueryProvider } from "@treequel/linq";
 
 /** A driver-agnostic query runner. */
 export type SqlExecutor = (
@@ -222,12 +226,18 @@ function compile(plan: QueryPlan, schema: SchemaMeta, dialect: SqlDialect): Comp
   }
 }
 
-function makeProvider(
+/**
+ * Build a `QueryProvider` from a `SqlDialect`, a driver `executor`, and schema
+ * metadata. The concrete provider packages (and third-party dialects) call this
+ * with their dialect; `defaultName` names the provider unless `options.name`
+ * overrides it.
+ */
+export function makeSqlProvider(
   dialect: SqlDialect,
   defaultName: string,
   executor: SqlExecutor,
   schema: SchemaMeta,
-  options: SqlProviderOptions,
+  options: SqlProviderOptions = {},
 ): QueryProvider {
   return {
     name: options.name ?? defaultName,
@@ -246,26 +256,4 @@ function makeProvider(
       return compile(plan, schema, dialect).text;
     },
   };
-}
-
-/** Build a Postgres provider from a driver executor and schema metadata. */
-export function sqlProvider(
-  executor: SqlExecutor,
-  schema: SchemaMeta,
-  options: SqlProviderOptions = {},
-): QueryProvider {
-  return makeProvider(pgDialect, "postgres", executor, schema, options);
-}
-
-/**
- * Build a SQLite provider from a driver executor and schema metadata. Emits
- * positional `?` parameters, case-sensitive `GLOB` matching, and Postgres-style
- * null ordering, so results match the memory reference provider.
- */
-export function sqliteProvider(
-  executor: SqlExecutor,
-  schema: SchemaMeta,
-  options: SqlProviderOptions = {},
-): QueryProvider {
-  return makeProvider(sqliteDialect, "sqlite", executor, schema, options);
 }

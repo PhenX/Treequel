@@ -1,22 +1,20 @@
-import { createRequire } from "node:module";
-import initSqlJs from "sql.js";
+import { PGlite } from "@electric-sql/pglite";
 import { __expr, evaluate } from "@treequel/core";
 import { createContext } from "@treequel/linq";
 import { memoryProvider } from "@treequel/provider-memory";
 import type { Node } from "@treequel/tree";
 import fc from "fast-check";
 import { beforeAll, describe, expect, it } from "vitest";
-import { type SchemaMeta, type SqlExecutor, sqliteProvider } from "./index.js";
+import { type SchemaMeta, type SqlExecutor, postgres } from "./index.js";
 
 const paramU: Node = { kind: "Param", name: "u" };
 const col = (prop: string): Node => ({ kind: "Member", object: paramU, prop });
 const int = (value: number): Node => ({ kind: "Constant", value });
 const str = (value: string): Node => ({ kind: "Constant", value });
 
-// Two-valued atoms only (no operand is ever NULL): `age`/`name`/`active` are
-// non-null, and nullable `city` is only ever tested with IS [NOT] NULL. GLOB is
-// case-sensitive and TEXT columns use the default BINARY collation, so string
-// matching and ordering line up with the JS engine.
+// Predicate atoms are all two-valued in SQL (no operand ever evaluates to NULL):
+// `age`/`name`/`active` are NOT NULL, and the nullable `city` is only ever
+// compared to null via IS [NOT] NULL. That keeps SQL and JS boolean logic aligned.
 const arbAtom: fc.Arbitrary<Node> = fc.oneof(
   fc.record({
     kind: fc.constant("Binary" as const),
@@ -81,36 +79,18 @@ const arbRows: fc.Arbitrary<Row[]> = fc
   .map((rows) => rows.map((r, i) => ({ id: i + 1, ...r })));
 
 const schema: SchemaMeta = { users: { table: "users" } };
-
-interface SqlJsDb {
-  run(sql: string, params?: unknown[]): void;
-  prepare(sql: string): {
-    bind(params: unknown[]): void;
-    step(): boolean;
-    getAsObject(): Record<string, unknown>;
-    free(): void;
-  };
-}
-let db: SqlJsDb;
-let exec: SqlExecutor;
+let pg: PGlite;
 
 beforeAll(async () => {
-  const require = createRequire(import.meta.url);
-  const SQL = await initSqlJs({ locateFile: () => require.resolve("sql.js/dist/sql-wasm.wasm") });
-  db = new SQL.Database() as unknown as SqlJsDb;
-  db.run("CREATE TABLE users (id int, age int, name text, active int, city text);");
-  exec = (text, values) => {
-    const stmt = db.prepare(text);
-    stmt.bind(values);
-    const rows: Array<Record<string, unknown>> = [];
-    while (stmt.step()) rows.push(stmt.getAsObject());
-    stmt.free();
-    return Promise.resolve({ rows });
-  };
+  pg = await PGlite.create();
+  await pg.exec(
+    `CREATE TABLE users (id int primary key, age int not null, name text not null COLLATE "C", active boolean not null, city text COLLATE "C");`,
+  );
 });
 
-describe("SQLite provider ≡ memory reference (property, on sql.js)", () => {
+describe("SQL provider ≡ memory reference (property, on PGlite)", () => {
   it("agrees on generated predicates over generated rows", async () => {
+    const exec: SqlExecutor = (t, v) => pg.query(t, v) as ReturnType<SqlExecutor>;
     await fc.assert(
       fc.asyncProperty(p, arbRows, async (tree, rows) => {
         const compiled = (row: Row): unknown => evaluate(tree, { params: { u: row } });
@@ -126,17 +106,17 @@ describe("SQLite provider ≡ memory reference (property, on sql.js)", () => {
           .users.where(expr)
           .toArray()) as Row[];
 
-        db.run("DELETE FROM users");
+        await pg.query("DELETE FROM users");
         for (const r of rows) {
-          db.run("INSERT INTO users VALUES (?,?,?,?,?)", [
+          await pg.query("INSERT INTO users VALUES ($1,$2,$3,$4,$5)", [
             r.id,
             r.age,
             r.name,
-            r.active ? 1 : 0,
+            r.active,
             r.city,
           ]);
         }
-        const sql = (await createContext<{ users: Row }>(sqliteProvider(exec, schema))
+        const sql = (await createContext<{ users: Row }>(postgres(exec, schema))
           .users.where(expr)
           .toArray()) as Row[];
 

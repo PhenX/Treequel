@@ -33,7 +33,7 @@ departure from the plan gets an ADR (`docs/adr/NNNN-*.md`) recording what change
 
 ## Repo status
 
-**M0–M7 landed, bar the 0.1 publish.** All eleven `@treequel/*` packages are implemented, typechecked (`tsc -b`) and
+**M0–M7 landed, bar the 0.1 publish.** All thirteen `@treequel/*` packages are implemented, typechecked (`tsc -b`) and
 tested (Vitest, including fast-check property tests — serialize round-trip, partial-eval invariants, and a generative
 SQL≡memory reference on PGlite — and `tsc`-checked `F | Expr<F>` type tests under `type-tests/`).
 The toolchain (npm workspaces, tsdown, project references, oxlint + oxfmt gated in `npm run verify`), `check-graph.mjs`,
@@ -41,8 +41,9 @@ the Conventional-Commits `check-commit.mjs` (CI lints the PR range), `release.mj
 transform benchmark (`bench/`, advisory regression gate), the CI matrix + weekly TS/oxc canary, and the two integration
 examples are in place. The **M7** surface exists too: the VitePress docs site (`apps/docs`) with generated diagnostics +
 tree-schema pages, the playground (`apps/playground`), the manually dispatched **Release** workflow, and the community
-health files (code of conduct, issue forms, CODEOWNERS). Pulled ahead of the plan's post-0.1 backlog,
-`@treequel/provider-sql` ships both **Postgres and SQLite** dialects behind a `SqlDialect` seam (ADR-0003). **The one
+health files (code of conduct, issue forms, CODEOWNERS). Pulled ahead of the plan's post-0.1 backlog, the SQL providers
+split into **`@treequel/provider-postgres`** and **`@treequel/provider-sqlite`** over a shared **`@treequel/provider-sql`**
+core (the `SqlDialect` seam + `makeSqlProvider`), so there are now thirteen `@treequel/*` packages (ADR-0003). **The one
 remaining step is dispatching the Release workflow to publish `0.1.0`.** **Update this paragraph as milestones
 complete.**
 

@@ -1,7 +1,7 @@
 import { PGlite } from "@electric-sql/pglite";
 import { type Context, createContext } from "@treequel/linq";
 import { memoryProvider } from "@treequel/provider-memory";
-import { type SqlExecutor, sqlProvider } from "@treequel/provider-sql";
+import { type SqlExecutor, postgres } from "@treequel/provider-postgres";
 import { beforeAll, describe, expect, it } from "vitest";
 import * as q from "./queries.js";
 import { type Schema, orders, schemaMeta, users } from "./schema.js";
@@ -30,7 +30,7 @@ beforeAll(async () => {
   const exec: SqlExecutor = (t, v) => pg.query(t, v) as ReturnType<SqlExecutor>;
 
   memDb = createContext<Schema>(memoryProvider({ users, orders }));
-  pgDb = createContext<Schema>(sqlProvider(exec, schemaMeta));
+  pgDb = createContext<Schema>(postgres(exec, schemaMeta));
 });
 
 const multiset = (a: unknown[]): string[] => a.map((x) => JSON.stringify(x)).sort();

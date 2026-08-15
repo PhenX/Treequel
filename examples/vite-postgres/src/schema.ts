@@ -1,4 +1,4 @@
-import type { SchemaMeta } from "@treequel/provider-sql";
+import type { SchemaMeta } from "@treequel/provider-postgres";
 
 export interface User {
   id: number;

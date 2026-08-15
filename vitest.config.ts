@@ -35,6 +35,8 @@ export default defineConfig({
       "@treequel/linq": pkg("linq"),
       "@treequel/provider-memory": pkg("provider-memory"),
       "@treequel/provider-sql": pkg("provider-sql"),
+      "@treequel/provider-postgres": pkg("provider-postgres"),
+      "@treequel/provider-sqlite": pkg("provider-sqlite"),
     },
   },
   test: {

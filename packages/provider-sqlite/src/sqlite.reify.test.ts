@@ -3,7 +3,7 @@ import initSqlJs from "sql.js";
 import { memoryProvider } from "@treequel/provider-memory";
 import { type Context, createContext, expr } from "@treequel/linq";
 import { beforeAll, describe, expect, it } from "vitest";
-import { type SchemaMeta, type SqlExecutor, sqliteProvider } from "./index.js";
+import { type SchemaMeta, type SqlExecutor, sqlite } from "./index.js";
 
 interface User {
   id: number;
@@ -76,7 +76,7 @@ beforeAll(async () => {
     return Promise.resolve({ rows });
   };
 
-  sqlDb = createContext<Schema>(sqliteProvider(executor, schema));
+  sqlDb = createContext<Schema>(sqlite(executor, schema));
   memDb = createContext<Schema>(memoryProvider({ users, orders }));
 });
 

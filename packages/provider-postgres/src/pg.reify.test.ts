@@ -2,7 +2,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { memoryProvider } from "@treequel/provider-memory";
 import { type Context, createContext, expr } from "@treequel/linq";
 import { beforeAll, describe, expect, it } from "vitest";
-import { type SchemaMeta, type SqlExecutor, sqlProvider } from "./index.js";
+import { type SchemaMeta, type SqlExecutor, postgres } from "./index.js";
 
 interface User {
   id: number;
@@ -64,7 +64,7 @@ beforeAll(async () => {
   }
   const executor: SqlExecutor = (text, values) => pg.query(text, values) as ReturnType<SqlExecutor>;
 
-  sqlDb = createContext<Schema>(sqlProvider(executor, schema));
+  sqlDb = createContext<Schema>(postgres(executor, schema));
   memDb = createContext<Schema>(memoryProvider({ users, orders }));
 });
 

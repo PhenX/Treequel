@@ -54,14 +54,14 @@ const adults = await db.users
 
 ## The same query, on Postgres
 
-Swap the provider. The query definitions do not change. The SQL provider takes a driver `executor` — it works over
+Swap the provider. The query definitions do not change. The Postgres provider takes a driver `executor` — it works over
 `pg`, `postgres.js`, Neon, or PGlite — and explicit schema metadata.
 
 ```ts
-import { sqlProvider } from "@treequel/provider-sql";
+import { postgres } from "@treequel/provider-postgres";
 
 const db = createContext<{ users: User }>(
-  sqlProvider(executor, { users: { table: "users" } }),
+  postgres(executor, { users: { table: "users" } }),
 );
 
 await db.users.where((u) => u.age >= 18 && u.active).toArray();
@@ -73,15 +73,15 @@ query to see the text a provider would run.
 
 ## The same query, on SQLite
 
-`sqliteProvider` is the same story with a SQLite `executor` (`better-sqlite3`, `node:sqlite`, sql.js, …). It emits
+The SQLite provider is the same story with a SQLite `executor` (`better-sqlite3`, `node:sqlite`, sql.js, …). It emits
 positional `?` parameters, case-sensitive `GLOB` matching, and Postgres-style null ordering, so its results match the
 memory reference row for row.
 
 ```ts
-import { sqliteProvider } from "@treequel/provider-sql";
+import { sqlite } from "@treequel/provider-sqlite";
 
 const db = createContext<{ users: User }>(
-  sqliteProvider(executor, { users: { table: "users" } }),
+  sqlite(executor, { users: { table: "users" } }),
 );
 
 await db.users.where((u) => u.age >= 18 && u.name.startsWith("A")).toArray();

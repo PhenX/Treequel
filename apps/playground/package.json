@@ -13,7 +13,7 @@
     "@treequel/core": "*",
     "@treequel/fallback": "*",
     "@treequel/linq": "*",
-    "@treequel/provider-sql": "*",
+    "@treequel/provider-postgres": "*",
     "@treequel/transform": "*",
     "@treequel/tree": "*"
   },

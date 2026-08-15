@@ -1,5 +1,5 @@
 import { type Expr, TreequelError, expr, isExpr } from "@treequel/core";
-import { appendChild, chainTail, navName, resolveRelation } from "./include.js";
+import { appendChild, chainTail, navName, resolveRelation } from "./include-spec.js";
 import { type Grouping, applyOps } from "./memory-engine.js";
 import {
   type AnyExpr,

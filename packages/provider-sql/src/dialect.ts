@@ -1,4 +1,4 @@
-import type { TranslateContext } from "./translate.js";
+import type { TranslateContext } from "./context.js";
 
 export type StringMatch = "startsWith" | "endsWith" | "includes";
 

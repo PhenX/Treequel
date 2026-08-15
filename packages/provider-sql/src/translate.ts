@@ -1,139 +1,26 @@
-import { type Node, TreequelError } from "@treequel/core";
-import type { Relation, RelationsMeta } from "@treequel/linq";
-import { type SchemaMeta, type TableMeta, physicalColumn } from "./schema.js";
-import { type SqlDialect } from "./dialect.js";
-
 /**
- * How a lambda parameter resolves to SQL. A `table` shape maps properties
- * through schema meta to physical columns (`source` is its logical source
- * name, for navigation lookup); a `derived` shape maps them to the output
- * aliases of a subquery projection; a `scalar` shape is a single-value row
- * (`SELECT expr AS "value"`) whose parameter *is* the value.
+ * The recursive tree→SQL translator. {@link translate} switches on node kind
+ * and delegates: member paths (columns, JSONB, group keys, navigation and
+ * group counts), operators, string/array/template calls, and the correlated
+ * subqueries and aggregates that navigations and groups compile to.
  */
-export type ColumnShape =
-  | {
-      readonly kind: "table";
-      readonly alias: string;
-      readonly meta: TableMeta;
-      readonly source?: string;
-    }
-  | { readonly kind: "derived"; readonly alias: string; readonly columns: readonly string[] | null }
-  | { readonly kind: "scalar"; readonly alias: string }
-  | {
-      /** The `g` of a group projection: `key` parts plus the pre-group row shape. */
-      readonly kind: "group";
-      readonly keyParts: ReadonlyArray<{ readonly name: string | null; readonly sql: string }>;
-      readonly item: ColumnShape;
-    };
-
-/** Statement-wide surroundings for navigation subqueries (`EXISTS`). */
-export interface TranslateEnv {
-  readonly relations?: RelationsMeta;
-  readonly schema?: SchemaMeta;
-  /** Allocate a statement-unique table alias. */
-  readonly alias?: () => string;
-}
-
-/** Column name a scalar subquery projects its value under. */
-export const SCALAR_COLUMN = "value";
-
-// NUL delimits value markers: it cannot appear in generated SQL text, so a
-// marker never collides with identifiers, keywords, or literals.
-const NUL = String.fromCharCode(0);
-const MARKER = new RegExp(`${NUL}(\\d+)${NUL}`, "g");
-
-/**
- * State threaded through a single SQL statement's translation. `param()` emits
- * a position-independent marker; {@link finalizeSql} rewrites markers to the
- * dialect's placeholders in *textual* order and reorders the values to match —
- * translation order and clause order are free to differ (they do: a `WHERE`
- * folds before the `SELECT` list that precedes it in the statement).
- */
-export class TranslateContext {
-  readonly values: unknown[];
-  readonly env: TranslateEnv;
-  private readonly shapes: ReadonlyMap<string, ColumnShape> | ColumnShape;
-  private readonly parent?: TranslateContext;
-
-  constructor(
-    readonly dialect: SqlDialect,
-    shapes: ReadonlyMap<string, ColumnShape> | ColumnShape,
-    readonly loc?: string,
-    values: unknown[] = [],
-    env: TranslateEnv = {},
-    parent?: TranslateContext,
-  ) {
-    this.shapes = shapes;
-    this.values = values;
-    this.env = env;
-    this.parent = parent;
-  }
-
-  /**
-   * A context over new parameter bindings that shares this statement's values
-   * and env. The current bindings stay visible as the lexical parent scope, so
-   * a nested navigation lambda can still reference the outer row.
-   */
-  scoped(shapes: ReadonlyMap<string, ColumnShape> | ColumnShape): TranslateContext {
-    return new TranslateContext(this.dialect, shapes, this.loc, this.values, this.env, this);
-  }
-
-  /** Resolve a lambda parameter. A single (non-map) shape binds every parameter. */
-  shapeOf(param: string): ColumnShape | undefined {
-    if (this.shapes instanceof Map) {
-      return this.shapes.get(param) ?? this.parent?.shapeOf(param);
-    }
-    return this.shapes as ColumnShape;
-  }
-
-  param(value: unknown): string {
-    this.values.push(value);
-    return `${NUL}${this.values.length - 1}${NUL}`;
-  }
-
-  private located(detail: string): string {
-    return this.loc ? `${detail} (${this.loc})` : detail;
-  }
-
-  fail(code: string, detail: string): never {
-    throw new TreequelError(code, this.located(detail));
-  }
-}
-
-/** Rewrite param markers to dialect placeholders in textual order. */
-export function finalizeSql(
-  text: string,
-  values: readonly unknown[],
-  dialect: SqlDialect,
-): { text: string; values: unknown[] } {
-  const ordered: unknown[] = [];
-  const finalText = text.replace(MARKER, (_m, index: string) => {
-    ordered.push(values[Number(index)]);
-    return dialect.placeholder(ordered.length);
-  });
-  return { text: finalText, values: ordered };
-}
-
-export function quoteIdent(id: string): string {
-  return `"${id.replace(/"/g, '""')}"`;
-}
-
-/** Column reference for `prop` on rows of the given shape. */
-export function shapeColumn(shape: ColumnShape, prop: string, ctx: TranslateContext): string {
-  switch (shape.kind) {
-    case "table":
-      return `${quoteIdent(shape.alias)}.${quoteIdent(physicalColumn(shape.meta, prop))}`;
-    case "derived":
-      if (shape.columns && !shape.columns.includes(prop)) {
-        return ctx.fail("R2002", `Column '${prop}' is not part of the projected row.`);
-      }
-      return `${quoteIdent(shape.alias)}.${quoteIdent(prop)}`;
-    case "scalar":
-      return ctx.fail("R2002", `A scalar row has no column '${prop}'.`);
-    case "group":
-      return ctx.fail("R2002", `A group has no column '${prop}' — project from g.key and g.items.`);
-  }
-}
+import type { Node } from "@treequel/core";
+import {
+  type ColumnShape,
+  SCALAR_COLUMN,
+  type TranslateContext,
+  quoteIdent,
+  shapeColumn,
+} from "./context.js";
+import type { SqlDialect } from "./dialect.js";
+import { physicalColumn } from "./schema.js";
+import {
+  type GroupItemsChain,
+  type NavChain,
+  matchGroupItems,
+  matchNavChain,
+  reduceIdiom,
+} from "./patterns.js";
 
 const NUMERIC_BINARY: Record<string, string> = {
   "<": "<",
@@ -350,36 +237,6 @@ function translateCall(node: Extract<Node, { kind: "Call" }>, ctx: TranslateCont
 }
 
 /**
- * A navigation reference inside an expression: `param.nav`, optionally
- * extended by `.filter(l)` steps, resolved against the outer row's shape.
- */
-interface NavChain {
-  readonly rel: Relation;
-  readonly outer: Extract<ColumnShape, { kind: "table" }>;
-  readonly filters: ReadonlyArray<Extract<Node, { kind: "Lambda" }>>;
-}
-
-function matchNavChain(n: Node, ctx: TranslateContext): NavChain | null {
-  if (n.kind === "Member" && n.object.kind === "Param") {
-    const shape = ctx.shapeOf(n.object.name);
-    if (shape?.kind !== "table" || shape.source === undefined) return null;
-    const rel = ctx.env.relations?.[shape.source]?.[n.prop];
-    return rel ? { rel, outer: shape, filters: [] } : null;
-  }
-  if (
-    n.kind === "Call" &&
-    n.callee.kind === "Member" &&
-    n.callee.prop === "filter" &&
-    n.args[0]?.kind === "Lambda"
-  ) {
-    const base = matchNavChain(n.callee.object, ctx);
-    if (!base) return null;
-    return { ...base, filters: [...base.filters, n.args[0]] };
-  }
-  return null;
-}
-
-/**
  * `(SELECT <agg> FROM child WHERE key AND filters…)` for a navigation chain.
  * Each nested lambda translates in a child scope whose lexical parent is the
  * current scope, so inner predicates can still reference the outer row.
@@ -455,70 +312,6 @@ function translateNavQuantifier(
 }
 
 /**
- * The recognized reduce idioms — real JS whose SQL meaning is unambiguous:
- *  - sum: `reduce((acc, o) => acc + expr, seed)` with a constant numeric seed
- *  - min: `reduce((m, o) => Math.min(m, expr), Infinity)`
- *  - max: `reduce((m, o) => Math.max(m, expr), -Infinity)`
- * Anything else is refused, never guessed.
- */
-interface ReduceIdiom {
-  readonly agg: "SUM" | "MIN" | "MAX";
-  readonly selector: Node;
-  readonly element: string;
-  readonly seed: number;
-}
-
-function isMathGlobal(n: Node): boolean {
-  if (n.kind === "Capture" && n.name === "Math") return true;
-  return n.kind === "Constant" && n.value === Math;
-}
-
-function reduceIdiom(args: readonly Node[], ctx: TranslateContext): ReduceIdiom {
-  const shapeError = (): never =>
-    ctx.fail(
-      "R2001",
-      "Only the reduce idioms translate to SQL: the sum idiom " +
-        "`reduce((acc, o) => acc + expr, 0)` (constant numeric seed, `acc` on one side of `+`), " +
-        "`reduce((m, o) => Math.min(m, expr), Infinity)`, and the `Math.max`/`-Infinity` twin.",
-    );
-  const lambda = args[0];
-  const init = args[1];
-  if (
-    lambda?.kind !== "Lambda" ||
-    lambda.params.length < 2 ||
-    init?.kind !== "Constant" ||
-    typeof init.value !== "number"
-  ) {
-    return shapeError();
-  }
-  const acc = lambda.params[0] as string;
-  const element = lambda.params[1] as string;
-  const isAcc = (n: Node): boolean => n.kind === "Param" && n.name === acc;
-  const body = lambda.body;
-
-  if (body.kind === "Binary" && body.op === "+") {
-    const selector = isAcc(body.left) ? body.right : isAcc(body.right) ? body.left : null;
-    if (!selector || !Number.isFinite(init.value)) return shapeError();
-    return { agg: "SUM", selector, element, seed: init.value };
-  }
-  if (
-    body.kind === "Call" &&
-    body.callee.kind === "Member" &&
-    (body.callee.prop === "min" || body.callee.prop === "max") &&
-    isMathGlobal(body.callee.object) &&
-    body.args.length === 2
-  ) {
-    const agg = body.callee.prop === "min" ? "MIN" : "MAX";
-    const wanted = agg === "MIN" ? Infinity : -Infinity;
-    const [a, b] = body.args as [Node, Node];
-    const selector = isAcc(a) ? b : isAcc(b) ? a : null;
-    if (!selector || init.value !== wanted) return shapeError();
-    return { agg, selector, element, seed: init.value };
-  }
-  return shapeError();
-}
-
-/**
  * `reduce` over a navigation chain: the sum idiom only — an empty navigation
  * must yield the seed, which `COALESCE(SUM…, 0)` matches; `MIN`/`MAX` over an
  * empty set is `NULL`, not the JS seed, so those idioms stay group-only.
@@ -544,30 +337,6 @@ function translateNavReduce(recv: Node, args: readonly Node[], ctx: TranslateCon
   });
   const coalesced = `COALESCE(${sum}, 0)`;
   return idiom.seed === 0 ? coalesced : `(${ctx.param(idiom.seed)} + ${coalesced})`;
-}
-
-/** `g.items` (optionally `.filter(l)`-extended) under a group shape. */
-interface GroupItemsChain {
-  readonly group: Extract<ColumnShape, { kind: "group" }>;
-  readonly filters: ReadonlyArray<Extract<Node, { kind: "Lambda" }>>;
-}
-
-function matchGroupItems(n: Node, ctx: TranslateContext): GroupItemsChain | null {
-  if (n.kind === "Member" && n.prop === "items" && n.object.kind === "Param") {
-    const shape = ctx.shapeOf(n.object.name);
-    return shape?.kind === "group" ? { group: shape, filters: [] } : null;
-  }
-  if (
-    n.kind === "Call" &&
-    n.callee.kind === "Member" &&
-    n.callee.prop === "filter" &&
-    n.args[0]?.kind === "Lambda"
-  ) {
-    const base = matchGroupItems(n.callee.object, ctx);
-    if (!base) return null;
-    return { ...base, filters: [...base.filters, n.args[0]] };
-  }
-  return null;
 }
 
 /** A filter chain becomes a CASE guard inside the aggregate. */

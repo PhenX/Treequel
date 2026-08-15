@@ -11,6 +11,9 @@ export default defineConfig({
   cleanUrls: true,
   lastUpdated: true,
   // The playground is a separate app copied into the site, not a VitePress page.
+  // Every link to it must carry `target: "_self"`: the SPA router skips links
+  // with a target attribute and does a full page load, instead of resolving
+  // /playground/ as a (nonexistent) route and rendering the 404 page.
   ignoreDeadLinks: [/^\/playground\//],
   themeConfig: {
     nav: [
@@ -30,6 +33,13 @@ export default defineConfig({
             { text: "Grouping & aggregates", link: "/guide/grouping" },
             { text: "The boundary rule", link: "/guide/the-boundary-rule" },
             { text: "Writing a provider", link: "/guide/writing-a-provider" },
+          ],
+        },
+        {
+          text: "Background",
+          items: [
+            { text: "The C# lineage", link: "/guide/lineage" },
+            { text: "Compared to ORMs & EF Core", link: "/guide/comparison" },
           ],
         },
         {

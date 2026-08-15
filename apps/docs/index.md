@@ -11,6 +11,7 @@ hero:
     - theme: alt
       text: Try the playground
       link: /playground/
+      target: _self
     - theme: alt
       text: The subset
       link: /guide/the-subset

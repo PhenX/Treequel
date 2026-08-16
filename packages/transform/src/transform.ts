@@ -29,6 +29,13 @@ const LINQ_METHODS = new Set([
 
 const HOST_ALIAS = "__tql_expr$";
 
+/** The module specifier and named binding a reified module imports the host from. */
+export const HOST_IMPORT: {
+  readonly source: string;
+  readonly imported: string;
+  readonly local: string;
+} = { source: "@treequel/core", imported: "__expr", local: HOST_ALIAS };
+
 export interface TransformOptions {
   /** Traced import sources. Default: `["@treequel/linq"]`. */
   readonly packages?: readonly string[];
@@ -40,10 +47,24 @@ export interface TransformOptions {
   readonly registry?: ContextRegistry;
 }
 
+/**
+ * Async host: a bundler that can resolve a specifier and ask for another module
+ * to be transformed on demand, so the context registry fills in lazily.
+ */
 export interface TransformHost {
   resolve(id: string, importer: string): Promise<string | null> | string | null;
   /** Ask the bundler to transform/scan a module so the registry is populated. */
   load(id: string): Promise<void> | void;
+}
+
+/**
+ * Synchronous host: resolves a specifier to a module id. There is no `load` —
+ * the registry must already be populated (a whole-program pre-scan). Used by
+ * hosts that run the transform synchronously, such as a TypeScript-compiler
+ * transformer.
+ */
+export interface SyncTransformHost {
+  resolve(id: string, importer: string): string | null;
 }
 
 export interface ContextRegistry {
@@ -60,6 +81,25 @@ export interface TransformResult {
   readonly map: ReturnType<MagicString["generateMap"]>;
   readonly diagnostics: readonly Diagnostic[];
   /** Number of lambdas reified (for tests / stats). */
+  readonly count: number;
+}
+
+/**
+ * A single source replacement in the original module's coordinates: the span of
+ * the node to replace (`expr(...)` wrapper or bare arrow) and the `__expr({...})`
+ * text that stands in for it. AST-level hosts apply these directly; text-level
+ * hosts get the spliced string from {@link transformModule}.
+ */
+export interface ReifyEdit {
+  readonly start: number;
+  readonly end: number;
+  readonly replacement: string;
+}
+
+export interface ReifyPlan {
+  readonly edits: readonly ReifyEdit[];
+  readonly diagnostics: readonly Diagnostic[];
+  /** Number of lambdas reified. When `> 0`, the host also imports {@link HOST_IMPORT}. */
   readonly count: number;
 }
 
@@ -108,20 +148,73 @@ function unwrap(n: AnyNode): AnyNode {
   return cur;
 }
 
-/**
- * The pure per-module transform: reify lambda literals written at traced query
- * call sites (or wrapped in `expr()`) into `__expr({...})`. Bundler-free — any
- * host can drive it. Returns `null` when the module needs no change.
- */
-export async function transformModule(
-  code: string,
-  id: string,
-  options: TransformOptions = {},
-  host?: TransformHost,
-): Promise<TransformResult | null> {
-  const packages = options.packages ?? ["@treequel/linq"];
-  const emitSource = options.emitSource ?? true;
+/** A `createContext()` call: a bare traced import, or `r.createContext()` on a namespace import. */
+function makeIsCreateContextCall(
+  createLocals: ReadonlySet<string>,
+  namespaceLocals: ReadonlySet<string>,
+): (n: AnyNode) => boolean {
+  return function isCreateContextCall(n: AnyNode): boolean {
+    if (n.type !== "CallExpression") return false;
+    const callee = n.callee as AnyNode;
+    if (callee.type === "Identifier") return createLocals.has(callee.name as string);
+    if (callee.type === "MemberExpression") {
+      const obj = callee.object as AnyNode;
+      const prop = callee.property as AnyNode;
+      return (
+        obj.type === "Identifier" &&
+        namespaceLocals.has(obj.name as string) &&
+        prop.type === "Identifier" &&
+        prop.name === "createContext"
+      );
+    }
+    return false;
+  };
+}
 
+/** Names bound to a `createContext()` result at a module's top level. */
+function collectModuleContexts(
+  program: { body: AnyNode[] },
+  isCreateContextCall: (n: AnyNode) => boolean,
+): Set<string> {
+  const names = new Set<string>();
+  for (const stmt of program.body) {
+    const decl =
+      stmt.type === "ExportNamedDeclaration" ? (stmt.declaration as AnyNode | null) : null;
+    const varDecl =
+      decl?.type === "VariableDeclaration"
+        ? decl
+        : stmt.type === "VariableDeclaration"
+          ? stmt
+          : null;
+    if (!varDecl) continue;
+    for (const d of (varDecl.declarations as AnyNode[]) ?? []) {
+      if (
+        (d.id as AnyNode)?.type === "Identifier" &&
+        d.init &&
+        isCreateContextCall(d.init as AnyNode)
+      ) {
+        names.add((d.id as { name: string }).name);
+      }
+    }
+  }
+  return names;
+}
+
+/** The parse + import-collection stage, shared by every entry point. */
+interface Analysis {
+  readonly program: { body: AnyNode[] };
+  readonly exprLocals: ReadonlySet<string>;
+  readonly namespaceLocals: ReadonlySet<string>;
+  readonly importedBindings: ReadonlyMap<string, { source: string; imported: string }>;
+  readonly isCreateContextCall: (n: AnyNode) => boolean;
+}
+
+/**
+ * Cheap pre-scan, parse and import collection. Returns `null` when the module
+ * cannot contain a reification target (no traced package and no `expr(`), or
+ * when it fails to parse.
+ */
+function analyze(code: string, id: string, packages: readonly string[]): Analysis | null {
   // Cheap pre-scan: bail unless the module references a traced package or expr(.
   if (!packages.some((p) => code.includes(p)) && !/\bexpr\s*\(/.test(code)) {
     return null;
@@ -131,7 +224,6 @@ export async function transformModule(
   if (parsed.errors.length > 0) return null;
   const program = parsed.program as unknown as { body: AnyNode[] };
 
-  // --- 1. collect imports -------------------------------------------------
   const createLocals = new Set<string>();
   const exprLocals = new Set<string>();
   const namespaceLocals = new Set<string>();
@@ -157,24 +249,56 @@ export async function transformModule(
     }
   }
 
-  const isCreateContextCall = (n: AnyNode): boolean => {
-    if (n.type !== "CallExpression") return false;
-    const callee = n.callee as AnyNode;
-    if (callee.type === "Identifier") return createLocals.has(callee.name as string);
-    if (callee.type === "MemberExpression") {
-      const obj = callee.object as AnyNode;
-      const prop = callee.property as AnyNode;
-      return (
-        obj.type === "Identifier" &&
-        namespaceLocals.has(obj.name as string) &&
-        prop.type === "Identifier" &&
-        prop.name === "createContext"
-      );
-    }
-    return false;
+  return {
+    program,
+    exprLocals,
+    namespaceLocals,
+    importedBindings,
+    isCreateContextCall: makeIsCreateContextCall(createLocals, namespaceLocals),
   };
+}
 
-  // --- 2. taint (intra-module) -------------------------------------------
+/** Register this module's own exported contexts so other modules can find them. */
+function registerContexts(registry: ContextRegistry, id: string, analysis: Analysis): void {
+  const names = collectModuleContexts(analysis.program, analysis.isCreateContextCall);
+  if (names.size === 0) return;
+  const existing = registry.contexts.get(id) ?? new Set<string>();
+  for (const nm of names) existing.add(nm);
+  registry.contexts.set(id, existing);
+}
+
+/** Synchronously resolve which imported bindings name a cross-module context. */
+function resolveCrossLocalsSync(
+  analysis: Analysis,
+  registry: ContextRegistry,
+  host: SyncTransformHost,
+  id: string,
+): Set<string> {
+  const crossLocals = new Set<string>();
+  for (const [local, { source, imported }] of analysis.importedBindings) {
+    if (!source.startsWith(".") && !source.startsWith("/")) continue;
+    const resolved = host.resolve(source, id);
+    if (!resolved) continue;
+    if (registry.contexts.get(resolved)?.has(imported)) crossLocals.add(local);
+  }
+  return crossLocals;
+}
+
+/** A reification target: a bare arrow, or an arrow wrapped in an `expr(...)` call. */
+interface Target {
+  readonly arrow: AnyNode;
+  readonly exprCall?: AnyNode;
+}
+
+/**
+ * Intra-module taint plus expression-position detection. `crossLocals` names the
+ * bindings a host resolved to a cross-module context; they taint after the
+ * intra-module fixpoint. Returns the outermost targets, source-ordered.
+ */
+function detectTargets(analysis: Analysis, crossLocals: ReadonlySet<string>): Target[] {
+  const { program, exprLocals, namespaceLocals, isCreateContextCall } = analysis;
+
+  // --- taint (intra-module) ----------------------------------------------
   const taint = new Set<string>();
   const declarators: Array<{ name: string; init: AnyNode }> = [];
   walk(program, (n) => {
@@ -210,56 +334,13 @@ export async function transformModule(
     }
   }
 
-  // --- 3. cross-module context resolution (best effort) -------------------
-  if (host && options.registry && importedBindings.size > 0) {
-    for (const [local, { source, imported }] of importedBindings) {
-      // Only chase relative imports — a context lives in a project module, never a package.
-      if (!source.startsWith(".") && !source.startsWith("/")) continue;
-      const resolved = await host.resolve(source, id);
-      if (!resolved) continue;
-      let names = options.registry.contexts.get(resolved);
-      if (!names) {
-        await host.load(resolved);
-        names = options.registry.contexts.get(resolved);
-      }
-      if (names?.has(imported)) taint.add(local);
-    }
-  }
+  // A binding a host resolved to a cross-module context taints directly.
+  for (const local of crossLocals) taint.add(local);
 
-  // Register this module's own exported contexts for other modules to find.
-  if (options.registry) {
-    const names = new Set<string>();
-    for (const stmt of program.body) {
-      const decl =
-        stmt.type === "ExportNamedDeclaration" ? (stmt.declaration as AnyNode | null) : null;
-      const varDecl =
-        decl?.type === "VariableDeclaration"
-          ? decl
-          : stmt.type === "VariableDeclaration"
-            ? stmt
-            : null;
-      if (!varDecl) continue;
-      for (const d of (varDecl.declarations as AnyNode[]) ?? []) {
-        if (
-          (d.id as AnyNode)?.type === "Identifier" &&
-          d.init &&
-          isCreateContextCall(d.init as AnyNode)
-        ) {
-          names.add((d.id as { name: string }).name);
-        }
-      }
-    }
-    if (names.size > 0) {
-      const existing = options.registry.contexts.get(id) ?? new Set<string>();
-      for (const nm of names) existing.add(nm);
-      options.registry.contexts.set(id, existing);
-    }
-  }
-
-  // --- 4. detect expression positions ------------------------------------
+  // --- detect expression positions ---------------------------------------
   // `exprCall` set → the whole `expr(...)` wrapper is replaced by the host;
   // otherwise the arrow is wrapped in place as a query-method argument.
-  const targets: Array<{ arrow: AnyNode; exprCall?: AnyNode }> = [];
+  const targets: Target[] = [];
   walk(program, (n) => {
     if (n.type !== "CallExpression") return;
     const callee = n.callee as AnyNode;
@@ -302,8 +383,8 @@ export async function transformModule(
         typeof param.name === "string"
       ) {
         const builder = param.name as string;
-        const rootsAtBuilder = (n: AnyNode): boolean => {
-          const u = unwrap(n);
+        const rootsAtBuilder = (m: AnyNode): boolean => {
+          const u = unwrap(m);
           if (u.type === "Identifier") return u.name === builder;
           if (u.type === "MemberExpression") return rootsAtBuilder(u.object as AnyNode);
           if (u.type === "CallExpression") return rootsAtBuilder(u.callee as AnyNode);
@@ -340,8 +421,6 @@ export async function transformModule(
     }
   });
 
-  if (targets.length === 0) return null;
-
   // Keep only outermost arrows (drop any nested inside another target).
   const outer = targets.filter(
     (t) =>
@@ -350,38 +429,71 @@ export async function transformModule(
       ),
   );
   outer.sort((a, b) => a.arrow.start - b.arrow.start);
+  return outer;
+}
 
-  // --- 5. capture + splice ------------------------------------------------
+/** The `__expr({...})` prefix/suffix around a lambda, or `null` if it left the subset. */
+interface Capture {
+  readonly prefix: string;
+  readonly suffix: string;
+  readonly diagnostics: readonly Diagnostic[];
+  readonly ok: boolean;
+}
+
+function captureArrow(
+  code: string,
+  id: string,
+  options: TransformOptions,
+  arrow: AnyNode,
+): Capture {
+  const result = capture(arrow as never, adapterOxc, { globals: options.globals });
+  if (result.body === null) {
+    return { prefix: "", suffix: "", diagnostics: result.diagnostics, ok: false };
+  }
+  const emitSource = options.emitSource ?? true;
+  const scopeObj = result.freeVars.length > 0 ? `{${result.freeVars.join(",")}}` : "{}";
+  const { line, col } = offsetToLineCol(code, arrow.start);
+  const loc = `${id}:${line}:${col}`;
+  const srcText = code.slice(arrow.start, arrow.end);
+
+  const prefix = `${HOST_ALIAS}({v:1,compiled:`;
+  const suffix =
+    `,params:${JSON.stringify(result.params)}` +
+    `,body:${emitNode(result.body)}` +
+    `,scope:()=>(${scopeObj})` +
+    (emitSource ? `,src:${JSON.stringify(srcText)}` : "") +
+    `,loc:${JSON.stringify(loc)}})`;
+  return { prefix, suffix, diagnostics: result.diagnostics, ok: true };
+}
+
+/** Text output: splice `__expr({...})` in with magic-string, preserving source spans. */
+function reify(
+  code: string,
+  id: string,
+  options: TransformOptions,
+  analysis: Analysis,
+  crossLocals: ReadonlySet<string>,
+): TransformResult | null {
+  const outer = detectTargets(analysis, crossLocals);
+  if (outer.length === 0) return null;
+
   const s = new MagicString(code);
   const diagnostics: Diagnostic[] = [];
   let count = 0;
 
   for (const { arrow, exprCall } of outer) {
-    const result = capture(arrow as never, adapterOxc, { globals: options.globals });
-    diagnostics.push(...result.diagnostics);
-    if (result.body === null) continue; // errors — leave the lambda untouched
-
-    const scopeObj = result.freeVars.length > 0 ? `{${result.freeVars.join(",")}}` : "{}";
-    const { line, col } = offsetToLineCol(code, arrow.start);
-    const loc = `${id}:${line}:${col}`;
-    const srcText = code.slice(arrow.start, arrow.end);
-
-    const prefix = `${HOST_ALIAS}({v:1,compiled:`;
-    const suffix =
-      `,params:${JSON.stringify(result.params)}` +
-      `,body:${emitNode(result.body)}` +
-      `,scope:()=>(${scopeObj})` +
-      (emitSource ? `,src:${JSON.stringify(srcText)}` : "") +
-      `,loc:${JSON.stringify(loc)}})`;
+    const cap = captureArrow(code, id, options, arrow);
+    diagnostics.push(...cap.diagnostics);
+    if (!cap.ok) continue; // errors — leave the lambda untouched
 
     if (exprCall) {
       // Replace the whole `expr( … )` wrapper, keeping the arrow as `compiled`.
-      s.overwrite(exprCall.start, arrow.start, prefix);
-      s.overwrite(arrow.end, exprCall.end, suffix);
+      s.overwrite(exprCall.start, arrow.start, cap.prefix);
+      s.overwrite(arrow.end, exprCall.end, cap.suffix);
     } else {
       // Wrap the arrow in place as a query-method argument.
-      s.appendLeft(arrow.start, prefix);
-      s.appendRight(arrow.end, suffix);
+      s.appendLeft(arrow.start, cap.prefix);
+      s.appendRight(arrow.end, cap.suffix);
     }
     count++;
   }
@@ -390,7 +502,9 @@ export async function transformModule(
     return { code, map: s.generateMap({ hires: true }), diagnostics, count: 0 };
   }
 
-  s.prepend(`import { __expr as ${HOST_ALIAS} } from "@treequel/core";\n`);
+  s.prepend(
+    `import { ${HOST_IMPORT.imported} as ${HOST_IMPORT.local} } from "${HOST_IMPORT.source}";\n`,
+  );
 
   return {
     code: s.toString(),
@@ -398,4 +512,146 @@ export async function transformModule(
     diagnostics,
     count,
   };
+}
+
+/** Edit-list output: the same reification expressed as node-span replacements. */
+function planReify(
+  code: string,
+  id: string,
+  options: TransformOptions,
+  analysis: Analysis,
+  crossLocals: ReadonlySet<string>,
+): ReifyPlan | null {
+  const outer = detectTargets(analysis, crossLocals);
+  if (outer.length === 0) return null;
+
+  const edits: ReifyEdit[] = [];
+  const diagnostics: Diagnostic[] = [];
+  let count = 0;
+
+  for (const { arrow, exprCall } of outer) {
+    const cap = captureArrow(code, id, options, arrow);
+    diagnostics.push(...cap.diagnostics);
+    if (!cap.ok) continue;
+
+    const start = exprCall ? exprCall.start : arrow.start;
+    const end = exprCall ? exprCall.end : arrow.end;
+    edits.push({
+      start,
+      end,
+      replacement: cap.prefix + code.slice(arrow.start, arrow.end) + cap.suffix,
+    });
+    count++;
+  }
+
+  return { edits, diagnostics, count };
+}
+
+/**
+ * The pure per-module transform: reify lambda literals written at traced query
+ * call sites (or wrapped in `expr()`) into `__expr({...})`. Bundler-free — any
+ * host can drive it. Returns `null` when the module needs no change.
+ */
+export async function transformModule(
+  code: string,
+  id: string,
+  options: TransformOptions = {},
+  host?: TransformHost,
+): Promise<TransformResult | null> {
+  const packages = options.packages ?? ["@treequel/linq"];
+  const analysis = analyze(code, id, packages);
+  if (!analysis) return null;
+
+  // Register this module's own exported contexts for other modules to find.
+  if (options.registry) registerContexts(options.registry, id, analysis);
+
+  // Cross-module context resolution (best effort): chase relative imports whose
+  // resolved module exports a context, loading it on demand to fill the registry.
+  const crossLocals = new Set<string>();
+  if (host && options.registry && analysis.importedBindings.size > 0) {
+    for (const [local, { source, imported }] of analysis.importedBindings) {
+      // Only chase relative imports — a context lives in a project module, never a package.
+      if (!source.startsWith(".") && !source.startsWith("/")) continue;
+      const resolved = await host.resolve(source, id);
+      if (!resolved) continue;
+      let names = options.registry.contexts.get(resolved);
+      if (!names) {
+        await host.load(resolved);
+        names = options.registry.contexts.get(resolved);
+      }
+      if (names?.has(imported)) crossLocals.add(local);
+    }
+  }
+
+  return reify(code, id, options, analysis, crossLocals);
+}
+
+/**
+ * Synchronous sibling of {@link transformModule} for hosts that cannot await —
+ * a TypeScript-compiler transformer runs during emit, which is synchronous.
+ * Cross-module contexts are resolved through a synchronous {@link SyncTransformHost}
+ * against an already-populated registry (there is no on-demand `load`); pre-scan
+ * the whole program with {@link scanModuleContexts} to fill it first.
+ */
+export function transformModuleSync(
+  code: string,
+  id: string,
+  options: TransformOptions = {},
+  host?: SyncTransformHost,
+): TransformResult | null {
+  const packages = options.packages ?? ["@treequel/linq"];
+  const analysis = analyze(code, id, packages);
+  if (!analysis) return null;
+
+  if (options.registry) registerContexts(options.registry, id, analysis);
+
+  const crossLocals =
+    host && options.registry && analysis.importedBindings.size > 0
+      ? resolveCrossLocalsSync(analysis, options.registry, host, id)
+      : new Set<string>();
+
+  return reify(code, id, options, analysis, crossLocals);
+}
+
+/**
+ * Reification as a list of node-span replacements in the original module's
+ * coordinates, for hosts that edit an AST rather than text (a TypeScript-compiler
+ * transformer replaces the matched nodes and imports {@link HOST_IMPORT}). Same
+ * detection and capture as {@link transformModuleSync}; returns `null` when the
+ * module needs no change.
+ */
+export function planModuleSync(
+  code: string,
+  id: string,
+  options: TransformOptions = {},
+  host?: SyncTransformHost,
+): ReifyPlan | null {
+  const packages = options.packages ?? ["@treequel/linq"];
+  const analysis = analyze(code, id, packages);
+  if (!analysis) return null;
+
+  if (options.registry) registerContexts(options.registry, id, analysis);
+
+  const crossLocals =
+    host && options.registry && analysis.importedBindings.size > 0
+      ? resolveCrossLocalsSync(analysis, options.registry, host, id)
+      : new Set<string>();
+
+  return planReify(code, id, options, analysis, crossLocals);
+}
+
+/**
+ * Names bound to a `createContext()` result at a module's top level, without
+ * transforming it. A synchronous host pre-scans every module with this to build
+ * the cross-module context registry before it starts transforming.
+ */
+export function scanModuleContexts(
+  code: string,
+  id: string,
+  options: TransformOptions = {},
+): readonly string[] {
+  const packages = options.packages ?? ["@treequel/linq"];
+  const analysis = analyze(code, id, packages);
+  if (!analysis) return [];
+  return [...collectModuleContexts(analysis.program, analysis.isCreateContextCall)];
 }

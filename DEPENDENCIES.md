@@ -20,6 +20,7 @@ Runtime packages (`tree`, `core`, `linq`, `provider-memory`, `sql-core`) carry *
 | Package | Peer | Why |
 |---|---|---|
 | `@treequel/ts-plugin` | `typescript` (≥ 5) | It is a TypeScript language-service plugin. |
+| `@treequel/ts-transformer` | `typescript` (≥ 5) | It is a TypeScript-compiler emit transformer; the compiler is the host, brought by the user. |
 | `@treequel/eslint-plugin` | `eslint` (≥ 8) | It is an ESLint plugin; ESLint deps stay scoped to this package. |
 
 ## Repository devDependencies

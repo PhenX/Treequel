@@ -32,6 +32,7 @@ const ALLOWED = {
   "provider-sqlite": { internal: ["sql-core"], external: [] },
   transform: { internal: ["capture"], external: ["oxc-parser", "magic-string"] },
   vite: { internal: ["transform"], external: [] },
+  "ts-transformer": { internal: ["transform"], external: [] },
   fallback: { internal: ["core", "capture"], external: ["meriyah"] },
   "ts-plugin": { internal: ["capture"], external: ["oxc-parser"] },
   "eslint-plugin": { internal: ["capture"], external: [] },

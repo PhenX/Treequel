@@ -35,6 +35,7 @@ export const SCOPES = [
   "fallback",
   "transform",
   "vite",
+  "ts-transformer",
   "linq",
   "memory",
   "sql",

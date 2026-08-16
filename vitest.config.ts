@@ -35,6 +35,7 @@ export default defineConfig({
       "@treequel/fallback": pkg("fallback"),
       "@treequel/transform": pkg("transform"),
       "@treequel/vite": pkg("vite"),
+      "@treequel/ts-transformer": pkg("ts-transformer"),
       "@treequel/linq/testing": pkg("linq", "src/testing.ts"),
       "@treequel/linq": pkg("linq"),
       "@treequel/provider-memory": pkg("provider-memory"),

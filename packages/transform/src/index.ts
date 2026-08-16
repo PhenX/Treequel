@@ -6,10 +6,17 @@
  */
 export {
   type ContextRegistry,
+  type ReifyEdit,
+  type ReifyPlan,
+  type SyncTransformHost,
   type TransformHost,
   type TransformOptions,
   type TransformResult,
+  HOST_IMPORT,
   createRegistry,
+  planModuleSync,
+  scanModuleContexts,
   transformModule,
+  transformModuleSync,
 } from "./transform.js";
 export { emitNode, offsetToLineCol } from "./emit.js";

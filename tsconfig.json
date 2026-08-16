@@ -8,6 +8,7 @@
     { "path": "packages/fallback" },
     { "path": "packages/transform" },
     { "path": "packages/vite" },
+    { "path": "packages/ts-transformer" },
     { "path": "packages/linq" },
     { "path": "packages/provider-memory" },
     { "path": "packages/sql-core" },

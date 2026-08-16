@@ -32,6 +32,7 @@ export default defineConfig({
             { text: "Joins & includes", link: "/guide/joins-and-includes" },
             { text: "Grouping & aggregates", link: "/guide/grouping" },
             { text: "The boundary rule", link: "/guide/the-boundary-rule" },
+            { text: "Compiling with tsc", link: "/guide/compiling-with-tsc" },
             { text: "Writing a provider", link: "/guide/writing-a-provider" },
             { text: "Beyond queries", link: "/guide/beyond-queries" },
           ],

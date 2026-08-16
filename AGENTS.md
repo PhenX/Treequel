@@ -15,6 +15,7 @@ Read the section covering the area you are editing, in addition to this file:
 | `packages/tree/` — node kinds, wire format, (de)serialization | plan §5 |
 | `packages/capture/` — subset validator, free-variable analysis, serializer | plan §6, §13 |
 | `packages/transform/`, `packages/vite/` — build transform & plugin | plan §7 |
+| `packages/ts-transformer/` — TypeScript-compiler transformer (ts-patch) | plan §7 + [area guide](packages/ts-transformer/AGENTS.md) |
 | `packages/core/` — `Expr`, visitor/rewriter, partial evaluation | plan §8 |
 | `packages/fallback/` — runtime `toString()` path | plan §8.4 |
 | `packages/linq/` — `Queryable`, `QueryPlan`, provider protocol | plan §9 |
@@ -34,7 +35,7 @@ departure from the plan gets an ADR (`docs/adr/NNNN-*.md`) recording what change
 
 ## Repo status
 
-**M0–M7 landed, bar the 0.1 publish.** All thirteen `@treequel/*` packages are implemented, typechecked (`tsc -b`) and
+**M0–M7 landed, bar the 0.1 publish.** All fourteen `@treequel/*` packages are implemented, typechecked (`tsc -b`) and
 tested (Vitest, including fast-check property tests — serialize round-trip, partial-eval invariants, and a generative
 SQL≡memory reference on PGlite — and `tsc`-checked `F | Expr<F>` type tests under `type-tests/`).
 The toolchain (npm workspaces, tsdown, project references, oxlint + oxfmt gated in `npm run verify`), `check-graph.mjs`,
@@ -44,10 +45,12 @@ examples are in place. The **M7** surface exists too: the VitePress docs site (`
 tree-schema pages, the playground (`apps/playground`), the manually dispatched **Release** workflow, and the community
 health files (code of conduct, issue forms, CODEOWNERS). Pulled ahead of the plan's post-0.1 backlog, the SQL providers
 split into **`@treequel/provider-postgres`** and **`@treequel/provider-sqlite`** over a shared **`@treequel/sql-core`**
-core (the `SqlDialect` seam + `makeSqlProvider`), so there are now thirteen `@treequel/*` packages (ADR-0003). Also
-ahead of plan: **first-class `leftJoin` and EF-style `include`/`thenInclude`** (relations declared via
+core (the `SqlDialect` seam + `makeSqlProvider`), which brought the count to thirteen `@treequel/*` packages
+(ADR-0003). Also ahead of plan: **first-class `leftJoin` and EF-style `include`/`thenInclude`** (relations declared via
 `defineRelations`, split-query batching in SQL, layered SQL compile with derived-table wrapping — ADR-0004), with the
-conformance corpus running on PGlite and sql.js. **The one
+conformance corpus running on PGlite and sql.js, and **`@treequel/ts-transformer`** — a TypeScript-compiler emit
+transformer (ts-patch or the compiler API) for `tsc`-only builds with no bundler, a thin host over `@treequel/transform`
+(ADR-0012) — bringing the total to fourteen. **The one
 remaining step is dispatching the Release workflow to publish `0.1.0`.** **Update this paragraph as milestones
 complete.**
 
@@ -144,9 +147,10 @@ Format `type(scope): subject` ([Conventional Commits](https://www.conventionalco
 under `scripts/` is the source of truth once M0 lands, and CI lints the full PR range.
 
 - **type** — `feat` `fix` `perf` `docs` `chore` `ci` `refactor` `test` `build` `style` `revert`
-- **scope** — closed list, anything else fails: `tree` `core` `capture` `fallback` `transform` `vite` `linq` `memory`
-  `sql` `ts-plugin` `eslint-plugin` `docs` `playground` `examples` `tooling` `ci` `deps` `release`. Optional but
-  include the best fit; never invent one (a change to the pg dialect table is `fix(sql)`, not `fix(dialect)`).
+- **scope** — closed list, anything else fails: `tree` `core` `capture` `fallback` `transform` `vite` `ts-transformer`
+  `linq` `memory` `sql` `ts-plugin` `eslint-plugin` `docs` `playground` `examples` `tooling` `ci` `deps` `release`.
+  Optional but include the best fit; never invent one (a change to the pg dialect table is `fix(sql)`, not
+  `fix(dialect)`).
 - **subject** — lower-case start, imperative mood, no trailing period, full header ≤ 100 chars.
 - Versioning is lockstep (one version for all `@treequel/*`, chosen at release time), so types don't drive bumps —
   they drive the generated changelog. Pick them honestly: `feat`/`fix` are user-visible; a `!` or `BREAKING CHANGE:`

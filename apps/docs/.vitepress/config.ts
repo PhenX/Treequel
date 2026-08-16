@@ -33,6 +33,7 @@ export default defineConfig({
             { text: "Grouping & aggregates", link: "/guide/grouping" },
             { text: "The boundary rule", link: "/guide/the-boundary-rule" },
             { text: "Writing a provider", link: "/guide/writing-a-provider" },
+            { text: "Beyond queries", link: "/guide/beyond-queries" },
           ],
         },
         {

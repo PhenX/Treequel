@@ -22,8 +22,8 @@ features:
     linkText: Getting started
   - title: A small closed tree
     details: The wire format is a versioned, JSON-serializable algebra with zero dependencies. Providers are pure translators over a finite grammar — SQL first, then anything.
-    link: /reference/tree-schema
-    linkText: Tree JSON schema
+    link: /guide/beyond-queries
+    linkText: Beyond queries
   - title: One shared validator
     details: The subset validator, free-variable analysis, and serializer live once and back the build, the editor, the ESLint rule, and the runtime fallback — so they never disagree about what is legal.
     link: /guide/the-subset

@@ -1,7 +1,8 @@
 # Writing a provider
 
 A provider is a pure translator over the closed tree grammar. Third-party providers are the point of the project —
-SQL is the first, not the only one.
+SQL is the first, not the only one. [Beyond queries](/guide/beyond-queries) surveys the targets a provider can reach
+and the other things the tree is good for.
 
 ## The interface
 

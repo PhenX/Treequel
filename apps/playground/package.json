@@ -15,7 +15,8 @@
     "@treequel/linq": "*",
     "@treequel/provider-postgres": "*",
     "@treequel/transform": "*",
-    "@treequel/tree": "*"
+    "@treequel/tree": "*",
+    "monaco-editor": "0.56.0"
   },
   "devDependencies": {
     "vite": "^5.4.0"

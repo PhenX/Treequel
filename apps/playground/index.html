@@ -23,15 +23,13 @@
         <label>Samples</label>
         <div id="samples" class="samples"></div>
 
-        <label for="lambda">Query lambda</label>
-        <textarea id="lambda" spellcheck="false" rows="4">
-u => u.age >= minAge && u.name.startsWith(prefix)</textarea>
+        <label id="lambda-label">Query lambda</label>
+        <div id="lambda" class="editor" aria-labelledby="lambda-label"></div>
 
-        <label for="captures"
-          >Captured values (JSON) — folded into the query at execution time</label
-        >
-        <textarea id="captures" spellcheck="false" rows="2">
-{ "minAge": 18, "prefix": "A" }</textarea>
+        <label id="captures-label">
+          Captured values (JSON) — folded into the query at execution time
+        </label>
+        <div id="captures" class="editor" aria-labelledby="captures-label"></div>
 
         <div id="diagnostics" class="diagnostics" aria-live="polite"></div>
       </section>
@@ -39,19 +37,19 @@ u => u.age >= minAge && u.name.startsWith(prefix)</textarea>
       <section class="output">
         <div class="panel">
           <h2>Expression tree</h2>
-          <pre id="pretty"></pre>
+          <div id="pretty" class="viewer"></div>
         </div>
         <div class="panel">
           <h2>Emitted host <span class="hint">what the build plugin splices in</span></h2>
-          <pre id="emitted"></pre>
+          <div id="emitted" class="viewer"></div>
         </div>
         <div class="panel">
           <h2>SQL <span class="hint">via @treequel/sql-core</span></h2>
-          <pre id="sql"></pre>
+          <div id="sql" class="viewer"></div>
         </div>
         <div class="panel">
           <h2>Serialized tree <span class="hint">the JSON wire format</span></h2>
-          <pre id="json"></pre>
+          <div id="json" class="viewer"></div>
         </div>
       </section>
     </main>

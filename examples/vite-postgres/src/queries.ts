@@ -1,4 +1,4 @@
-import { type Context, expr } from "@treequel/linq";
+import { type Context, expr } from "@treequel/query";
 import type { Schema, User } from "./schema.js";
 
 /**

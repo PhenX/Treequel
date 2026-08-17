@@ -6,7 +6,7 @@
  */
 import { enableFallback } from "@treequel/fallback";
 import { type SchemaMeta, type SqlExecutor, postgres } from "@treequel/provider-postgres";
-import { createContext } from "@treequel/linq";
+import { createContext } from "@treequel/query";
 import { memoryProvider } from "@treequel/provider-memory";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 

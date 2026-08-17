@@ -4,8 +4,9 @@
   "description": "The Treequel expression-tree wire format: node types, (de)serialization, JSON schema. Zero dependencies.",
   "keywords": [
     "ast",
+    "code-as-data",
     "expression-tree",
-    "linq",
+    "serialization",
     "treequel"
   ],
   "license": "MIT",

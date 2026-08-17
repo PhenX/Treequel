@@ -1,5 +1,5 @@
 /**
- * `@treequel/linq/testing` — the provider-author kit. `runConformance` runs a
+ * `@treequel/query/testing` — the provider-author kit. `runConformance` runs a
  * battery of queries against a provider and the in-memory reference and reports any
  * divergence. The corpus lambdas are wrapped in `expr()` so providers under test
  * receive real `Expr` trees whenever this module runs under the build plugin

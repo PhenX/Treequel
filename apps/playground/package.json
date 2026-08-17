@@ -12,8 +12,8 @@
   "dependencies": {
     "@treequel/core": "*",
     "@treequel/fallback": "*",
-    "@treequel/linq": "*",
     "@treequel/provider-postgres": "*",
+    "@treequel/query": "*",
     "@treequel/transform": "*",
     "@treequel/tree": "*",
     "monaco-editor": "0.56.0"

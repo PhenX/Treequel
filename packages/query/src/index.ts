@@ -1,5 +1,5 @@
 /**
- * `@treequel/linq` — the query layer: `Queryable`, the `QueryPlan` a provider
+ * `@treequel/query` — the query layer: `Queryable`, the `QueryPlan` a provider
  * receives, the provider protocol, and `createContext`. Depends only on
  * `@treequel/core`. The in-memory engine lives here too so it is the single
  * shared reference semantics.

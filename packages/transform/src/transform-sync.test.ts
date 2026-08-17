@@ -9,7 +9,7 @@ import {
 } from "./transform.js";
 
 const CTX = [
-  'import { createContext } from "@treequel/linq";',
+  'import { createContext } from "@treequel/query";',
   "const db = createContext(provider);",
 ];
 
@@ -27,7 +27,7 @@ describe("transformModuleSync — reification", () => {
 
   it("reifies expr() calls regardless of taint", () => {
     const code = [
-      'import { expr } from "@treequel/linq";',
+      'import { expr } from "@treequel/query";',
       "const p = expr(u => u.age > 18);",
     ].join("\n");
     const out = transformModuleSync(code, "src/q.ts");
@@ -58,7 +58,7 @@ describe("transformModuleSync — reification", () => {
 describe("scanModuleContexts", () => {
   it("returns the names bound to createContext() results", () => {
     const code = [
-      'import { createContext } from "@treequel/linq";',
+      'import { createContext } from "@treequel/query";',
       "export const db = createContext(provider);",
       "export const other = createContext(another);",
     ].join("\n");
@@ -67,7 +67,7 @@ describe("scanModuleContexts", () => {
 
   it("returns nothing for a module with no context", () => {
     const code = [
-      'import { expr } from "@treequel/linq";',
+      'import { expr } from "@treequel/query";',
       "export const p = expr(u => u.x);",
     ].join("\n");
     expect(scanModuleContexts(code, "src/q.ts")).toEqual([]);
@@ -78,7 +78,7 @@ describe("transformModuleSync — cross-module contexts", () => {
   it("taints a context imported from another module via the registry", () => {
     const registry = createRegistry();
     const dbCode = [
-      'import { createContext } from "@treequel/linq";',
+      'import { createContext } from "@treequel/query";',
       "export const db = createContext(provider);",
     ].join("\n");
     registry.contexts.set("/src/db.ts", new Set(scanModuleContexts(dbCode, "/src/db.ts")));
@@ -86,7 +86,7 @@ describe("transformModuleSync — cross-module contexts", () => {
     // The query module mentions the traced package (a type import) so it clears
     // the pre-scan, then reaches its context through a relative import.
     const qCode = [
-      'import type { Context } from "@treequel/linq";',
+      'import type { Context } from "@treequel/query";',
       'import { db } from "./db";',
       "const q = db.users.filter(u => u.age > 1);",
     ].join("\n");
@@ -102,7 +102,7 @@ describe("transformModuleSync — cross-module contexts", () => {
 
   it("does not taint the import without a registry entry", () => {
     const qCode = [
-      'import type { Context } from "@treequel/linq";',
+      'import type { Context } from "@treequel/query";',
       'import { db } from "./db";',
       "const q = db.users.filter(u => u.age > 1);",
     ].join("\n");
@@ -139,7 +139,7 @@ describe("sync/async parity", () => {
   const cases = [
     "const q = db.users.filter(u => u.age > minAge).map(u => u.id);",
     "const q = db.users.filter(u => u.tags.some(t => t.startsWith(prefix)));",
-    'import { expr } from "@treequel/linq";\nconst p = expr(u => u.age > 18);',
+    'import { expr } from "@treequel/query";\nconst p = expr(u => u.age > 18);',
     "const q = db.users.include((u) => u.orders, (r) => r.filter(o => o.total > 10).take(1));",
   ];
   for (const [i, snippet] of cases.entries()) {

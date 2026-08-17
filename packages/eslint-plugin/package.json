@@ -5,7 +5,7 @@
   "keywords": [
     "eslint",
     "eslint-plugin",
-    "linq",
+    "expression-tree",
     "treequel"
   ],
   "license": "MIT",

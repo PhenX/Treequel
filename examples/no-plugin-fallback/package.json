@@ -9,8 +9,8 @@
   },
   "dependencies": {
     "@treequel/fallback": "*",
-    "@treequel/linq": "*",
     "@treequel/provider-memory": "*",
-    "@treequel/provider-postgres": "*"
+    "@treequel/provider-postgres": "*",
+    "@treequel/query": "*"
   }
 }

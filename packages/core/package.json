@@ -3,8 +3,9 @@
   "version": "0.1.0",
   "description": "Treequel runtime core: Expr, visitor/rewriter, partial evaluation, printer, WellKnown registry.",
   "keywords": [
+    "code-as-data",
     "expression-tree",
-    "linq",
+    "interpreter",
     "partial-evaluation",
     "treequel"
   ],

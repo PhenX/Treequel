@@ -7,7 +7,7 @@
  * projections, groups and navigation subqueries render through {@link translate}.
  */
 import { type Node, TreequelError, partialEval } from "@treequel/core";
-import type { AnyExpr, PlanOp, QueryPlan, RelationsMeta } from "@treequel/linq";
+import type { AnyExpr, PlanOp, QueryPlan, RelationsMeta } from "@treequel/query";
 import {
   type ColumnShape,
   SCALAR_COLUMN,

@@ -18,7 +18,7 @@ Register computed members per context, next to the schema, and pass them to `cre
 definition is a **property** (`u.isAdult`); an extra parameter makes it a **method** (`o.net(0.1)`).
 
 ```ts
-import { createContext, defineComputed } from "@treequel/linq";
+import { createContext, defineComputed } from "@treequel/query";
 
 const computed = defineComputed<{ users: User; orders: Order }>({
   users: {

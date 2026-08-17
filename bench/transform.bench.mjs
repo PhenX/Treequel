@@ -28,7 +28,7 @@ const THRESHOLD = 0.3; // fail a --check when the ratio is > 30% above baseline.
 // A realistic query module: a traced chain with several inline lambdas — nested
 // lambdas, captures, method calls, an object projection — i.e. the work-heavy
 // reify path. `db` is a traced root created in-module, so no host is needed.
-const HIT = `import { createContext } from "@treequel/linq";
+const HIT = `import { createContext } from "@treequel/query";
 const db = createContext(provider);
 const prefix = "a";
 const minAge = 18;

@@ -38,7 +38,7 @@ import {
 export type FilterPattern = RegExp | RegExp[];
 
 export interface TreequelTransformerOptions {
-  /** Traced import sources. Default: `["@treequel/linq"]`. */
+  /** Traced import sources. Default: `["@treequel/query"]`. */
   packages?: readonly string[];
   /** Extra globals safelist passed through to capture. */
   globals?: readonly string[];

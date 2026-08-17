@@ -1,8 +1,8 @@
 # Writing a provider
 
 A provider is a pure translator over the closed tree grammar. Third-party providers are the point of the project —
-SQL is the first, not the only one. [Beyond queries](/guide/beyond-queries) surveys the targets a provider can reach
-and the other things the tree is good for.
+SQL is the first, not the only one. [Applications](/guide/applications) surveys the targets a provider can reach and
+the other things the tree is good for.
 
 ## The interface
 
@@ -33,7 +33,7 @@ Fetch related rows however your backend likes (the SQL core batches
 live in shared helpers so every provider agrees on the result shape:
 
 ```ts
-import { collectIncludes, collectKeys, attachChildren } from "@treequel/linq";
+import { collectIncludes, collectKeys, attachChildren } from "@treequel/query";
 
 const specs = collectIncludes(plan.ops); // merged across repeated include()
 const keys = collectKeys(parents, spec.from, spec.nav); // distinct, non-null
@@ -62,7 +62,7 @@ The in-memory provider defines correct behavior. Your provider must produce the 
 ships a conformance harness:
 
 ```ts
-import { defaultRelations, runConformance } from "@treequel/linq/testing";
+import { defaultRelations, runConformance } from "@treequel/query/testing";
 
 const results = await runConformance((fixtures) => makeMyProvider(fixtures), {
   fixtures, // users / orders / items arrays

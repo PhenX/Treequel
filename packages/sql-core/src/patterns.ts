@@ -6,7 +6,7 @@
  * into a subquery or aggregate.
  */
 import type { Node } from "@treequel/core";
-import type { Relation } from "@treequel/linq";
+import type { Relation } from "@treequel/query";
 import type { ColumnShape, TranslateContext } from "./context.js";
 
 /**

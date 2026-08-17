@@ -1,6 +1,6 @@
-import { __expr, type Node, print } from "@treequel/core";
+import { __expr, evaluate, type Node, print } from "@treequel/core";
 import { parseFunctionSource } from "@treequel/fallback";
-import { createContext, defineRelations } from "@treequel/linq";
+import { createContext, defineRelations } from "@treequel/query";
 import { type SchemaMeta, postgres } from "@treequel/provider-postgres";
 import { emitNode } from "@treequel/transform/emit";
 import { serialize } from "@treequel/tree";
@@ -19,6 +19,11 @@ const diagnosticsEl = $("diagnostics");
 
 const INITIAL_LAMBDA = "u => u.age >= minAge && u.name.startsWith(prefix)";
 const INITIAL_CAPTURES = '{ "minAge": 18, "prefix": "A" }';
+const INITIAL_ROW = `{
+  "id": 1, "name": "Ada", "age": 36, "active": true, "city": "London",
+  "orders": [{ "id": 1, "userId": 1, "total": 250, "paid": true,
+               "items": [{ "id": 1, "orderId": 1, "sku": "apple" }] }]
+}`;
 const EMPTY = "—";
 
 // The lambda editor uses the Monarch TypeScript mode so arrows, optional chaining
@@ -38,11 +43,22 @@ const captures = mountEditor($("captures"), {
   minHeight: 44,
   maxHeight: 160,
 });
+const row = mountEditor($("row"), {
+  language: "json",
+  value: INITIAL_ROW,
+  ariaLabel: "Sample row as JSON",
+  minHeight: 44,
+  maxHeight: 160,
+});
 const prettyViewer = viewer("pretty", TS_LANGUAGE);
+const evaluatedViewer = viewer("evaluated", "json");
 const emittedViewer = viewer("emitted", TS_LANGUAGE);
 const sqlViewer = viewer("sql", "pgsql");
 const jsonViewer = viewer("json", "json");
 const sqlPanel = sqlViewer.editor.getContainerDomNode().closest(".panel") as HTMLElement;
+const evaluatedPanel = evaluatedViewer.editor
+  .getContainerDomNode()
+  .closest(".panel") as HTMLElement;
 
 function viewer(id: string, language: string): Mounted {
   return mountEditor($(id), {
@@ -145,6 +161,11 @@ const SAMPLES: readonly Sample[] = [
     captures: '{ "limit": 30 }',
   },
   {
+    label: "Policy rule",
+    lambda: 'u => u.city === viewer.city || viewer.role === "admin"',
+    captures: '{ "viewer": { "city": "London", "role": "member" } }',
+  },
+  {
     label: "some → EXISTS",
     lambda: "u => u.orders?.some(o => o.total > min)",
     captures: '{ "min": 100 }',
@@ -202,6 +223,16 @@ function readCaptures(): Record<string, unknown> {
   }
 }
 
+function readRow(): unknown {
+  const text = row.model.getValue().trim();
+  if (text === "") return undefined;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
 function renderDiagnostics(diags: readonly SpanDiagnostic[]): void {
   if (diags.length === 0) {
     diagnosticsEl.innerHTML = `<span class="ok">✓ valid — inside the expression subset</span>`;
@@ -241,10 +272,12 @@ function emittedShape(
 
 function clearOutputs(): void {
   prettyViewer.setValue(EMPTY);
+  evaluatedViewer.setValue(EMPTY, "json");
   emittedViewer.setValue(EMPTY);
   jsonViewer.setValue(EMPTY, "json");
   sqlViewer.setValue(EMPTY, "pgsql");
   sqlPanel.classList.remove("error");
+  evaluatedPanel.classList.remove("error");
 }
 
 async function render(): Promise<void> {
@@ -276,6 +309,23 @@ async function render(): Promise<void> {
   emittedViewer.setValue(emittedShape(src, result.params, body, result.freeVars));
   jsonViewer.setValue(JSON.stringify(serialize(body), null, 2), "json");
 
+  // Interpret the tree against the sample row — the browser-side life of the
+  // lambda: no compiled function, no provider, no SQL.
+  try {
+    const value: unknown = evaluate(body, {
+      params: { [result.params[0] ?? "u"]: readRow() },
+      scope: capturedValues,
+    });
+    evaluatedViewer.setValue(
+      value === undefined ? "undefined" : JSON.stringify(value, null, 2),
+      "json",
+    );
+    evaluatedPanel.classList.remove("error");
+  } catch (e) {
+    evaluatedViewer.setValue((e as Error).message, "plaintext");
+    evaluatedPanel.classList.add("error");
+  }
+
   // Build a real Expr and ask the SQL provider for the statement it would run.
   try {
     const expr = __expr({
@@ -298,4 +348,5 @@ async function render(): Promise<void> {
 renderSamples();
 lambda.editor.onDidChangeModelContent(() => void render());
 captures.editor.onDidChangeModelContent(() => void render());
+row.editor.onDidChangeModelContent(() => void render());
 void render();

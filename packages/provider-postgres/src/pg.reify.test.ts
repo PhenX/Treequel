@@ -1,6 +1,6 @@
 import { PGlite } from "@electric-sql/pglite";
 import { memoryProvider } from "@treequel/provider-memory";
-import { type Context, createContext, expr } from "@treequel/linq";
+import { type Context, createContext, expr } from "@treequel/query";
 import {
   type Fixtures,
   type SampleItem as Item,
@@ -14,7 +14,7 @@ import {
   sampleOrders as orders,
   sampleRelations as relations,
   sampleUsers as users,
-} from "@treequel/linq/testing";
+} from "@treequel/query/testing";
 import { beforeAll, describe, expect, it } from "vitest";
 import { type SchemaMeta, type SqlExecutor, postgres } from "./index.js";
 

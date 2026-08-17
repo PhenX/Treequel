@@ -1,7 +1,8 @@
-# Compared to ORMs & EF Core
+# Compared to ORMs & rules engines
 
 Treequel is not an ORM, so "Treequel vs. X" is mostly a question of which layer each tool owns. This page places it
-next to the tools people usually arrive from — Prisma, Drizzle, Kysely, TypeORM, MikroORM, and .NET's EF Core — and
+next to the tools people usually arrive from — Prisma, Drizzle, Kysely, TypeORM, MikroORM, and .NET's EF Core — and,
+because a serializable predicate is also a rule, next to the rules-and-policy tools: JSONLogic, CASL, OPA, Cedar. It
 is explicit about what Treequel does not do.
 
 ## The same query, seven ways
@@ -109,8 +110,31 @@ Every tool above turns its query representation into SQL. Treequel's difference 
 - EF Core has the tree too — but as an in-process .NET object graph with no wire format; serializing one is a
   third-party exercise. In Treequel, serialization is the point.
 
-[Beyond queries](/guide/beyond-queries) is the catalog of what that buys — authorization rules, filters over the
-wire, rules-as-data, and running a serialized tree directly against plain objects.
+[Applications](/guide/applications) is the catalog of what that buys — authorization rules, filters over the wire,
+rules-as-data, and running a serialized tree directly against plain objects.
+
+## Next to rules engines & policy languages
+
+The ORM shelf is only half the comparison: a typed, serializable predicate is also what rules engines and policy
+tools provide. The same placement exercise, on that shelf:
+
+- **JSONLogic / json-rules-engine** store a rule as JSON operator objects —
+  `{ "and": [{ ">": [{ "var": "age" }, 18] }] }` — untyped, written in a bespoke vocabulary, interpreted at runtime.
+  A Treequel tree is also plain JSON, but it is written as a TypeScript lambda: typed against the row, checked by the
+  compiler, validated against a closed grammar — and the same rule compiles to a SQL `WHERE`, which a JSONLogic rule
+  cannot do without a hand-written translator.
+- **CASL** defines isomorphic abilities — "can `read` `Article` where `authorId = user.id`" — with Mongo-style
+  condition objects, and covers both the single-object check and (through its integrations) query filtering. The
+  conditions remain a data DSL: not statically typed against your row types, not a plain function you can call
+  without the library. A tree plays the same role with the predicate written in the language of the codebase, and
+  `evaluate`, `print`, and SQL translation come from the one definition.
+- **OPA (Rego) / Cedar** are separate policy languages with their own evaluators, tooling, and deployment story —
+  the right call when policy must be owned and distributed outside the application. Treequel rules live inside your
+  TypeScript, typed against your schema, and travel as JSON; there is no second language and no engine process — but
+  also no cross-service policy-distribution machinery beyond the JSON itself.
+
+The [Applications](/guide/applications) page calls this policy-as-expression: typed like code, stored and audited
+like data, translated like a query.
 
 ## What Treequel deliberately does not do
 
@@ -131,6 +155,9 @@ Stated plainly, because the table compresses it:
 - You want one tool to own schema, migrations, and writes → Prisma, Drizzle, TypeORM, or MikroORM.
 - You want SQL's shape visible in TypeScript → Kysely or Drizzle.
 - You are on .NET → EF Core is this whole design, native to the platform.
+- You want rules stored as data and edited outside a deploy → JSONLogic is the untyped incumbent; a Treequel tree is
+  the typed version of the same idea, with SQL pushdown included.
+- You want policy owned outside the application, distributed across services → OPA or Cedar.
 - You want query lambdas that run against fixtures in tests and compile to parameterized SQL in production, and
   predicates that serialize into trees a provider can translate → Treequel, next to whatever owns your writes.
 

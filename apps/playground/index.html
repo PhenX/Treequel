@@ -10,10 +10,11 @@
     <header>
       <h1>Treequel Playground</h1>
       <p>
-        Pick a sample or paste a query lambda. It is parsed with the same subset validator the build
-        and editor use, then shown as an expression tree, the emitted runtime host, and the SQL a
-        Postgres provider would run. The demo schema is <code>users → orders → items</code> with
-        declared relations, so navigation predicates and correlated counts translate too.
+        Pick a sample or paste a lambda. It is parsed with the same subset validator the build and
+        editor use, then shown as an expression tree, evaluated against the sample row right here —
+        no SQL involved — and translated to the SQL a Postgres provider would run. The demo schema
+        is <code>users → orders → items</code> with declared relations, so navigation predicates and
+        correlated counts translate too.
         <a href="/Treequel/">Docs</a>
       </p>
     </header>
@@ -31,6 +32,9 @@
         </label>
         <div id="captures" class="editor" aria-labelledby="captures-label"></div>
 
+        <label id="row-label">Sample row (JSON) — what the Evaluated panel runs against</label>
+        <div id="row" class="editor" aria-labelledby="row-label"></div>
+
         <div id="diagnostics" class="diagnostics" aria-live="polite"></div>
       </section>
 
@@ -40,12 +44,18 @@
           <div id="pretty" class="viewer"></div>
         </div>
         <div class="panel">
-          <h2>Emitted host <span class="hint">what the build plugin splices in</span></h2>
-          <div id="emitted" class="viewer"></div>
+          <h2>
+            Evaluated <span class="hint">evaluate() on the sample row — no function, no SQL</span>
+          </h2>
+          <div id="evaluated" class="viewer"></div>
         </div>
         <div class="panel">
           <h2>SQL <span class="hint">via @treequel/sql-core</span></h2>
           <div id="sql" class="viewer"></div>
+        </div>
+        <div class="panel">
+          <h2>Emitted host <span class="hint">what the build plugin splices in</span></h2>
+          <div id="emitted" class="viewer"></div>
         </div>
         <div class="panel">
           <h2>Serialized tree <span class="hint">the JSON wire format</span></h2>

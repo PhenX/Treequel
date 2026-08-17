@@ -1,5 +1,5 @@
 import { PGlite } from "@electric-sql/pglite";
-import { type Context, createContext } from "@treequel/linq";
+import { type Context, createContext } from "@treequel/query";
 import { memoryProvider } from "@treequel/provider-memory";
 import { type SqlExecutor, postgres } from "@treequel/provider-postgres";
 import { beforeAll, describe, expect, it } from "vitest";

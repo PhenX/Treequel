@@ -18,7 +18,7 @@ Read the section covering the area you are editing, in addition to this file:
 | `packages/ts-transformer/` — TypeScript-compiler transformer (ts-patch) | plan §7 + [area guide](packages/ts-transformer/AGENTS.md) |
 | `packages/core/` — `Expr`, visitor/rewriter, partial evaluation | plan §8 |
 | `packages/fallback/` — runtime `toString()` path | plan §8.4 |
-| `packages/linq/` — `Queryable`, `QueryPlan`, provider protocol | plan §9 + [area guide](packages/linq/AGENTS.md) |
+| `packages/query/` — `Queryable`, `QueryPlan`, provider protocol | plan §9 + [area guide](packages/query/AGENTS.md) |
 | `packages/sql-core/` — shared SQL translator, dialect seam, provider builder | plan §10 |
 | `packages/provider-*/` — providers (`memory`, `postgres`, `sqlite`) | plan §10 |
 | `packages/ts-plugin/`, `packages/eslint-plugin/` — editor & lint surface | plan §12 |
@@ -59,10 +59,10 @@ complete.**
 ## Project overview
 
 Write ordinary TypeScript lambdas — `u => u.age > minAge` — and have them exist simultaneously as an executable
-function and as a serializable, typed expression tree that providers translate to SQL, remote filters, policy checks,
-IndexedDB queries, or anything else. C#'s `Expression<Func<T,bool>>` + `IQueryable<T>`, rebuilt for TypeScript with a
-build-time Vite plugin as the reification mechanism. Expression trees are the product; LINQ-style querying is the
-flagship application. Not an ORM.
+function and as a serializable, typed expression tree you can evaluate, rewrite, print, store, send over the wire —
+or hand to a provider that translates it: policy checks, remote filters, IndexedDB queries, SQL. C#'s
+`Expression<Func<T,bool>>` + `IQueryable<T>`, rebuilt for TypeScript with a build-time Vite plugin as the reification
+mechanism. Expression trees are the product; LINQ-style querying is one application of them.
 
 ## Repository layout & where things go
 
@@ -127,7 +127,7 @@ Run typecheck, lint and tests **once at the end** before the final commit — no
 - Strict TypeScript everywhere; ESM-only, no CJS; Node built-ins imported as `import * as x from 'node:x'`.
 - **American English** spelling throughout ("initialize", "serialize", "color").
 - **Extract a shared helper** when the same block exceeds ~10 lines and appears more than once.
-- Runtime packages carry size budgets (`tree` < 2 kB, `core` < 5 kB, `linq` < 4 kB, providers < 10 kB min+gz). Check
+- Runtime packages carry size budgets (`tree` < 2 kB, `core` < 5 kB, `query` < 4 kB, providers < 10 kB min+gz). Check
   the budget before growing them; build-time and dev-only packages are exempt.
 
 ### Comments
@@ -150,7 +150,7 @@ under `scripts/` is the source of truth once M0 lands, and CI lints the full PR 
 
 - **type** — `feat` `fix` `perf` `docs` `chore` `ci` `refactor` `test` `build` `style` `revert`
 - **scope** — closed list, anything else fails: `tree` `core` `capture` `fallback` `transform` `vite` `ts-transformer`
-  `linq` `memory` `sql` `ts-plugin` `eslint-plugin` `docs` `playground` `examples` `tooling` `ci` `deps` `release`.
+  `query` `memory` `sql` `ts-plugin` `eslint-plugin` `docs` `playground` `examples` `tooling` `ci` `deps` `release`.
   Optional but include the best fit; never invent one (a change to the pg dialect table is `fix(sql)`, not
   `fix(dialect)`).
 - **subject** — lower-case start, imperative mood, no trailing period, full header ≤ 100 chars.
@@ -161,7 +161,7 @@ under `scripts/` is the source of truth once M0 lands, and CI lints the full PR 
 
 ### Dependencies (normative)
 
-- Runtime packages (`tree`, `core`, `linq`, `provider-*`) have **zero production dependencies**. This is a headline
+- Runtime packages (`tree`, `core`, `query`, `provider-*`) have **zero production dependencies**. This is a headline
   feature; CI fails if any appear.
 - The complete third-party inventory is committed at `DEPENDENCIES.md` (created with the M0 scaffold). Adding any
   dependency anywhere means **adding a row with a justification there in the same PR**. Anything replaceable by ≤50
@@ -196,15 +196,15 @@ scripts/*.mjs`), never bash.
 Treequel is not a product being sold. Copy is informative, specific and honest — never promotional. The project
 describes itself the same way everywhere:
 
-> **Expression trees and LINQ for TypeScript.** Write an ordinary lambda; it stays the function it always was, and
-> becomes a typed, serializable expression tree that providers translate to SQL, remote filters, policy checks — or
-> anything else. The same query file runs against fixture arrays in your tests and compiles to parameterized SQL in
-> production. Expression trees are the product; LINQ is the flagship application. Not an ORM.
+> **Expression trees for TypeScript.** Write an ordinary lambda; it stays the function it always was, and becomes a
+> typed, serializable tree you can evaluate, rewrite, print, store, send over the wire — or hand to a provider that
+> translates it: a policy check, a remote filter, parameterized SQL. One application is LINQ-style querying: the same
+> query file runs against fixture arrays in your tests and compiles to parameterized SQL in production.
 
 Surfaces that carry it drift the moment one changes alone. Update them **in the same commit**: the `README.md`
-subtitle · the docs hero + site description (`apps/docs`, once it exists) · the GitHub repo description + topics
-(repository settings — check by hand). When the docs site lands (M7), add a drift test that pins the in-repo surfaces
-clause by clause.
+subtitle · the docs hero + site description (`apps/docs`) · the root `package.json` description · the GitHub repo
+description + topics (repository settings — check by hand). Keeping them in sync is a review concern, not a tested
+invariant.
 
 #### Voice
 
@@ -212,9 +212,13 @@ clause by clause.
   and more than ~8 feature bullets on any one page.
 - **Prefer the concrete over the categorical:** "compiles to one parameterized `WHERE` clause" beats "powerful query
   engine". Name a number, a behavior, or a limit.
-- **State limits plainly.** Expression-only subset, the boundary rule, what a provider rejects, pre-1.0 status, "not
-  an ORM" — trust is the point, not a caveat to bury. Docs lead with "expression trees for TypeScript, with LINQ as
-  the flagship application", never "a new way to talk to Postgres".
+- **State limits plainly.** Expression-only subset, the boundary rule, what a provider rejects, pre-1.0 status —
+  trust is the point, not a caveat to bury. State each limit where it is the topic (the comparison page owns the ORM
+  question); don't append it as a refrain elsewhere. Docs lead with "expression trees for TypeScript", never "a new
+  way to talk to Postgres". Querying is one application among the others, not the headline.
+- **EF Core and LINQ are background, not adjectives.** Name them where lineage is the topic (the lineage and
+  comparison pages, ADRs); everywhere else state the rule itself ("`include`/`thenInclude` over declared relations",
+  not "EF-style `include`"). A guide page should read without knowing what EF Core is.
 
 ### Tests
 

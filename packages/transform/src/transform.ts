@@ -37,7 +37,7 @@ export const HOST_IMPORT: {
 } = { source: "@treequel/core", imported: "__expr", local: HOST_ALIAS };
 
 export interface TransformOptions {
-  /** Traced import sources. Default: `["@treequel/linq"]`. */
+  /** Traced import sources. Default: `["@treequel/query"]`. */
   readonly packages?: readonly string[];
   /** Extra globals safelist passed through to capture. */
   readonly globals?: readonly string[];
@@ -558,7 +558,7 @@ export async function transformModule(
   options: TransformOptions = {},
   host?: TransformHost,
 ): Promise<TransformResult | null> {
-  const packages = options.packages ?? ["@treequel/linq"];
+  const packages = options.packages ?? ["@treequel/query"];
   const analysis = analyze(code, id, packages);
   if (!analysis) return null;
 
@@ -599,7 +599,7 @@ export function transformModuleSync(
   options: TransformOptions = {},
   host?: SyncTransformHost,
 ): TransformResult | null {
-  const packages = options.packages ?? ["@treequel/linq"];
+  const packages = options.packages ?? ["@treequel/query"];
   const analysis = analyze(code, id, packages);
   if (!analysis) return null;
 
@@ -626,7 +626,7 @@ export function planModuleSync(
   options: TransformOptions = {},
   host?: SyncTransformHost,
 ): ReifyPlan | null {
-  const packages = options.packages ?? ["@treequel/linq"];
+  const packages = options.packages ?? ["@treequel/query"];
   const analysis = analyze(code, id, packages);
   if (!analysis) return null;
 
@@ -650,7 +650,7 @@ export function scanModuleContexts(
   id: string,
   options: TransformOptions = {},
 ): readonly string[] {
-  const packages = options.packages ?? ["@treequel/linq"];
+  const packages = options.packages ?? ["@treequel/query"];
   const analysis = analyze(code, id, packages);
   if (!analysis) return [];
   return [...collectModuleContexts(analysis.program, analysis.isCreateContextCall)];

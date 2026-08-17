@@ -1,7 +1,7 @@
 # Joins & includes
 
-Two ways to combine sources: `join`/`leftJoin` project a new row shape from two sides, EF-style
-`include`/`thenInclude` load related rows onto the rows you already have. Both run against fixture arrays in tests and
+Two ways to combine sources: `join`/`leftJoin` project a new row shape from two sides, `include`/`thenInclude` load
+related rows onto the rows you already have. Both run against fixture arrays in tests and
 compile to SQL in production, with one set of semantics.
 
 ## Inner and left joins
@@ -45,8 +45,7 @@ row (`(o, u) => u`) is not a projection. `groupBy` after a join stays memory-onl
 
 ## flatMap — querying through a navigation
 
-`flatMap` expands each row through a declared navigation, the way `Array.prototype.flatMap` expands arrays (EF Core
-calls it `SelectMany`):
+`flatMap` expands each row through a declared navigation, the way `Array.prototype.flatMap` expands arrays:
 
 ```ts
 // every order of an active user
@@ -137,8 +136,8 @@ const allPaid = await db.users
   SQL row for row. This path reads the expression tree: without the build plugin, add
   `import "@treequel/fallback/register"` — a navigation predicate with no tree available is refused with a
   teachable error, never evaluated against absent data.
-- `include` **loads** related rows; `some`/`every` **filter** by them. An `include` is not visible to `filter` — same
-  rule as EF Core.
+- `include` **loads** related rows; `some`/`every` **filter** by them. An `include` is never visible to `filter` in
+  the same query.
 
 ### Counting and summing navigations
 
@@ -194,7 +193,7 @@ const users = await db.users.include(
 - **Selectors are navigation paths, not expressions.** `include(u => u.orders)` — a single property access. It is
   read by probing the function; it is never captured, so it works with or without the build plugin.
 - **Includes attach to the final rows**, wherever they appear in the chain. They are not visible to `filter`/`map`
-  of the same query — filter on columns, not on loaded navigations (as in EF Core).
+  of the same query — filter on columns, not on loaded navigations.
 - **The parent key must survive.** After a `map`, the rows must still carry the `from` property or the include
   fails with R2002.
 - **Attachment order is canonical** (a deterministic JSON-based order), because SQL row order without `ORDER BY` is

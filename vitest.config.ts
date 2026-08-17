@@ -12,16 +12,16 @@ const pkg = (name: string, entry = "src/index.ts"): string =>
 export default defineConfig({
   // The Treequel plugin reifies query lambdas into real Expr trees for:
   //  - `*.reify.test.ts` provider tests (exercise the true build-time path),
-  //  - the conformance corpus in `linq/src/testing.ts` (its expr() calls), and
+  //  - the conformance corpus in `query/src/testing.ts` (its expr() calls), and
   //  - example source modules under `examples/**/src` (they ship real queries),
   // while ordinary unit tests stay plain (opaque lambdas / memory path).
   // `@treequel/core` is traced so the corpus can import `expr` from it.
   plugins: [
     treequel({
-      packages: ["@treequel/linq", "@treequel/core"],
+      packages: ["@treequel/query", "@treequel/core"],
       include: [
         /\.reify\.test\.ts$/,
-        /packages[\\/]linq[\\/]src[\\/]testing\.ts$/,
+        /packages[\\/]query[\\/]src[\\/]testing\.ts$/,
         // example source modules, but not their `.test.ts` files
         /[\\/]examples[\\/].+[\\/]src[\\/].+(?<!\.test)\.ts$/,
       ],
@@ -36,8 +36,8 @@ export default defineConfig({
       "@treequel/transform": pkg("transform"),
       "@treequel/vite": pkg("vite"),
       "@treequel/ts-transformer": pkg("ts-transformer"),
-      "@treequel/linq/testing": pkg("linq", "src/testing.ts"),
-      "@treequel/linq": pkg("linq"),
+      "@treequel/query/testing": pkg("query", "src/testing.ts"),
+      "@treequel/query": pkg("query"),
       "@treequel/provider-memory": pkg("provider-memory"),
       "@treequel/sql-core": pkg("sql-core"),
       "@treequel/provider-postgres": pkg("provider-postgres"),

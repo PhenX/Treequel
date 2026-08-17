@@ -204,7 +204,8 @@ describes itself the same way everywhere:
 
 Surfaces that carry it drift the moment one changes alone. Update them **in the same commit**: the `README.md`
 subtitle · the docs hero + site description (`apps/docs`) · the root `package.json` description · the GitHub repo
-description + topics (repository settings — check by hand). A drift test pins the in-repo surfaces clause by clause.
+description + topics (repository settings — check by hand). The drift test at `scripts/positioning.test.ts` pins the
+in-repo surfaces clause by clause.
 
 #### Voice
 

@@ -23,6 +23,9 @@ export default {
 };
 ```
 
+Building with the TypeScript compiler directly, no bundler? `@treequel/ts-transformer` does the same job during
+`tsc` emit — see [Compiling with tsc](/guide/compiling-with-tsc).
+
 ## Your first tree
 
 A tree needs no database and no provider. `expr()` marks a standalone lambda for reification; the result is both the
@@ -74,8 +77,9 @@ const adults = await db.users
 // [{ id: 1, name: "Ada" }]
 ```
 
-Queries over more than one source — `join`, `leftJoin`, and `include`/`thenInclude` over declared relations — are
-covered in [Joins & includes](/guide/joins-and-includes).
+The full operator and executor surface — ordering, paging, `distinct`, aggregates, `explain()` — is in
+[Queries & executors](/guide/queries); queries over more than one source — `join`, `leftJoin`, and
+`include`/`thenInclude` over declared relations — are in [Joins & includes](/guide/joins-and-includes).
 
 ## The same query, on Postgres
 
@@ -94,26 +98,11 @@ await db.users.filter((u) => u.age >= 18 && u.active).toArray();
 ```
 
 Constants become bound `$n` parameters — values are never interpolated into the SQL string. Call `explain()` on any
-query to see the text a provider would run.
-
-## The same query, on SQLite
-
-The SQLite provider is the same story with a SQLite `executor` (`better-sqlite3`, `node:sqlite`, sql.js, …). It emits
-positional `?` parameters, case-sensitive `GLOB` matching, and Postgres-style null ordering, so its results match the
-memory reference row for row.
-
-```ts
-import { sqlite } from "@treequel/provider-sqlite";
-
-const db = createContext<{ users: User }>(
-  sqlite(executor, { users: { table: "users" } }),
-);
-
-await db.users.filter((u) => u.age >= 18 && u.name.startsWith("A")).toArray();
-// SELECT "users".* FROM "users" WHERE ("users"."age" >= ? AND ("users"."name" GLOB ?))
-```
-
-SQLite has no boolean type, so model boolean columns as `0`/`1`.
+query to see the text a provider would run. The SQLite provider (`@treequel/provider-sqlite`) is the same swap with a
+SQLite `executor`. Executor wiring for the common drivers, column and JSON mapping, and the SQLite specifics are in
+[SQL providers](/guide/sql-providers);
+[`examples/vite-postgres`](https://github.com/PhenX/Treequel/tree/main/examples/vite-postgres) runs this
+same-query-two-providers story as a CI test.
 
 ## Without the plugin
 
@@ -126,36 +115,14 @@ than returning a wrong result. Enable it with:
 import "@treequel/fallback/register";
 ```
 
-## Lint
+[`examples/no-plugin-fallback`](https://github.com/PhenX/Treequel/tree/main/examples/no-plugin-fallback) exercises
+this degradation story as a CI test.
 
-`@treequel/eslint-plugin` runs the same subset validator as the build and the editor, so an invalid lambda fails at
-lint time with the same coded message. It is an ESLint plugin, and oxlint loads ESLint plugins through `jsPlugins`
-(alpha, not semver-guarded) — one package covers both linters.
+## Editor squiggles & lint
 
-::: code-group
-
-```js [eslint.config.js]
-import treequel from "@treequel/eslint-plugin";
-
-export default [treequel.configs.recommended];
-```
-
-```json [.oxlintrc.json]
-{
-  "jsPlugins": [{ "name": "treequel", "specifier": "@treequel/eslint-plugin" }],
-  "rules": {
-    "treequel/valid-expression": "error",
-    "treequel/no-opaque-callback": "warn"
-  }
-}
-```
-
-:::
-
-The rules match query methods by name, without type information — `treequel/no-opaque-callback` is a warning because a
-bare identifier can also hold an `expr()`-built tree, and an unrelated API can share an operator name. Scope the rules
-to your query modules with overrides if that happens; the build transform and the editor plugin are not affected, since
-they trace your context imports instead of matching names.
+The subset validator that runs in the build also runs in your editor and in ESLint or oxlint, so an invalid lambda
+gets the same coded message in all three places. Enabling the editor plugin and the lint rules takes two config
+entries — [Editor & lint](/guide/editor-and-lint).
 
 ## Coming from somewhere else?
 

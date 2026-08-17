@@ -34,3 +34,10 @@ const perUser = await db.orders
 - **Materializing raw groups** (`groupBy(...).toArray()` without a projection) stays memory-only: `Grouping` has no
   faithful single-query SQL shape. SQL providers refuse it with R2001; project first.
 - Navigations are not resolvable inside group aggregates (`g.items.filter(o => o.items?.some(…))` is refused on SQL).
+
+## Where to go next
+
+- [Queries & executors](/guide/queries) — whole-query aggregates (`count`, `sum`, `avg`, …) with no `groupBy` at all.
+- [Computed members](/guide/computed-members) — derived properties usable in filters and group keys, before the rows
+  are reshaped.
+- [The boundary rule](/guide/the-boundary-rule) — why the refusals above are located errors, never silent fallbacks.

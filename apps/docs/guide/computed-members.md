@@ -99,3 +99,10 @@ const computed = defineComputed<{ users: User }>({
   member that reads an undeclared JSON path or calls something the dialect cannot emit fails with the provider's
   ordinary `R2001`/`R2002` — naming the offending access, not the member.
 - **`explain()` shows the inlined tree**, so the SQL a computed member compiles to is never hidden.
+
+## Where to go next
+
+- [The boundary rule](/guide/the-boundary-rule) — how untranslatable definitions fail, and the `inMemory()` escape
+  hatch.
+- [SQL providers](/guide/sql-providers) — the column and JSON mapping the inlined trees compile against.
+- [The expression tree](/guide/the-tree) — `makeExpr` and the `b` constructors used above, in full.

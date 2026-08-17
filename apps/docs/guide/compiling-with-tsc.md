@@ -8,7 +8,8 @@ output.
 ## Stock `tsc` runs no transformer
 
 The `tsc` CLI does not apply custom emit transformers, and the `plugins` field in `tsconfig.json` configures only
-language-service (editor) plugins — the compiler ignores it during emit. So there are two ways to run a transformer over
+language-service (editor) plugins — the slot where [the editor plugin](/guide/editor-and-lint) loads — which the
+compiler ignores during emit. So there are two ways to run a transformer over
 your build: **ts-patch**, which patches the installed compiler so `tsc` picks up transformers from `tsconfig.json`, or
 the **compiler API**, where you drive `program.emit` yourself. `@treequel/ts-transformer` supports both.
 

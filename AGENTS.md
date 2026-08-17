@@ -216,6 +216,9 @@ in-repo surfaces clause by clause.
 - **State limits plainly.** Expression-only subset, the boundary rule, what a provider rejects, pre-1.0 status, "not
   an ORM" — trust is the point, not a caveat to bury. Docs lead with "expression trees for TypeScript, with LINQ-style
   querying as the flagship application", never "a new way to talk to Postgres".
+- **EF Core and LINQ are background, not adjectives.** Name them where lineage is the topic (the lineage and
+  comparison pages, ADRs); everywhere else state the rule itself ("`include`/`thenInclude` over declared relations",
+  not "EF-style `include`"). A guide page should read without knowing what EF Core is.
 
 ### Tests
 

@@ -47,7 +47,7 @@ One definition, because it is both a function and data, does several jobs:
 
 - **Queries** — the flagship: fixtures in tests, parameterized SQL in production, one file.
 - **Authorization & policy** — the rule that filters every list query is also the `evaluate` check on one object,
-  the UI's show/hide, and an auditable row in a policy store.
+  the UI's show/hide, and an auditable row in a policy store ([runnable example](examples/policy-rules)).
 - **Filters & saved searches over the wire** — a client sends a serialized tree; the server re-validates it against
   the closed grammar, then translates or interprets it. No bespoke filter DSL.
 - **Rules as data** — flag targeting, alert conditions, eligibility: plain-JSON trees an admin UI can edit and

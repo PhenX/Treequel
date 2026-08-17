@@ -16,6 +16,8 @@ tree can do four jobs from one definition: translate into the `WHERE` clause of 
 at the database), `evaluate` against a single object for a can-this-user-see-this check, run in the browser to show or
 hide UI, and serialize into a policy store to be audited, diffed, and versioned. The dual nature pays twice here —
 the same rule is both the filter that lists what you may see and the check on one item.
+[`examples/policy-rules`](https://github.com/PhenX/Treequel/tree/main/examples/policy-rules) runs exactly this story
+as a CI test.
 
 ## Filters and saved searches over the wire
 

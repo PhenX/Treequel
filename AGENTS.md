@@ -50,7 +50,9 @@ core (the `SqlDialect` seam + `makeSqlProvider`), which brought the count to thi
 `defineRelations`, split-query batching in SQL, layered SQL compile with derived-table wrapping — ADR-0004), with the
 conformance corpus running on PGlite and sql.js, and **`@treequel/ts-transformer`** — a TypeScript-compiler emit
 transformer (ts-patch or the compiler API) for `tsc`-only builds with no bundler, a thin host over `@treequel/transform`
-(ADR-0012) — bringing the total to fourteen. **The one
+(ADR-0012) — bringing the total to fourteen. Also ahead of plan: **computed members** — `defineComputed` registers
+properties/methods derived from a row (`u.isAdult`, `o.net(0.1)`) that a query-layer pass inlines into the expression
+tree before translation, so memory and every SQL provider treat them identically (ADR-0014). **The one
 remaining step is dispatching the Release workflow to publish `0.1.0`.** **Update this paragraph as milestones
 complete.**
 

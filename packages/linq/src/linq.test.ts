@@ -1,3 +1,4 @@
+import { b, makeExpr, print } from "@treequel/core";
 import { memoryProvider } from "@treequel/provider-memory";
 import { describe, expect, it } from "vitest";
 import {
@@ -8,6 +9,8 @@ import {
   defineRelations,
   expr,
 } from "./index.js";
+import { defineComputed, expandComputed } from "./computed.js";
+import { type PlanOp, type QueryPlan, PLAN_OP_KINDS } from "./plan.js";
 import { type Fixtures, defaultRelations, runConformance } from "./testing.js";
 
 interface User {
@@ -536,5 +539,151 @@ describe("conformance harness self-check (reference vs memory)", () => {
     const failures = results.filter((r) => !r.equal);
     expect(failures).toEqual([]);
     expect(results.length).toBeGreaterThan(12);
+  });
+});
+
+describe("computed members", () => {
+  const filterOp = (plan: QueryPlan) => plan.ops[0] as Extract<PlanOp, { op: "filter" }>;
+  const mapOp = (plan: QueryPlan) => plan.ops[0] as Extract<PlanOp, { op: "map" }>;
+  const call1 = (fn: unknown, arg: unknown): unknown => (fn as (a: unknown) => unknown)(arg);
+
+  const usersAge = defineComputed<{ users: { age: number } }>({
+    users: { isAdult: makeExpr(["u"], b.binary(">=", b.member(b.param("u"), "age"), b.const(18))) },
+  });
+
+  it("inlines a computed property into the tree and its compiled form", () => {
+    const plan: QueryPlan = {
+      source: "users",
+      ops: [{ op: "filter", expr: makeExpr(["u"], b.member(b.param("u"), "isAdult")) }],
+    };
+    const { expr: e } = filterOp(expandComputed(plan, usersAge));
+    expect(print(e.body)).toContain(">=");
+    expect(print(e.body)).not.toContain("isAdult");
+    expect(call1(e.compiled, { age: 20 })).toBe(true);
+    expect(call1(e.compiled, { age: 12 })).toBe(false);
+  });
+
+  it("composes one computed member on another", () => {
+    const meta = defineComputed<{ users: { age: number } }>({
+      users: {
+        a: makeExpr(["u"], b.member(b.param("u"), "b")),
+        b: makeExpr(["u"], b.binary(">", b.member(b.param("u"), "age"), b.const(0))),
+      },
+    });
+    const plan: QueryPlan = {
+      source: "users",
+      ops: [{ op: "filter", expr: makeExpr(["u"], b.member(b.param("u"), "a")) }],
+    };
+    const { expr: e } = filterOp(expandComputed(plan, meta));
+    expect(call1(e.compiled, { age: 5 })).toBe(true);
+    expect(call1(e.compiled, { age: -1 })).toBe(false);
+  });
+
+  it("substitutes method arguments", () => {
+    const meta = defineComputed<{ orders: { total: number } }>({
+      orders: {
+        net: makeExpr(
+          ["o", "rate"],
+          b.binary(
+            "*",
+            b.member(b.param("o"), "total"),
+            b.binary("-", b.const(1), b.param("rate")),
+          ),
+        ),
+      },
+    });
+    const plan: QueryPlan = {
+      source: "orders",
+      ops: [{ op: "map", expr: makeExpr(["o"], b.method(b.param("o"), "net", [b.const(0.1)])) }],
+    };
+    const { expr: e } = mapOp(expandComputed(plan, meta));
+    expect(call1(e.compiled, { total: 100 })).toBeCloseTo(90);
+  });
+
+  it("rejects a computed cycle with R2009", () => {
+    const meta = defineComputed<{ users: Record<string, never> }>({
+      users: {
+        a: makeExpr(["u"], b.member(b.param("u"), "b")),
+        b: makeExpr(["u"], b.member(b.param("u"), "a")),
+      },
+    });
+    const plan: QueryPlan = {
+      source: "users",
+      ops: [{ op: "filter", expr: makeExpr(["u"], b.member(b.param("u"), "a")) }],
+    };
+    expect(() => expandComputed(plan, meta)).toThrow(/R2009/);
+  });
+
+  it("rejects a computed method called with the wrong arity (R2010)", () => {
+    const meta = defineComputed<{ orders: { total: number } }>({
+      orders: {
+        net: makeExpr(
+          ["o", "rate"],
+          b.binary(
+            "*",
+            b.member(b.param("o"), "total"),
+            b.binary("-", b.const(1), b.param("rate")),
+          ),
+        ),
+      },
+    });
+    const plan: QueryPlan = {
+      source: "orders",
+      ops: [{ op: "map", expr: makeExpr(["o"], b.method(b.param("o"), "net", [])) }],
+    };
+    expect(() => expandComputed(plan, meta)).toThrow(/R2010/);
+  });
+
+  it("does not inline past a reshaping map (source-shaped rows only)", () => {
+    const projected = makeExpr(
+      ["u"],
+      b.object([{ key: "age", value: b.member(b.param("u"), "age") }]),
+    );
+    const afterMap = makeExpr(["r"], b.member(b.param("r"), "isAdult"));
+    const plan: QueryPlan = {
+      source: "users",
+      ops: [
+        { op: "map", expr: projected },
+        { op: "filter", expr: afterMap },
+      ],
+    };
+    const out = expandComputed(plan, usersAge);
+    // The projected row's source is unknown, so `r.isAdult` stays untouched.
+    expect((out.ops[1] as Extract<PlanOp, { op: "filter" }>).expr).toBe(afterMap);
+  });
+
+  it("hands the provider a plan with computed members already inlined", async () => {
+    let captured: QueryPlan | undefined;
+    const spy: QueryProvider = {
+      name: "spy",
+      capabilities: () => capabilities([...PLAN_OP_KINDS]),
+      execute: async (plan) => {
+        captured = plan;
+        return [] as unknown as never;
+      },
+    };
+    const db = createContext<{ users: { id: number; age: number } }>(spy, { computed: usersAge });
+    await db.users.filter(makeExpr(["u"], b.member(b.param("u"), "isAdult")) as never).toArray();
+    const filter = captured?.ops.find((o) => o.op === "filter") as Extract<
+      PlanOp,
+      { op: "filter" }
+    >;
+    expect(print(filter.expr.body)).toContain(">=");
+  });
+
+  it("runs computed members through the memory provider", async () => {
+    const db = createContext<{ users: { id: number; age: number } }>(
+      memoryProvider({
+        users: [
+          { id: 1, age: 20 },
+          { id: 2, age: 12 },
+        ],
+      }),
+      { computed: usersAge },
+    );
+    const rows = await db.users
+      .filter(makeExpr(["u"], b.member(b.param("u"), "isAdult")) as never)
+      .toArray();
+    expect(rows).toEqual([{ id: 1, age: 20 }]);
   });
 });

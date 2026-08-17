@@ -6,8 +6,9 @@
  * (trace `@treequel/core` in the plugin's `packages`) — or, without a build
  * step, under `import "@treequel/fallback/register"`.
  */
-import { expr } from "@treequel/core";
+import { b, expr, makeExpr } from "@treequel/core";
 import { canonical } from "./canon.js";
+import { type ComputedMeta, defineComputed } from "./computed.js";
 import { type Capabilities, capabilities } from "./provider.js";
 import { runPlanInMemory } from "./memory-engine.js";
 import { PLAN_OP_KINDS } from "./plan.js";
@@ -140,6 +141,45 @@ export function defaultRelations(): RelationsMeta {
     },
   };
 }
+
+/**
+ * Computed members over the sample schema, exercised by {@link computedCases}.
+ * Authored with `makeExpr` + the `b` builders so they carry real trees with no
+ * build step: `isAdult`/`isSenior`/`decade`/`label` are properties (one param),
+ * `net` a method (an extra arg). `isSenior` composes on `isAdult`. Every body is
+ * a plain column expression, so each provider translates the inlined tree.
+ */
+export const sampleComputed: ComputedMeta = defineComputed<SampleSchema>({
+  users: {
+    isAdult: makeExpr(["u"], b.binary(">=", b.member(b.param("u"), "age"), b.const(18))),
+    isSenior: makeExpr(
+      ["u"],
+      b.logical(
+        "&&",
+        b.member(b.param("u"), "isAdult"),
+        b.binary(">=", b.member(b.param("u"), "age"), b.const(40)),
+      ),
+    ),
+    decade: makeExpr(
+      ["u"],
+      b.binary(
+        "-",
+        b.member(b.param("u"), "age"),
+        b.binary("%", b.member(b.param("u"), "age"), b.const(10)),
+      ),
+    ),
+    label: makeExpr(
+      ["u"],
+      b.template(["", " (", ")"], [b.member(b.param("u"), "name"), b.member(b.param("u"), "age")]),
+    ),
+  },
+  orders: {
+    net: makeExpr(
+      ["o", "rate"],
+      b.binary("*", b.member(b.param("o"), "total"), b.binary("-", b.const(1), b.param("rate"))),
+    ),
+  },
+});
 
 /** Canonical, order-independent comparison key for an array of result rows. */
 export function multiset(rows: readonly unknown[]): string[] {
@@ -797,13 +837,109 @@ export function defaultCases(): ConformanceCase[] {
   ];
 }
 
+/**
+ * Cases exercising computed members (see {@link sampleComputed}). Appended to
+ * the default corpus, so every provider proves memory ≡ its own translation of
+ * the inlined trees: computed properties in filter/map/orderBy/count, a computed
+ * composed from another, and a computed method with an argument in filter/map/sum.
+ */
+export function computedCases(): ConformanceCase[] {
+  type UC = SampleUser & {
+    isAdult: boolean;
+    isSenior: boolean;
+    decade: number;
+    label: string;
+  };
+  type OC = SampleOrder & { net(rate: number): number };
+  const usersC = (db: Context<Record<string, unknown>>) => db.users as unknown as Queryable<UC>;
+  const ordersC = (db: Context<Record<string, unknown>>) => db.orders as unknown as Queryable<OC>;
+
+  return [
+    {
+      name: "computed property in a filter",
+      run: (db) =>
+        usersC(db)
+          .filter(expr((u: UC) => u.isAdult))
+          .toArray(),
+    },
+    {
+      name: "computed property composed from another",
+      run: (db) =>
+        usersC(db)
+          .filter(expr((u: UC) => u.isSenior))
+          .toArray(),
+    },
+    {
+      name: "computed property beside a real column",
+      run: (db) =>
+        usersC(db)
+          .filter(expr((u: UC) => u.isAdult && u.active))
+          .toArray(),
+    },
+    {
+      name: "computed numeric in a projection",
+      run: (db) =>
+        usersC(db)
+          .map(expr((u: UC) => ({ id: u.id, decade: u.decade })))
+          .toArray(),
+    },
+    {
+      name: "computed template in a projection",
+      run: (db) =>
+        usersC(db)
+          .map(expr((u: UC) => ({ id: u.id, label: u.label })))
+          .toArray(),
+    },
+    {
+      name: "orderBy a computed key",
+      ordered: true,
+      run: (db) =>
+        usersC(db)
+          .orderBy(expr((u: UC) => u.decade))
+          .thenBy(expr((u: UC) => u.id))
+          .toArray(),
+    },
+    {
+      name: "count with a computed predicate",
+      run: (db) => usersC(db).count(expr((u: UC) => u.isAdult)),
+    },
+    {
+      name: "computed method in a filter",
+      run: (db) =>
+        ordersC(db)
+          .filter(expr((o: OC) => o.net(0.5) > 5))
+          .toArray(),
+    },
+    {
+      name: "computed method in a projection",
+      run: (db) =>
+        ordersC(db)
+          .map(expr((o: OC) => ({ id: o.id, net: o.net(0.5) })))
+          .toArray(),
+    },
+    {
+      name: "aggregate over a computed method",
+      run: (db) => ordersC(db).sum(expr((o: OC) => o.net(0))),
+    },
+  ];
+}
+
 /** Run the corpus against a provider and the reference; return per-case comparisons. */
 export async function runConformance(
   makeProvider: (fixtures: Fixtures) => QueryProvider | Promise<QueryProvider>,
-  opts: { fixtures: Fixtures; cases?: ConformanceCase[]; relations?: RelationsMeta },
+  opts: {
+    fixtures: Fixtures;
+    cases?: ConformanceCase[];
+    relations?: RelationsMeta;
+    computed?: ComputedMeta;
+  },
 ): Promise<ConformanceResult[]> {
-  const cases = opts.cases ?? defaultCases();
-  const options = { relations: opts.relations } as ContextOptions<Record<string, unknown>>;
+  const cases = opts.cases ?? [...defaultCases(), ...computedCases()];
+  const computed = opts.computed ?? sampleComputed;
+  const options = {
+    relations: opts.relations,
+    computed,
+  } as ContextOptions<Record<string, unknown>>;
   const referenceCtx = createContext<Record<string, unknown>>(
     referenceProvider(opts.fixtures),
     options,

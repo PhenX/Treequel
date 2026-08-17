@@ -88,6 +88,16 @@ export const DIAGNOSTICS: Readonly<Record<string, DiagnosticSpec>> = Object.free
     summary: "Invalid include()/thenInclude() usage",
     hint: "A navigation selector is a single property access (`u => u.orders`); thenInclude() must follow include().",
   },
+  R2009: {
+    severity: "error",
+    summary: "Computed member cycle detected",
+    hint: "A computed member's definition resolves back to itself; break the loop.",
+  },
+  R2010: {
+    severity: "error",
+    summary: "Computed method called with the wrong number of arguments",
+    hint: "Pass exactly the arguments the computed method's definition declares.",
+  },
 
   // R3000–R3099 — fallback
   R3001: { severity: "warn", summary: "Runtime fallback active (no build plugin ran)" },

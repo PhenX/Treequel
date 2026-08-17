@@ -35,7 +35,7 @@ export default defineConfig({
           ],
         },
         {
-          text: "Querying — the flagship",
+          text: "Querying",
           items: [
             { text: "Joins & includes", link: "/guide/joins-and-includes" },
             { text: "Grouping & aggregates", link: "/guide/grouping" },
@@ -62,8 +62,7 @@ export default defineConfig({
     },
     socialLinks: [{ icon: "github", link: "https://github.com/PhenX/Treequel" }],
     footer: {
-      message:
-        "MIT licensed. Expression trees for TypeScript, with LINQ-style querying as the flagship application.",
+      message: "MIT licensed. Expression trees for TypeScript.",
       copyright: "© Fabien Ménager",
     },
     search: { provider: "local" },

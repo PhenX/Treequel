@@ -5,9 +5,8 @@ body:
   - type: markdown
     attributes:
       value: |
-        Treequel is expression trees for TypeScript, with LINQ as the flagship application — **not an ORM**. Migrations,
-        schema management, and relation mapping are out of scope by design. Features that fit "a tree, a provider, or a
-        diagnostic" are in scope.
+        Treequel is expression trees for TypeScript. Migrations, schema management, and relation mapping are out of
+        scope by design. Features that fit "a tree, a provider, or a diagnostic" are in scope.
   - type: textarea
     id: problem
     attributes:
@@ -33,7 +32,7 @@ body:
     attributes:
       label: Scope
       options:
-        - label: This is not ORM territory (migrations / schema management / relation mapping).
+        - label: This fits a tree, a provider, or a diagnostic — not migrations, schema management, or relation mapping.
           required: true
         - label: I searched existing issues and the roadmap.
           required: true

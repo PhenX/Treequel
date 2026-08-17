@@ -4,8 +4,8 @@
 
 **Expression trees for TypeScript.** Write an ordinary lambda; it stays the function it always was, and becomes a
 typed, serializable tree you can evaluate, rewrite, print, store, send over the wire — or hand to a provider that
-translates it: a policy check, a remote filter, parameterized SQL. The flagship application is LINQ-style querying:
-the same query file runs against fixture arrays in your tests and compiles to parameterized SQL in production.
+translates it: a policy check, a remote filter, parameterized SQL. One application is LINQ-style querying: the same
+query file runs against fixture arrays in your tests and compiles to parameterized SQL in production.
 
 ## One lambda, three lives
 
@@ -24,7 +24,7 @@ At a traced query call site the `expr()` marker is not even needed — the build
 [toolkit](https://phenx.github.io/Treequel/guide/the-tree) (`evaluate`, `partialEval`, `print`, `rewrite`, the `b`
 node builders) works on every tree, with zero dependencies and no provider involved.
 
-## The flagship application: querying
+## Querying
 
 ```ts
 const adults = await db.users
@@ -44,7 +44,7 @@ split-query `include`/`thenInclude`, grouping, and computed members are covered 
 
 One definition, because it is both a function and data, does several jobs:
 
-- **Queries** — the flagship: fixtures in tests, parameterized SQL in production, one file.
+- **Queries** — fixtures in tests, parameterized SQL in production, one file.
 - **Authorization & policy** — the rule that filters every list query is also the `evaluate` check on one object,
   the UI's show/hide, and an auditable row in a policy store ([runnable example](examples/policy-rules)).
 - **Filters & saved searches over the wire** — a client sends a serialized tree; the server re-validates it against
@@ -98,7 +98,7 @@ Capturing lambdas at build time, and keeping the editor honest:
 | [`@treequel/ts-plugin`](packages/ts-plugin) | In-editor subset diagnostics | `capture` |
 | [`@treequel/eslint-plugin`](packages/eslint-plugin) | The same rules, lint-gated | `capture` |
 
-The flagship application — querying:
+Querying:
 
 | Package | Purpose | Runtime deps |
 |---|---|---|

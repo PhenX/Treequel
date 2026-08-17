@@ -62,8 +62,7 @@ Write ordinary TypeScript lambdas — `u => u.age > minAge` — and have them ex
 function and as a serializable, typed expression tree you can evaluate, rewrite, print, store, send over the wire —
 or hand to a provider that translates it: policy checks, remote filters, IndexedDB queries, SQL. C#'s
 `Expression<Func<T,bool>>` + `IQueryable<T>`, rebuilt for TypeScript with a build-time Vite plugin as the reification
-mechanism. Expression trees are the product; LINQ-style querying is the flagship application. The write path —
-schema, migrations, persistence — deliberately stays with other tools.
+mechanism. Expression trees are the product; LINQ-style querying is one application of them.
 
 ## Repository layout & where things go
 
@@ -199,8 +198,8 @@ describes itself the same way everywhere:
 
 > **Expression trees for TypeScript.** Write an ordinary lambda; it stays the function it always was, and becomes a
 > typed, serializable tree you can evaluate, rewrite, print, store, send over the wire — or hand to a provider that
-> translates it: a policy check, a remote filter, parameterized SQL. The flagship application is LINQ-style querying:
-> the same query file runs against fixture arrays in your tests and compiles to parameterized SQL in production.
+> translates it: a policy check, a remote filter, parameterized SQL. One application is LINQ-style querying: the same
+> query file runs against fixture arrays in your tests and compiles to parameterized SQL in production.
 
 Surfaces that carry it drift the moment one changes alone. Update them **in the same commit**: the `README.md`
 subtitle · the docs hero + site description (`apps/docs`) · the root `package.json` description · the GitHub repo
@@ -213,11 +212,10 @@ invariant.
   and more than ~8 feature bullets on any one page.
 - **Prefer the concrete over the categorical:** "compiles to one parameterized `WHERE` clause" beats "powerful query
   engine". Name a number, a behavior, or a limit.
-- **State limits plainly.** Expression-only subset, the boundary rule, what a provider rejects, pre-1.0 status, the
-  no-writes/no-migrations boundary — trust is the point, not a caveat to bury. State each limit where it is the
-  topic (the comparison page owns the ORM question); don't append it as a refrain elsewhere. Docs lead with
-  "expression trees for TypeScript, with LINQ-style querying as the flagship application", never "a new way to talk
-  to Postgres".
+- **State limits plainly.** Expression-only subset, the boundary rule, what a provider rejects, pre-1.0 status —
+  trust is the point, not a caveat to bury. State each limit where it is the topic (the comparison page owns the ORM
+  question); don't append it as a refrain elsewhere. Docs lead with "expression trees for TypeScript", never "a new
+  way to talk to Postgres". Querying is one application among the others, not the headline.
 - **EF Core and LINQ are background, not adjectives.** Name them where lineage is the topic (the lineage and
   comparison pages, ADRs); everywhere else state the rule itself ("`include`/`thenInclude` over declared relations",
   not "EF-style `include`"). A guide page should read without knowing what EF Core is.

@@ -1,8 +1,8 @@
 # Getting started
 
 Treequel turns ordinary lambdas into expression trees at build time. The lambda stays callable; the tree is data you
-can evaluate, serialize, or hand to a provider. This page starts with the tree itself, then the flagship application:
-the same query running in memory in your tests and compiling to parameterized SQL in production.
+can evaluate, serialize, or hand to a provider. This page starts with the tree itself, then querying: the same query
+running in memory in your tests and compiling to parameterized SQL in production.
 
 ## Install
 
@@ -41,8 +41,8 @@ JSON.stringify(serialize(isAdult.body)); // versioned JSON — store it, send it
 ```
 
 [The expression tree](/guide/the-tree) covers this toolkit — `evaluate`, `partialEval`, `rewrite`, building trees
-without a lambda — and [Applications](/guide/applications) catalogs what it opens up. The rest of this page is the
-flagship application: querying.
+without a lambda — and [Applications](/guide/applications) catalogs what it opens up. The rest of this page is
+querying.
 
 ## Write a query
 

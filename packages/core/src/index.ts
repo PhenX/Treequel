@@ -12,6 +12,7 @@ export {
   __expr,
   __setFallbackHost,
 } from "./expr.js";
+export { type MakeExprOptions, makeExpr } from "./make-expr.js";
 export {
   type VisitFns,
   type RewriteFns,

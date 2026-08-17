@@ -123,7 +123,7 @@ describe("SQLite provider ≡ memory reference (property, on sql.js)", () => {
         });
 
         const mem = (await createContext<{ users: Row }>(memoryProvider({ users: rows }))
-          .users.where(expr)
+          .users.filter(expr)
           .toArray()) as Row[];
 
         db.run("DELETE FROM users");
@@ -137,7 +137,7 @@ describe("SQLite provider ≡ memory reference (property, on sql.js)", () => {
           ]);
         }
         const sql = (await createContext<{ users: Row }>(sqlite(exec, schema))
-          .users.where(expr)
+          .users.filter(expr)
           .toArray()) as Row[];
 
         const ids = (rs: Row[]): number[] => rs.map((r) => r.id).sort((a, b) => a - b);

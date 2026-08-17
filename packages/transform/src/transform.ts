@@ -3,10 +3,10 @@ import MagicString from "magic-string";
 import { parseSync } from "oxc-parser";
 import { emitNode, offsetToLineCol } from "./emit.js";
 
-/** LINQ methods whose lambda-literal arguments are expression positions. */
-const LINQ_METHODS = new Set([
-  "where",
-  "select",
+/** Query methods whose lambda-literal arguments are expression positions. */
+const QUERY_METHODS = new Set([
+  "filter",
+  "map",
   "orderBy",
   "orderByDescending",
   "thenBy",
@@ -323,7 +323,7 @@ function detectTargets(analysis: Analysis, crossLocals: ReadonlySet<string>): Ta
     }
   };
 
-  // Fixpoint so `const a = db.users; const q = a.where(...)` both taint.
+  // Fixpoint so `const a = db.users; const q = a.filter(...)` both taint.
   for (let changed = true; changed;) {
     changed = false;
     for (const d of declarators) {
@@ -367,7 +367,7 @@ function detectTargets(analysis: Analysis, crossLocals: ReadonlySet<string>): Ta
     }
 
     // include()/thenInclude() refine callbacks: the builder parameter acts as
-    // a traced receiver inside the callback, so `q.where(o => …)` reifies.
+    // a traced receiver inside the callback, so `q.filter(o => …)` reifies.
     if (
       callee.type === "MemberExpression" &&
       (callee.property as AnyNode).type === "Identifier" &&
@@ -396,7 +396,7 @@ function detectTargets(analysis: Analysis, crossLocals: ReadonlySet<string>): Ta
           if (
             mc.type === "MemberExpression" &&
             (mc.property as AnyNode).type === "Identifier" &&
-            LINQ_METHODS.has((mc.property as AnyNode).name as string) &&
+            QUERY_METHODS.has((mc.property as AnyNode).name as string) &&
             rootsAtBuilder(mc.object as AnyNode)
           ) {
             for (const a of (m.arguments as AnyNode[]) ?? []) {
@@ -408,11 +408,11 @@ function detectTargets(analysis: Analysis, crossLocals: ReadonlySet<string>): Ta
       return;
     }
 
-    // tainted LINQ method call — reify arrow arguments.
+    // tainted query method call — reify arrow arguments.
     if (
       callee.type === "MemberExpression" &&
       (callee.property as AnyNode).type === "Identifier" &&
-      LINQ_METHODS.has((callee.property as AnyNode).name as string) &&
+      QUERY_METHODS.has((callee.property as AnyNode).name as string) &&
       isTainted(callee.object as AnyNode)
     ) {
       for (const arg of args) {

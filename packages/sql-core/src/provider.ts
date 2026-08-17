@@ -15,8 +15,8 @@ export interface SqlProviderOptions {
 }
 
 const SUPPORTED_OPS = [
-  "where",
-  "select",
+  "filter",
+  "map",
   "orderBy",
   "thenBy",
   "take",

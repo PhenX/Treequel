@@ -11,7 +11,7 @@ this.
 ## Decision
 
 1. **The refinement is a second argument**, a callback over a minimal builder:
-   `include(u => u.orders, q => q.where(p).orderByDescending(k).take(3))` — `where`, `orderBy`/`thenBy` (and
+   `include(u => u.orders, q => q.filter(p).orderByDescending(k).take(3))` — `filter`, `orderBy`/`thenBy` (and
    descending forms), `take`, `skip`; nothing else. The spec carries the ops plus per-parent `take`/`skip`;
    `thenInclude` takes the same argument.
 2. **Slices are per parent** — `take(3)` keeps three children *per row*, the EF semantics — and **require an order**
@@ -27,7 +27,7 @@ this.
 5. **A refined include is stated once per navigation.** Merging two refinements would guess at semantics; repeated
    *unrefined* mentions keep merging their `thenInclude` branches as before (R2008 on conflict).
 6. **The build transform treats the builder callback's parameter as a traced receiver**, so inline lambdas inside
-   `q.where(o => …)` reify exactly like top-level query lambdas — no `expr()` ceremony inside refinements.
+   `q.filter(o => …)` reify exactly like top-level query lambdas — no `expr()` ceremony inside refinements.
 
 ## Consequences
 

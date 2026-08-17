@@ -5,7 +5,7 @@ What happens **without** the build plugin (goal G6), shown in
 
 1. **In-memory works fully — even with closures.** The memory provider calls the
    compiled lambda directly; it never needs the tree, so
-   `db.users.where(u => u.age >= minAge)` just works.
+   `db.users.filter(u => u.age >= minAge)` just works.
 
 2. **Remote providers fall back to a runtime parse.** With
    `import "@treequel/fallback/register"` (or `enableFallback()`), a *closure-free*

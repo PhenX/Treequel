@@ -47,12 +47,12 @@ function compile(
 }
 
 describe("ts transformer — emit", () => {
-  it("reifies a lambda at a traced where() call site", () => {
+  it("reifies a lambda at a traced filter() call site", () => {
     const js = compile({
       "/q.ts": [
         'import { createContext } from "@treequel/linq";',
         "const db = createContext(provider);",
-        "export const q = db.users.where((u) => u.age > minAge);",
+        "export const q = db.users.filter((u) => u.age > minAge);",
       ].join("\n"),
     })["/q.js"];
 
@@ -70,7 +70,7 @@ describe("ts transformer — emit", () => {
         'import { createContext } from "@treequel/linq";',
         "interface User { age: number }",
         "const db = createContext(provider);",
-        "export const q = db.users.where((u: User): boolean => u.age > 18);",
+        "export const q = db.users.filter((u: User): boolean => u.age > 18);",
       ].join("\n"),
     })["/q.js"];
 
@@ -101,7 +101,7 @@ describe("ts transformer — emit", () => {
       "/q.ts": [
         'import type { Context } from "@treequel/linq";',
         'import { db } from "./db.js";',
-        "export const q = db.users.where((u) => u.active);",
+        "export const q = db.users.filter((u) => u.active);",
       ].join("\n"),
     });
 
@@ -113,7 +113,7 @@ describe("ts transformer — emit", () => {
     const src = [
       'import { createContext } from "@treequel/linq";',
       "const db = createContext(provider);",
-      "export const q = db.users.where((u) => u.age > 1);",
+      "export const q = db.users.filter((u) => u.age > 1);",
     ].join("\n");
 
     const once = compile({ "/q.ts": src })["/q.js"];
@@ -137,7 +137,7 @@ describe("ts transformer — emit", () => {
         "/q.ts": [
           'import { createContext } from "@treequel/linq";',
           "const db = createContext(provider);",
-          "export const q = db.users.where((u) => u.id == 1);",
+          "export const q = db.users.filter((u) => u.id == 1);",
         ].join("\n"),
       },
       { diagnostics: "silent" },
@@ -155,7 +155,7 @@ describe("ts transformer — emit", () => {
           "/q.ts": [
             'import { createContext } from "@treequel/linq";',
             "const db = createContext(provider);",
-            "export const q = db.users.where((u) => u.age > 1);",
+            "export const q = db.users.filter((u) => u.age > 1);",
           ].join("\n"),
         },
         {},
@@ -171,7 +171,7 @@ describe("ts transformer — emit", () => {
           "/q.ts": [
             'import { createContext } from "@treequel/linq";',
             "const db = createContext(provider);",
-            "export const q = db.users.where((u) => u.id == 1);",
+            "export const q = db.users.filter((u) => u.id == 1);",
           ].join("\n"),
         },
         { diagnostics: "error" },

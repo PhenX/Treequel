@@ -46,8 +46,8 @@ const users: User[] = [
 const db = createContext<{ users: User }>(memoryProvider({ users }));
 
 const adults = await db.users
-  .where((u) => u.age >= 18 && u.active)
-  .select((u) => ({ id: u.id, name: u.name }))
+  .filter((u) => u.age >= 18 && u.active)
+  .map((u) => ({ id: u.id, name: u.name }))
   .toArray();
 // [{ id: 1, name: "Ada" }]
 ```
@@ -67,7 +67,7 @@ const db = createContext<{ users: User }>(
   postgres(executor, { users: { table: "users" } }),
 );
 
-await db.users.where((u) => u.age >= 18 && u.active).toArray();
+await db.users.filter((u) => u.age >= 18 && u.active).toArray();
 // SELECT "users".* FROM "users" WHERE ("users"."age" >= $1 AND "users"."active")
 ```
 
@@ -87,7 +87,7 @@ const db = createContext<{ users: User }>(
   sqlite(executor, { users: { table: "users" } }),
 );
 
-await db.users.where((u) => u.age >= 18 && u.name.startsWith("A")).toArray();
+await db.users.filter((u) => u.age >= 18 && u.name.startsWith("A")).toArray();
 // SELECT "users".* FROM "users" WHERE ("users"."age" >= ? AND ("users"."name" GLOB ?))
 ```
 

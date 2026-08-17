@@ -1,7 +1,7 @@
-/** LINQ methods whose lambda arguments are expression positions. */
-export const LINQ_METHODS: ReadonlySet<string> = new Set([
-  "where",
-  "select",
+/** Query methods whose lambda arguments are expression positions. */
+export const QUERY_METHODS: ReadonlySet<string> = new Set([
+  "filter",
+  "map",
   "orderBy",
   "orderByDescending",
   "thenBy",

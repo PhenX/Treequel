@@ -60,14 +60,14 @@ const db = (): Context<Schema> =>
 describe("navigation predicates (memory, runtime-parsed trees)", () => {
   it("some() over a navigation filters like EXISTS", async () => {
     const rows = await db()
-      .users.where((u) => u.orders?.some((o) => o.total >= 10))
+      .users.filter((u) => u.orders?.some((o) => o.total >= 10))
       .toArray();
     expect(rows.map((u) => u.name)).toEqual(["Ada"]);
   });
 
   it("every() over a navigation is vacuously true for parents without children", async () => {
     const rows = await db()
-      .users.where((u) => u.orders?.every((o) => o.total >= 10))
+      .users.filter((u) => u.orders?.every((o) => o.total >= 10))
       .toArray();
     // Ada (10, 20) and Alan (no orders) — Grace's order 5 fails the test.
     expect(rows.map((u) => u.name).sort()).toEqual(["Ada", "Alan"]);
@@ -75,19 +75,19 @@ describe("navigation predicates (memory, runtime-parsed trees)", () => {
 
   it("negation and column predicates combine with navigation tests", async () => {
     const inactive = await db()
-      .users.where((u) => u.active && u.orders?.some((o) => o.total > 5))
+      .users.filter((u) => u.active && u.orders?.some((o) => o.total > 5))
       .toArray();
     expect(inactive.map((u) => u.name)).toEqual(["Ada"]);
 
     const none = await db()
-      .users.where((u) => !u.orders?.some((o) => o.total > 0))
+      .users.filter((u) => !u.orders?.some((o) => o.total > 0))
       .toArray();
     expect(none.map((u) => u.name)).toEqual(["Alan"]);
   });
 
   it("navigation tests nest across two levels", async () => {
     const rows = await db()
-      .users.where((u) => u.orders?.some((o) => o.items?.some((i) => i.sku === "apple")))
+      .users.filter((u) => u.orders?.some((o) => o.items?.some((i) => i.sku === "apple")))
       .toArray();
     expect(rows.map((u) => u.name)).toEqual(["Ada"]);
   });
@@ -102,7 +102,7 @@ describe("navigation predicates (memory, runtime-parsed trees)", () => {
 
   it("does not leak attached navigations into the results", async () => {
     const rows = await db()
-      .users.where((u) => u.orders?.some((o) => o.total >= 10))
+      .users.filter((u) => u.orders?.some((o) => o.total >= 10))
       .toArray();
     expect(rows).toHaveLength(1);
     expect("orders" in (rows[0] as object)).toBe(false);
@@ -113,7 +113,7 @@ describe("navigation predicates (memory, runtime-parsed trees)", () => {
 describe("correlated projections and aggregates (memory, runtime-parsed trees)", () => {
   it("projects a navigation count and a filtered count", async () => {
     const rows = await db()
-      .users.select((u) => ({
+      .users.map((u) => ({
         name: u.name,
         n: u.orders?.length ?? 0,
         big: u.orders?.filter((o) => o.total >= 10).length ?? 0,
@@ -128,7 +128,7 @@ describe("correlated projections and aggregates (memory, runtime-parsed trees)",
 
   it("sums a navigation via the reduce idiom", async () => {
     const rows = await db()
-      .users.select((u) => ({
+      .users.map((u) => ({
         name: u.name,
         spent: u.orders?.reduce((acc, o) => acc + o.total, 0) ?? 0,
       }))
@@ -150,7 +150,7 @@ describe("correlated projections and aggregates (memory, runtime-parsed trees)",
 
   it("filters inside a chain may reference child navigations", async () => {
     const rows = await db()
-      .users.select((u) => ({
+      .users.map((u) => ({
         name: u.name,
         withItems: u.orders?.filter((o) => o.items?.some((i) => i.sku === "apple")).length ?? 0,
       }))

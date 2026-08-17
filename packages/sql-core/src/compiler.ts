@@ -122,7 +122,7 @@ export class Compiler {
     if (layer.pendingGroup) {
       throw new TreequelError(
         "R2001",
-        `groupBy must be followed by a select projection (${doing} over raw groups is memory-only in v1).`,
+        `groupBy must be followed by a map projection (${doing} over raw groups is memory-only in v1).`,
       );
     }
   }
@@ -166,7 +166,7 @@ export class Compiler {
   }
 
   foldWhere(layer: Layer, cond: (l: Layer) => string): Layer {
-    this.rejectPendingGroup(layer, "where");
+    this.rejectPendingGroup(layer, "filter");
     if (
       layer.projection !== null ||
       layer.distinct ||
@@ -481,9 +481,9 @@ export class Compiler {
 
   foldOp(layer: Layer, op: PlanOp): Layer {
     switch (op.op) {
-      case "where":
+      case "filter":
         return this.foldWhere(layer, (l) => this.translate1(op.expr, l));
-      case "select":
+      case "map":
         return this.foldSelect(layer, op.expr);
       case "orderBy":
       case "thenBy":

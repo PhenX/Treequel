@@ -14,8 +14,8 @@ const CTX = [
 ];
 
 describe("transformModuleSync — reification", () => {
-  it("reifies a lambda at a traced where() call site", () => {
-    const code = [...CTX, "const q = db.users.where(u => u.age > minAge);"].join("\n");
+  it("reifies a lambda at a traced filter() call site", () => {
+    const code = [...CTX, "const q = db.users.filter(u => u.age > minAge);"].join("\n");
     const out = transformModuleSync(code, "src/q.ts");
     expect(out).not.toBeNull();
     expect(out!.count).toBe(1);
@@ -36,13 +36,13 @@ describe("transformModuleSync — reification", () => {
   });
 
   it("is idempotent — a second pass is a no-op", () => {
-    const code = [...CTX, "const q = db.users.where(u => u.age > minAge);"].join("\n");
+    const code = [...CTX, "const q = db.users.filter(u => u.age > minAge);"].join("\n");
     const first = transformModuleSync(code, "src/q.ts");
     expect(transformModuleSync(first!.code, "src/q.ts")).toBeNull();
   });
 
   it("reports subset diagnostics and leaves the offending lambda untouched", () => {
-    const code = [...CTX, "const q = db.users.where(u => u.id == 1);"].join("\n");
+    const code = [...CTX, "const q = db.users.filter(u => u.id == 1);"].join("\n");
     const out = transformModuleSync(code, "src/q.ts");
     expect(out).not.toBeNull();
     expect(out!.count).toBe(0);
@@ -51,7 +51,7 @@ describe("transformModuleSync — reification", () => {
   });
 
   it("bails on modules that reference no traced package", () => {
-    expect(transformModuleSync("const x = arr.where(u => u.age > 1);")).toBeNull();
+    expect(transformModuleSync("const x = arr.filter(u => u.age > 1);")).toBeNull();
   });
 });
 
@@ -88,7 +88,7 @@ describe("transformModuleSync — cross-module contexts", () => {
     const qCode = [
       'import type { Context } from "@treequel/linq";',
       'import { db } from "./db";',
-      "const q = db.users.where(u => u.age > 1);",
+      "const q = db.users.filter(u => u.age > 1);",
     ].join("\n");
     const host: SyncTransformHost = {
       resolve: (source) => (source === "./db" ? "/src/db.ts" : null),
@@ -104,7 +104,7 @@ describe("transformModuleSync — cross-module contexts", () => {
     const qCode = [
       'import type { Context } from "@treequel/linq";',
       'import { db } from "./db";',
-      "const q = db.users.where(u => u.age > 1);",
+      "const q = db.users.filter(u => u.age > 1);",
     ].join("\n");
     const host: SyncTransformHost = { resolve: () => "/src/db.ts" };
     // Empty registry → the import stays opaque → nothing reifies.
@@ -115,7 +115,7 @@ describe("transformModuleSync — cross-module contexts", () => {
 
 describe("planModuleSync", () => {
   it("edit-list reproduces the text transform when applied", () => {
-    const code = [...CTX, "const q = db.users.where(u => u.age > minAge).select(u => u.id);"].join(
+    const code = [...CTX, "const q = db.users.filter(u => u.age > minAge).map(u => u.id);"].join(
       "\n",
     );
     const plan = planModuleSync(code, "src/q.ts");
@@ -137,10 +137,10 @@ describe("planModuleSync", () => {
 
 describe("sync/async parity", () => {
   const cases = [
-    "const q = db.users.where(u => u.age > minAge).select(u => u.id);",
-    "const q = db.users.where(u => u.tags.some(t => t.startsWith(prefix)));",
+    "const q = db.users.filter(u => u.age > minAge).map(u => u.id);",
+    "const q = db.users.filter(u => u.tags.some(t => t.startsWith(prefix)));",
     'import { expr } from "@treequel/linq";\nconst p = expr(u => u.age > 18);',
-    "const q = db.users.include((u) => u.orders, (r) => r.where(o => o.total > 10).take(1));",
+    "const q = db.users.include((u) => u.orders, (r) => r.filter(o => o.total > 10).take(1));",
   ];
   for (const [i, snippet] of cases.entries()) {
     it(`produces byte-identical output to transformModule (case ${i})`, async () => {

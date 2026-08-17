@@ -9,8 +9,8 @@ production. Expression trees are the product; LINQ is the flagship application. 
 
 ```ts
 const adults = await db.users
-  .where(u => u.age >= minAge && u.name.startsWith(prefix))
-  .select(u => ({ id: u.id, name: u.name }))
+  .filter(u => u.age >= minAge && u.name.startsWith(prefix))
+  .map(u => ({ id: u.id, name: u.name }))
   .toArray();
 // → SELECT "t0"."id" AS "id", "t0"."name" AS "name" FROM "users" "t0"
 //   WHERE ("t0"."age" >= $1 AND "t0"."name" LIKE $2 ESCAPE '\')
@@ -21,11 +21,11 @@ in-memory provider is the reference semantics, and the SQL provider is property-
 
 ## How it works
 
-1. You write `db.users.where(u => u.age > minAge)`.
+1. You write `db.users.filter(u => u.age > minAge)`.
 2. At build time the Vite plugin detects the traced call site, validates the lambda against a small closed subset, and
    reifies it into `__expr({ compiled, params, body, scope })` — keeping the original lambda as `compiled` and inlining
    the tree as a plain object.
-3. At runtime `where()` appends `{ op: "where", expr }` to an immutable `QueryPlan`.
+3. At runtime `filter()` appends `{ op: "filter", expr }` to an immutable `QueryPlan`.
 4. On execution (`await`/`toArray()`) the provider folds captured free variables to constants against the live closure,
    then translates the residual tree: the SQL provider to parameterized SQL, the memory provider by calling `compiled`.
 

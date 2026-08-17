@@ -18,7 +18,7 @@ interface QueryProvider {
 - `capabilities()` declares which plan ops (and, optionally, which WellKnown calls) you translate. `Queryable` runs a
   capability pre-check before any I/O — recursively through `join`/`leftJoin` inner plans — and fails fast with a
   located error, so an unsupported op never reaches your `execute`.
-- `execute(plan)` receives an immutable `QueryPlan` — a `source` and an ordered list of ops (`where`, `select`,
+- `execute(plan)` receives an immutable `QueryPlan` — a `source` and an ordered list of ops (`filter`, `map`,
   `orderBy`, `take`, `join`/`leftJoin` with a nested inner plan, executors, …), each carrying an `Expr`.
 - An `include` op carries a self-contained `IncludeSpec` — navigation name, target source, key pair, cardinality,
   nested children. Providers never read relation metadata; everything needed to fetch and attach is in the spec.

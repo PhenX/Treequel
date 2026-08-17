@@ -35,9 +35,9 @@ const all = await db.orders
   `null` partner.
 - **Composite keys** are object literals with the same properties on both sides:
   `(o) => ({ a: o.x, b: o.y })` / `(u) => ({ a: u.x, b: u.y })`.
-- **The inner side is a full query.** Filter it first (`db.orders.where(...)`) and the SQL provider joins a derived
+- **The inner side is a full query.** Filter it first (`db.orders.filter(...)`) and the SQL provider joins a derived
   table.
-- **Everything composes.** `where`/`orderBy`/`select`/`take` after a join operate on the projected shape; the SQL
+- **Everything composes.** `filter`/`orderBy`/`map`/`take` after a join operate on the projected shape; the SQL
   provider wraps the join in a derived table when SQL evaluation order requires it.
 
 Limits (v1): the join result selector must be an object literal (or a single scalar) when it compiles to SQL — a bare
@@ -51,7 +51,7 @@ calls it `SelectMany`):
 ```ts
 // every order of an active user
 const orders = await db.users
-  .where((u) => u.active)
+  .filter((u) => u.active)
   .flatMap((u) => u.orders)
   .orderByDescending((o) => o.total)
   .toArray();
@@ -77,7 +77,7 @@ final result rows — the navigation property becomes required and non-null in t
 const users = await db.users
   .include((u) => u.orders)
   .thenInclude((o) => o.items)
-  .where((u) => u.active)
+  .filter((u) => u.active)
   .orderBy((u) => u.name)
   .toArray();
 
@@ -119,11 +119,11 @@ Predicates test a navigation with `some`/`every` — the same methods arrays hav
 
 ```ts
 const bigSpenders = await db.users
-  .where((u) => u.orders?.some((o) => o.total > 100))
+  .filter((u) => u.orders?.some((o) => o.total > 100))
   .toArray();
 
 const allPaid = await db.users
-  .where((u) => u.active && u.orders?.every((o) => o.paid))
+  .filter((u) => u.active && u.orders?.every((o) => o.paid))
   .toArray();
 ```
 
@@ -137,7 +137,7 @@ const allPaid = await db.users
   SQL row for row. This path reads the expression tree: without the build plugin, add
   `import "@treequel/fallback/register"` — a navigation predicate with no tree available is refused with a
   teachable error, never evaluated against absent data.
-- `include` **loads** related rows; `some`/`every` **filter** by them. An `include` is not visible to `where` — same
+- `include` **loads** related rows; `some`/`every` **filter** by them. An `include` is not visible to `filter` — same
   rule as EF Core.
 
 ### Counting and summing navigations
@@ -147,7 +147,7 @@ methods arrays already have:
 
 ```ts
 const stats = await db.users
-  .select((u) => ({
+  .map((u) => ({
     name: u.name,
     orderCount: u.orders?.length ?? 0,                              // correlated COUNT(*)
     big: u.orders?.filter((o) => o.total > 100).length ?? 0,        // filtered COUNT(*)
@@ -155,7 +155,7 @@ const stats = await db.users
   }))
   .toArray();
 
-db.users.where((u) => (u.orders?.length ?? 0) > 1);
+db.users.filter((u) => (u.orders?.length ?? 0) > 1);
 db.users.orderByDescending((u) => u.orders?.length ?? 0);
 ```
 
@@ -174,12 +174,12 @@ parent**:
 ```ts
 const users = await db.users.include(
   (u) => u.orders,
-  (q) => q.where((o) => o.paid).orderByDescending((o) => o.total).take(3),
+  (q) => q.filter((o) => o.paid).orderByDescending((o) => o.total).take(3),
 );
 // each user carries their top three paid orders
 ```
 
-- A refinement supports `where`, `orderBy`/`orderByDescending`, `thenBy`/`thenByDescending`, `take`, `skip` — nothing
+- A refinement supports `filter`, `orderBy`/`orderByDescending`, `thenBy`/`thenByDescending`, `take`, `skip` — nothing
   else. Filters may use navigation predicates (`o.items?.some(…)`).
 - An explicit order replaces the canonical attachment order; `take`/`skip` **require** one (per-parent slices must be
   deterministic — R2008 otherwise), and slice each parent's rows, not the total.
@@ -193,9 +193,9 @@ const users = await db.users.include(
 
 - **Selectors are navigation paths, not expressions.** `include(u => u.orders)` — a single property access. It is
   read by probing the function; it is never captured, so it works with or without the build plugin.
-- **Includes attach to the final rows**, wherever they appear in the chain. They are not visible to `where`/`select`
+- **Includes attach to the final rows**, wherever they appear in the chain. They are not visible to `filter`/`map`
   of the same query — filter on columns, not on loaded navigations (as in EF Core).
-- **The parent key must survive.** After a `select`, the rows must still carry the `from` property or the include
+- **The parent key must survive.** After a `map`, the rows must still carry the `from` property or the include
   fails with R2002.
 - **Attachment order is canonical** (a deterministic JSON-based order), because SQL row order without `ORDER BY` is
   undefined — give the include an explicit order (`include(nav, q => q.orderBy(…))`) when it matters.

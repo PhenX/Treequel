@@ -76,18 +76,18 @@ export function applyOps(
 ): unknown {
   const includes = collectIncludes(ops);
   let cur = start;
-  // Navigations resolve on source-shaped rows only: once a select/groupBy/join
+  // Navigations resolve on source-shaped rows only: once a map/groupBy/join
   // reshapes the element, later expressions run over what they were given.
   let scope = env;
   for (let i = 0; i < ops.length; i++) {
     const op = ops[i] as PlanOp;
     switch (op.op) {
-      case "where": {
+      case "filter": {
         const ev = navEvalRows(cur, op.expr, scope, rows) ?? cur;
         cur = cur.filter((_r, j) => Boolean(invoke(op.expr, ev[j])));
         break;
       }
-      case "select": {
+      case "map": {
         const ev = navEvalRows(cur, op.expr, scope, rows) ?? cur;
         cur = cur.map((_r, j) => invoke(op.expr, ev[j]));
         scope = {};

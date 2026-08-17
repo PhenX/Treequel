@@ -1,12 +1,12 @@
 # Grouping & aggregates
 
-`groupBy` buckets rows by a key; a `select` over the groups projects the key and *measures* the bucket — with the
+`groupBy` buckets rows by a key; a `map` over the groups projects the key and *measures* the bucket — with the
 JS that `Grouping`'s real `items` array already supports:
 
 ```ts
 const perUser = await db.orders
   .groupBy((o) => o.userId)
-  .select((g) => ({
+  .map((g) => ({
     userId: g.key,
     n: g.items.length,                                             // COUNT(*)
     big: g.items.filter((o) => o.total > 100).length,              // COUNT(CASE WHEN …)
@@ -15,7 +15,7 @@ const perUser = await db.orders
     high: g.items.reduce((m, o) => Math.max(m, o.total), -Infinity), // MAX(total)
     avg: g.items.reduce((acc, o) => acc + o.total, 0) / g.items.length, // SUM / COUNT
   }))
-  .where((r) => r.n > 1)          // HAVING semantics — filters the groups
+  .filter((r) => r.n > 1)          // HAVING semantics — filters the groups
   .orderByDescending((r) => r.total)
   .take(10)
   .toArray();
@@ -27,7 +27,7 @@ const perUser = await db.orders
   time (`g.key.uid`).
 - **Any key works**, including a correlated measurement (`groupBy(u => u.orders?.length ?? 0)`): a non-column key is
   precomputed into a derived table so the grouped statement never re-evaluates it.
-- A `where` *after* the group projection filters groups (SQL wraps the `GROUP BY` in a derived table — `HAVING`
+- A `filter` *after* the group projection filters groups (SQL wraps the `GROUP BY` in a derived table — `HAVING`
   semantics); `orderBy`/`take`/`skip` compose as usual. `groupBy(...).count()` counts the groups.
 - `Math.min`/`Math.max` idioms require their identity seeds (`Infinity`/`-Infinity`) and do not compose with
   `.filter()` — a filtered-empty bucket would be `NULL` in SQL but the seed in JS, so it is refused instead.

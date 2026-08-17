@@ -19,6 +19,7 @@ Everything here is in `@treequel/tree` and `@treequel/core` — zero-dependency,
 | `print(node)` | `@treequel/core` | Render a tree back to readable pseudo-source, for logs and audits. |
 | `visit(node, fns)` / `rewrite(node, fns)` | `@treequel/core` | Walk a tree, or rebuild it with per-kind replacements. |
 | `b` | `@treequel/core` | Terse node constructors, for building a tree by hand (a rule builder, a codegen). |
+| `makeExpr(params, body, opts?)` | `@treequel/core` | Wrap a hand-built tree as an `Expr` a query operator accepts; `compiled` defaults to the interpreter over `body`. |
 
 ## Using a serialized tree
 
@@ -86,6 +87,20 @@ evaluate(rule, { params: { u: someUser } }); // → boolean
 ```
 
 A tree built this way serializes, prints, evaluates, and translates like any captured one.
+
+To hand a built tree straight to a query operator, wrap it with `makeExpr` — the counterpart to `expr(fn)`. Where
+`expr` starts from a function and derives the tree, `makeExpr` starts from the tree and derives the function, so the
+result runs in the memory provider and translates in SQL just like a reified lambda:
+
+```ts
+import { b, makeExpr } from "@treequel/core";
+
+const isAdult = makeExpr<(u: User) => boolean>(
+  ["u"],
+  b.binary(">=", b.member(b.param("u"), "age"), b.const(18)),
+);
+db.users.filter(isAdult); // memory calls compiled; SQL reads body
+```
 
 ## What this is good for
 

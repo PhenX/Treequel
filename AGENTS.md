@@ -18,7 +18,7 @@ Read the section covering the area you are editing, in addition to this file:
 | `packages/ts-transformer/` — TypeScript-compiler transformer (ts-patch) | plan §7 + [area guide](packages/ts-transformer/AGENTS.md) |
 | `packages/core/` — `Expr`, visitor/rewriter, partial evaluation | plan §8 |
 | `packages/fallback/` — runtime `toString()` path | plan §8.4 |
-| `packages/linq/` — `Queryable`, `QueryPlan`, provider protocol | plan §9 + [area guide](packages/linq/AGENTS.md) |
+| `packages/query/` — `Queryable`, `QueryPlan`, provider protocol | plan §9 + [area guide](packages/query/AGENTS.md) |
 | `packages/sql-core/` — shared SQL translator, dialect seam, provider builder | plan §10 |
 | `packages/provider-*/` — providers (`memory`, `postgres`, `sqlite`) | plan §10 |
 | `packages/ts-plugin/`, `packages/eslint-plugin/` — editor & lint surface | plan §12 |
@@ -127,7 +127,7 @@ Run typecheck, lint and tests **once at the end** before the final commit — no
 - Strict TypeScript everywhere; ESM-only, no CJS; Node built-ins imported as `import * as x from 'node:x'`.
 - **American English** spelling throughout ("initialize", "serialize", "color").
 - **Extract a shared helper** when the same block exceeds ~10 lines and appears more than once.
-- Runtime packages carry size budgets (`tree` < 2 kB, `core` < 5 kB, `linq` < 4 kB, providers < 10 kB min+gz). Check
+- Runtime packages carry size budgets (`tree` < 2 kB, `core` < 5 kB, `query` < 4 kB, providers < 10 kB min+gz). Check
   the budget before growing them; build-time and dev-only packages are exempt.
 
 ### Comments
@@ -150,7 +150,7 @@ under `scripts/` is the source of truth once M0 lands, and CI lints the full PR 
 
 - **type** — `feat` `fix` `perf` `docs` `chore` `ci` `refactor` `test` `build` `style` `revert`
 - **scope** — closed list, anything else fails: `tree` `core` `capture` `fallback` `transform` `vite` `ts-transformer`
-  `linq` `memory` `sql` `ts-plugin` `eslint-plugin` `docs` `playground` `examples` `tooling` `ci` `deps` `release`.
+  `query` `memory` `sql` `ts-plugin` `eslint-plugin` `docs` `playground` `examples` `tooling` `ci` `deps` `release`.
   Optional but include the best fit; never invent one (a change to the pg dialect table is `fix(sql)`, not
   `fix(dialect)`).
 - **subject** — lower-case start, imperative mood, no trailing period, full header ≤ 100 chars.
@@ -161,7 +161,7 @@ under `scripts/` is the source of truth once M0 lands, and CI lints the full PR 
 
 ### Dependencies (normative)
 
-- Runtime packages (`tree`, `core`, `linq`, `provider-*`) have **zero production dependencies**. This is a headline
+- Runtime packages (`tree`, `core`, `query`, `provider-*`) have **zero production dependencies**. This is a headline
   feature; CI fails if any appear.
 - The complete third-party inventory is committed at `DEPENDENCIES.md` (created with the M0 scaffold). Adding any
   dependency anywhere means **adding a row with a justification there in the same PR**. Anything replaceable by ≤50

@@ -31,7 +31,7 @@
   },
   "dependencies": {
     "@treequel/core": "*",
-    "@treequel/linq": "*"
+    "@treequel/query": "*"
   },
   "engines": {
     "node": ">=20"

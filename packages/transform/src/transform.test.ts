@@ -6,7 +6,7 @@ const run = (code: string, id = "src/q.ts", opts = {}) => transformModule(code, 
 describe("transformModule — reification", () => {
   it("reifies a lambda at a traced filter() call site", async () => {
     const code = [
-      'import { createContext } from "@treequel/linq";',
+      'import { createContext } from "@treequel/query";',
       "const db = createContext(provider);",
       "const q = db.users.filter(u => u.age > minAge);",
     ].join("\n");
@@ -30,7 +30,7 @@ describe("transformModule — reification", () => {
 
   it("does not reify lambdas on untainted receivers", async () => {
     const code = [
-      'import { createContext } from "@treequel/linq";',
+      'import { createContext } from "@treequel/query";',
       "const db = createContext(provider);",
       "const other = [].filter(x => x > 1);", // not tainted
     ].join("\n");
@@ -40,7 +40,7 @@ describe("transformModule — reification", () => {
 
   it("reifies lambdas inside an include refinement callback, not the callback itself", async () => {
     const code = [
-      'import { createContext } from "@treequel/linq";',
+      'import { createContext } from "@treequel/query";',
       "const db = createContext(provider);",
       "const q = db.users.include(",
       "  (u) => u.orders,",
@@ -58,7 +58,7 @@ describe("transformModule — reification", () => {
 
   it("taints intermediate bindings across the fixpoint", async () => {
     const code = [
-      'import { createContext } from "@treequel/linq";',
+      'import { createContext } from "@treequel/query";',
       "const db = createContext(provider);",
       "const base = db.users;",
       "const q = base.filter(u => u.active).map(u => u.id);",
@@ -69,7 +69,7 @@ describe("transformModule — reification", () => {
 
   it("reifies expr() calls regardless of taint", async () => {
     const code = [
-      'import { expr } from "@treequel/linq";',
+      'import { expr } from "@treequel/query";',
       "const p = expr(u => u.age > 18);",
     ].join("\n");
     const out = await run(code);
@@ -79,7 +79,7 @@ describe("transformModule — reification", () => {
 
   it("handles nested lambdas as a single reified unit", async () => {
     const code = [
-      'import { createContext } from "@treequel/linq";',
+      'import { createContext } from "@treequel/query";',
       "const db = createContext(provider);",
       "const q = db.users.filter(u => u.tags.some(t => t.startsWith(prefix)));",
     ].join("\n");
@@ -90,7 +90,7 @@ describe("transformModule — reification", () => {
 
   it("reports subset diagnostics and leaves the offending lambda untouched", async () => {
     const code = [
-      'import { createContext } from "@treequel/linq";',
+      'import { createContext } from "@treequel/query";',
       "const db = createContext(provider);",
       "const q = db.users.filter(u => u.id == 1);",
     ].join("\n");
@@ -104,7 +104,7 @@ describe("transformModule — reification", () => {
 
   it("is idempotent — a second pass is a no-op", async () => {
     const code = [
-      'import { createContext } from "@treequel/linq";',
+      'import { createContext } from "@treequel/query";',
       "const db = createContext(provider);",
       "const q = db.users.filter(u => u.age > minAge);",
     ].join("\n");
@@ -115,7 +115,7 @@ describe("transformModule — reification", () => {
 
   it("emits a source loc and, by default, the original src", async () => {
     const code = [
-      'import { createContext } from "@treequel/linq";',
+      'import { createContext } from "@treequel/query";',
       "const db = createContext(provider);",
       "const q = db.users.filter(u => u.age > 1);",
     ].join("\n");
@@ -126,7 +126,7 @@ describe("transformModule — reification", () => {
 
   it("omits src when emitSource is false", async () => {
     const code = [
-      'import { createContext } from "@treequel/linq";',
+      'import { createContext } from "@treequel/query";',
       "const db = createContext(provider);",
       "const q = db.users.filter(u => u.age > 1);",
     ].join("\n");
@@ -136,7 +136,7 @@ describe("transformModule — reification", () => {
 
   it("produces a sourcemap", async () => {
     const code = [
-      'import { createContext } from "@treequel/linq";',
+      'import { createContext } from "@treequel/query";',
       "const db = createContext(provider);",
       "const q = db.users.filter(u => u.age > 1);",
     ].join("\n");

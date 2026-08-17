@@ -1,4 +1,4 @@
-# `@treequel/linq` — area guide
+# `@treequel/query` — area guide
 
 Read `plans/DESIGN.md` §9 with this file. The query layer: `Queryable`, the `QueryPlan` providers receive, the
 provider protocol, and the reference in-memory engine.

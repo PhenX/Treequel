@@ -16,7 +16,7 @@ export type FilterPattern = RegExp | RegExp[];
 export interface TreequelPluginOptions {
   include?: FilterPattern;
   exclude?: FilterPattern;
-  /** Traced import sources. Default: `["@treequel/linq"]`. */
+  /** Traced import sources. Default: `["@treequel/query"]`. */
   packages?: string[];
   /** How to surface subset diagnostics. Default: `error` in build, `warn` in dev. */
   diagnostics?: "error" | "warn";

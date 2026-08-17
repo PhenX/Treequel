@@ -6,7 +6,7 @@ the tree. The same query runs in memory in your tests and compiles to parameteri
 ## Install
 
 ```sh
-npm i @treequel/linq @treequel/provider-memory
+npm i @treequel/query @treequel/provider-memory
 npm i -D @treequel/vite
 ```
 
@@ -28,7 +28,7 @@ A context is the traced root. Property access on it (`db.users`) is a `Queryable
 immutable query. Execution is explicit — `toArray()`, `first()`, `count()`, and so on.
 
 ```ts
-import { createContext } from "@treequel/linq";
+import { createContext } from "@treequel/query";
 import { memoryProvider } from "@treequel/provider-memory";
 
 interface User {

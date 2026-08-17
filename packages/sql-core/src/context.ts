@@ -6,7 +6,7 @@
  * {@link shapeColumn}) the translator and compiler build on.
  */
 import { TreequelError } from "@treequel/core";
-import type { RelationsMeta } from "@treequel/linq";
+import type { RelationsMeta } from "@treequel/query";
 import { type SchemaMeta, type TableMeta, physicalColumn } from "./schema.js";
 import type { SqlDialect } from "./dialect.js";
 

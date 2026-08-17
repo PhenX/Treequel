@@ -34,7 +34,7 @@ body:
         - capture (subset validation / free vars)
         - transform or vite (build plugin)
         - fallback (runtime toString path)
-        - linq (Queryable / plan)
+        - query (Queryable / plan)
         - provider-memory
         - provider-sql
         - ts-plugin or eslint-plugin

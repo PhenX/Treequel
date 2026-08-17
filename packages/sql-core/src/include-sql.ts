@@ -2,11 +2,11 @@
  * Split-query loading for `include`. Each navigation is one batched fetch —
  * `= ANY($n)` on Postgres or chunked `IN (…)` on SQLite, with an optional
  * per-parent `ROW_NUMBER()` slice — stitched onto the parent rows by the shared
- * engine in `@treequel/linq`, so no join duplication ever inflates the parent
+ * engine in `@treequel/query`, so no join duplication ever inflates the parent
  * set. {@link explainIncludes} renders the same plan as comment lines.
  */
 import { TreequelError } from "@treequel/core";
-import { type IncludeSpec, type RelationsMeta, attachChildren, collectKeys } from "@treequel/linq";
+import { type IncludeSpec, type RelationsMeta, attachChildren, collectKeys } from "@treequel/query";
 import { Compiler } from "./compiler.js";
 import { finalizeSql, quoteIdent, shapeColumn } from "./context.js";
 import type { SqlDialect } from "./dialect.js";

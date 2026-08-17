@@ -9,7 +9,7 @@
     { "path": "packages/transform" },
     { "path": "packages/vite" },
     { "path": "packages/ts-transformer" },
-    { "path": "packages/linq" },
+    { "path": "packages/query" },
     { "path": "packages/provider-memory" },
     { "path": "packages/sql-core" },
     { "path": "packages/provider-postgres" },

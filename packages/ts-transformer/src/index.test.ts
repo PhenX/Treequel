@@ -50,7 +50,7 @@ describe("ts transformer — emit", () => {
   it("reifies a lambda at a traced filter() call site", () => {
     const js = compile({
       "/q.ts": [
-        'import { createContext } from "@treequel/linq";',
+        'import { createContext } from "@treequel/query";',
         "const db = createContext(provider);",
         "export const q = db.users.filter((u) => u.age > minAge);",
       ].join("\n"),
@@ -67,7 +67,7 @@ describe("ts transformer — emit", () => {
   it("strips the type annotations around a reified lambda", () => {
     const js = compile({
       "/q.ts": [
-        'import { createContext } from "@treequel/linq";',
+        'import { createContext } from "@treequel/query";',
         "interface User { age: number }",
         "const db = createContext(provider);",
         "export const q = db.users.filter((u: User): boolean => u.age > 18);",
@@ -83,7 +83,7 @@ describe("ts transformer — emit", () => {
   it("reifies expr() wrappers without a context", () => {
     const js = compile({
       "/q.ts": [
-        'import { expr } from "@treequel/linq";',
+        'import { expr } from "@treequel/query";',
         "export const p = expr((u) => u.age > 18);",
       ].join("\n"),
     })["/q.js"];
@@ -95,11 +95,11 @@ describe("ts transformer — emit", () => {
   it("resolves a context imported from another module", () => {
     const outputs = compile({
       "/db.ts": [
-        'import { createContext } from "@treequel/linq";',
+        'import { createContext } from "@treequel/query";',
         "export const db = createContext(provider);",
       ].join("\n"),
       "/q.ts": [
-        'import type { Context } from "@treequel/linq";',
+        'import type { Context } from "@treequel/query";',
         'import { db } from "./db.js";',
         "export const q = db.users.filter((u) => u.active);",
       ].join("\n"),
@@ -111,7 +111,7 @@ describe("ts transformer — emit", () => {
 
   it("is idempotent — running twice changes nothing more", () => {
     const src = [
-      'import { createContext } from "@treequel/linq";',
+      'import { createContext } from "@treequel/query";',
       "const db = createContext(provider);",
       "export const q = db.users.filter((u) => u.age > 1);",
     ].join("\n");
@@ -135,7 +135,7 @@ describe("ts transformer — emit", () => {
     const js = compile(
       {
         "/q.ts": [
-          'import { createContext } from "@treequel/linq";',
+          'import { createContext } from "@treequel/query";',
           "const db = createContext(provider);",
           "export const q = db.users.filter((u) => u.id == 1);",
         ].join("\n"),
@@ -153,7 +153,7 @@ describe("ts transformer — emit", () => {
       compile(
         {
           "/q.ts": [
-            'import { createContext } from "@treequel/linq";',
+            'import { createContext } from "@treequel/query";',
             "const db = createContext(provider);",
             "export const q = db.users.filter((u) => u.age > 1);",
           ].join("\n"),
@@ -169,7 +169,7 @@ describe("ts transformer — emit", () => {
       compile(
         {
           "/q.ts": [
-            'import { createContext } from "@treequel/linq";',
+            'import { createContext } from "@treequel/query";',
             "const db = createContext(provider);",
             "export const q = db.users.filter((u) => u.id == 1);",
           ].join("\n"),
@@ -191,7 +191,7 @@ describe("ts transformer — single-file transform (no program)", () => {
 
   it("reifies expr() with no program supplied", () => {
     const out = printed(
-      ['import { expr } from "@treequel/linq";', "const p = expr((u) => u.age > 18);"].join("\n"),
+      ['import { expr } from "@treequel/query";', "const p = expr((u) => u.age > 18);"].join("\n"),
     );
     expect(out).toContain("__tql_expr$");
   });

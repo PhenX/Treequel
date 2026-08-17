@@ -8,9 +8,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@treequel/linq": "*",
     "@treequel/provider-memory": "*",
-    "@treequel/provider-postgres": "*"
+    "@treequel/provider-postgres": "*",
+    "@treequel/query": "*"
   },
   "devDependencies": {
     "@treequel/vite": "*"

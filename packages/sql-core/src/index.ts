@@ -34,4 +34,4 @@ export {
 export type { SqlExecutor } from "./include-sql.js";
 export { type SqlProviderOptions, makeSqlProvider } from "./provider.js";
 // Re-exported so dialect packages depend only on this core.
-export type { QueryProvider } from "@treequel/linq";
+export type { QueryProvider } from "@treequel/query";

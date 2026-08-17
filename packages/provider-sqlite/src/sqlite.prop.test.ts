@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import initSqlJs from "sql.js";
 import { __expr, evaluate } from "@treequel/core";
-import { createContext } from "@treequel/linq";
+import { createContext } from "@treequel/query";
 import { memoryProvider } from "@treequel/provider-memory";
 import type { Node } from "@treequel/tree";
 import fc from "fast-check";

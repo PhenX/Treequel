@@ -36,7 +36,7 @@ npx tspc          # ts-patch's tsc wrapper — or run `ts-patch install` once, t
 Any [transformer option](#options) goes on the same plugin entry:
 
 ```json
-{ "transform": "@treequel/ts-transformer", "packages": ["@treequel/linq"], "diagnostics": "error" }
+{ "transform": "@treequel/ts-transformer", "packages": ["@treequel/query"], "diagnostics": "error" }
 ```
 
 ## With the compiler API
@@ -49,7 +49,7 @@ import { createTransformerFactory } from "@treequel/ts-transformer";
 
 const program = ts.createProgram(fileNames, compilerOptions);
 program.emit(undefined, undefined, undefined, false, {
-  before: [createTransformerFactory(program, { packages: ["@treequel/linq"] })],
+  before: [createTransformerFactory(program, { packages: ["@treequel/query"] })],
 });
 ```
 
@@ -60,7 +60,7 @@ pre-scans the program for context definitions. Without a program, only `expr()` 
 
 | Option | Default | Meaning |
 |---|---|---|
-| `packages` | `["@treequel/linq"]` | Import sources whose query methods are traced. |
+| `packages` | `["@treequel/query"]` | Import sources whose query methods are traced. |
 | `emitSource` | `false` | Keep the original lambda text on the tree as `src`. |
 | `diagnostics` | `"warn"` | `"error"` fails the build, `"warn"` prints, `"silent"` neither. |
 | `include` / `exclude` | `/\.[cm]?[jt]sx?$/` / `/node_modules/` | Which files to process (compiler-API usage only — `tsconfig` cannot carry a RegExp). |

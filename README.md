@@ -39,9 +39,9 @@ error naming any captured variable (`import "@treequel/fallback/register"` to en
 | [`@treequel/tree`](packages/tree) | Node types, (de)serialization, JSON schema — the wire format | none |
 | [`@treequel/core`](packages/core) | `Expr`, visitor/rewriter, partial evaluation, printer | `tree` |
 | [`@treequel/capture`](packages/capture) | The shared subset validator, free-variable analysis, serializer | `tree` |
-| [`@treequel/linq`](packages/linq) | `Queryable`, `QueryPlan`, provider protocol, `createContext` | `core` |
-| [`@treequel/provider-memory`](packages/provider-memory) | Reference provider (defines the semantics) | `linq` |
-| [`@treequel/sql-core`](packages/sql-core) | Shared SQL-translation core (dialect seam, translator, builder) | `linq` |
+| [`@treequel/query`](packages/query) | `Queryable`, `QueryPlan`, provider protocol, `createContext` | `core` |
+| [`@treequel/provider-memory`](packages/provider-memory) | Reference provider (defines the semantics) | `query` |
+| [`@treequel/sql-core`](packages/sql-core) | Shared SQL-translation core (dialect seam, translator, builder) | `query` |
 | [`@treequel/provider-postgres`](packages/provider-postgres) | Tree → parameterized Postgres | `sql-core` |
 | [`@treequel/provider-sqlite`](packages/provider-sqlite) | Tree → parameterized SQLite | `sql-core` |
 | [`@treequel/transform`](packages/transform) | Pure per-module build transform | `capture`, `oxc-parser`, `magic-string` |

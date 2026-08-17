@@ -64,7 +64,7 @@ type(scope): subject
 
 - `type` — required: `feat` `fix` `perf` `docs` `chore` `ci` `refactor` `test` `build` `style` `revert`
 - `scope` — optional but encouraged, from the closed list: `tree` `core` `capture` `fallback` `transform` `vite`
-  `linq` `memory` `sql` `ts-plugin` `eslint-plugin` `docs` `playground` `examples` `tooling` `ci` `deps` `release`
+  `query` `memory` `sql` `ts-plugin` `eslint-plugin` `docs` `playground` `examples` `tooling` `ci` `deps` `release`
 - `subject` — required: lowercase start, imperative mood ("add", not "added"/"adds"), no trailing period, full header
   ≤ 100 chars
 
@@ -98,7 +98,7 @@ BREAKING CHANGE: serialized trees containing bigint constants require format ver
 ## Dependencies
 
 Every third-party dependency needs a justified row in `DEPENDENCIES.md` in the same PR that adds it. Runtime packages
-(`@treequel/tree`, `core`, `linq`, providers) accept **no** production dependencies at all.
+(`@treequel/tree`, `core`, `query`, providers) accept **no** production dependencies at all.
 
 ## Releases
 

@@ -1,6 +1,6 @@
 import { __expr, type Node, print } from "@treequel/core";
 import { parseFunctionSource } from "@treequel/fallback";
-import { createContext, defineRelations } from "@treequel/linq";
+import { createContext, defineRelations } from "@treequel/query";
 import { type SchemaMeta, postgres } from "@treequel/provider-postgres";
 import { emitNode } from "@treequel/transform/emit";
 import { serialize } from "@treequel/tree";

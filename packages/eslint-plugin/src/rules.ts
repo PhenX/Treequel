@@ -27,7 +27,7 @@ export interface Rule {
 }
 
 /** Import sources whose `createContext` roots a query context. */
-const TRACED_PACKAGES: ReadonlySet<string> = new Set(["@treequel/linq"]);
+const TRACED_PACKAGES: ReadonlySet<string> = new Set(["@treequel/query"]);
 
 /** Global namespaces whose static methods share query-operator names (`Math.min`, `Object.groupBy`). */
 const GLOBAL_NAMESPACES: ReadonlySet<string> = new Set([

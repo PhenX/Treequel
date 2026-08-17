@@ -11,7 +11,7 @@ import {
   type PlanOp,
   type QueryPlan,
   collectIncludes,
-} from "@treequel/linq";
+} from "@treequel/query";
 import { Compiler } from "./compiler.js";
 import { SCALAR_COLUMN, finalizeSql, quoteIdent } from "./context.js";
 import type { SqlDialect } from "./dialect.js";

@@ -74,7 +74,7 @@ describe.skipIf(!fs.existsSync(distEntry))(
       fs.writeFileSync(
         path.join(dir, "queries.ts"),
         [
-          'import { createContext } from "@treequel/linq";',
+          'import { createContext } from "@treequel/query";',
           "declare const provider: unknown;",
           "declare const myPredicate: (u: { id: number }) => boolean;",
           "const db = createContext(provider);",
@@ -104,7 +104,7 @@ describe.skipIf(!fs.existsSync(distEntry))(
     it("applies the R1103 autofix (== to ===)", () => {
       fs.writeFileSync(
         path.join(dir, "fixable.ts"),
-        'import { createContext } from "@treequel/linq";\ndeclare const provider: unknown;\nconst db = createContext(provider);\ndb.users.filter((u: { id: number }) => u.id == 1);\n',
+        'import { createContext } from "@treequel/query";\ndeclare const provider: unknown;\nconst db = createContext(provider);\ndb.users.filter((u: { id: number }) => u.id == 1);\n',
       );
       runOxlint(dir, ["--fix", "fixable.ts"]);
       expect(fs.readFileSync(path.join(dir, "fixable.ts"), "utf8")).toContain("u.id === 1");

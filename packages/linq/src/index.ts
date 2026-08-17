@@ -14,6 +14,7 @@ export {
   withOp,
 } from "./plan.js";
 export { type Capabilities, type QueryProvider, capabilities } from "./provider.js";
+export { type ComputedMeta, type SchemaComputed, defineComputed } from "./computed.js";
 export { type Grouping, type RowSource, applyOps, runPlanInMemory } from "./memory-engine.js";
 export {
   type Relation,

@@ -31,6 +31,7 @@ export default defineConfig({
             { text: "The expression subset", link: "/guide/the-subset" },
             { text: "Joins & includes", link: "/guide/joins-and-includes" },
             { text: "Grouping & aggregates", link: "/guide/grouping" },
+            { text: "Computed members", link: "/guide/computed-members" },
             { text: "The boundary rule", link: "/guide/the-boundary-rule" },
             { text: "Compiling with tsc", link: "/guide/compiling-with-tsc" },
             { text: "Writing a provider", link: "/guide/writing-a-provider" },

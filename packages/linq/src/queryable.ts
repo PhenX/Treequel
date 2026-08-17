@@ -1,4 +1,5 @@
 import { type Expr, TreequelError, expr, isExpr } from "@treequel/core";
+import { type ComputedMeta, expandComputed } from "./computed.js";
 import { appendChild, chainTail, navName, resolveRelation } from "./include-spec.js";
 import { type Grouping, applyOps } from "./memory-engine.js";
 import {
@@ -245,10 +246,21 @@ class QueryableImpl<T> implements Ordered<T> {
     readonly provider: QueryProvider,
     readonly plan: QueryPlan,
     readonly relations?: RelationsMeta,
+    readonly computed?: ComputedMeta,
   ) {}
 
   private next<R>(op: PlanOp): QueryableImpl<R> {
-    return new QueryableImpl<R>(this.provider, withOp(this.plan, op), this.relations);
+    return new QueryableImpl<R>(
+      this.provider,
+      withOp(this.plan, op),
+      this.relations,
+      this.computed,
+    );
+  }
+
+  /** Inline any computed members before a provider ever sees the plan. */
+  private expanded(plan: QueryPlan): QueryPlan {
+    return this.computed ? expandComputed(plan, this.computed) : plan;
   }
 
   filter(p: Pred<T>): Queryable<T> {
@@ -359,10 +371,12 @@ class QueryableImpl<T> implements Ordered<T> {
       ...this.plan,
       ops: [...this.plan.ops.slice(0, -1), { op: "include", spec }],
     };
-    return new QueryableImpl(this.provider, plan, this.relations) as unknown as Includable<
-      T,
-      unknown
-    >;
+    return new QueryableImpl(
+      this.provider,
+      plan,
+      this.relations,
+      this.computed,
+    ) as unknown as Includable<T, unknown>;
   }
   inMemory(): Queryable<T> {
     return this.next<T>({ op: "inMemory" });
@@ -375,7 +389,7 @@ class QueryableImpl<T> implements Ordered<T> {
       ...(execExpr ? { expr: execExpr } : {}),
       ...(orNull ? { orNull } : {}),
     };
-    const full = withOp(this.plan, exec);
+    const full = this.expanded(withOp(this.plan, exec));
     const boundary = full.ops.findIndex((o) => o.op === "inMemory");
     if (boundary === -1) {
       precheck(this.provider, full);
@@ -427,8 +441,9 @@ class QueryableImpl<T> implements Ordered<T> {
   }
 
   async explain(): Promise<string> {
-    if (this.provider.explain) return this.provider.explain(this.plan);
-    return `${this.provider.name}: ${this.plan.source} (${this.plan.ops.map((o) => o.op).join(" → ") || "scan"})`;
+    const plan = this.expanded(this.plan);
+    if (this.provider.explain) return this.provider.explain(plan);
+    return `${this.provider.name}: ${plan.source} (${plan.ops.map((o) => o.op).join(" → ") || "scan"})`;
   }
 
   async *[Symbol.asyncIterator](): AsyncIterator<T> {
@@ -439,6 +454,8 @@ class QueryableImpl<T> implements Ordered<T> {
 export interface ContextOptions<Schema> {
   /** Navigation metadata consumed by `include()` (see {@link defineRelations}). */
   readonly relations?: SchemaRelations<Schema>;
+  /** Computed members inlined into queries (see {@link defineComputed}). */
+  readonly computed?: ComputedMeta;
 }
 
 /** Construct a `Queryable` rooted at a provider + source name. */
@@ -446,9 +463,10 @@ export function queryable<T>(
   provider: QueryProvider,
   source: string,
   relations?: RelationsMeta,
+  computed?: ComputedMeta,
 ): Queryable<T> {
   const plan: QueryPlan = { source, ops: [], ...(relations ? { relations } : {}) };
-  return new QueryableImpl<T>(provider, plan, relations);
+  return new QueryableImpl<T>(provider, plan, relations, computed);
 }
 
 export type Context<S> = { readonly [K in keyof S]: Queryable<S[K]> };
@@ -462,10 +480,11 @@ export function createContext<Schema>(
   options: ContextOptions<Schema> = {},
 ): Context<Schema> {
   const relations = options.relations as RelationsMeta | undefined;
+  const computed = options.computed;
   return new Proxy(Object.create(null) as Context<Schema>, {
     get(_target, prop) {
       if (typeof prop !== "string") return undefined;
-      return queryable(provider, prop, relations);
+      return queryable(provider, prop, relations, computed);
     },
   });
 }

@@ -103,7 +103,7 @@ describe("SQL provider ≡ memory reference (property, on PGlite)", () => {
         });
 
         const mem = (await createContext<{ users: Row }>(memoryProvider({ users: rows }))
-          .users.where(expr)
+          .users.filter(expr)
           .toArray()) as Row[];
 
         await pg.query("DELETE FROM users");
@@ -117,7 +117,7 @@ describe("SQL provider ≡ memory reference (property, on PGlite)", () => {
           ]);
         }
         const sql = (await createContext<{ users: Row }>(postgres(exec, schema))
-          .users.where(expr)
+          .users.filter(expr)
           .toArray()) as Row[];
 
         const ids = (rs: Row[]): number[] => rs.map((r) => r.id).sort((a, b) => a - b);

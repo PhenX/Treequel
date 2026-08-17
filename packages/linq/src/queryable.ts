@@ -36,7 +36,7 @@ export type KeysWithValue<T, R> = keyof {
  * per parent (`take`/`skip` require an order, so results are deterministic).
  */
 export interface IncludeQuery<T> {
-  where(p: Pred<T>): IncludeQuery<T>;
+  filter(p: Pred<T>): IncludeQuery<T>;
   orderBy<K>(k: Key<T, K>): IncludeQuery<T>;
   orderByDescending<K>(k: Key<T, K>): IncludeQuery<T>;
   thenBy<K>(k: Key<T, K>): IncludeQuery<T>;
@@ -67,8 +67,8 @@ class IncludeQueryBuilder<T> implements IncludeQuery<T> {
     return new IncludeQueryBuilder<T>([...this.ops, op], this.takeN, this.skipN);
   }
 
-  where(p: Pred<T>): IncludeQuery<T> {
-    return this.op({ op: "where", expr: toExpr(p) });
+  filter(p: Pred<T>): IncludeQuery<T> {
+    return this.op({ op: "filter", expr: toExpr(p) });
   }
   orderBy<K>(k: Key<T, K>): IncludeQuery<T> {
     return this.op({ op: "orderBy", expr: toExpr(k), desc: false });
@@ -129,8 +129,10 @@ function refineSpec(spec: IncludeSpec, refine: IncludeRefine<never> | undefined)
 export type Loaded<T, K> = T & { [P in K & keyof T]-?: NonNullable<T[P]> };
 
 export interface Queryable<T> {
-  where(p: Pred<T>): Queryable<T>;
-  select<R>(s: Proj<T, R>): Queryable<R>;
+  /** Keep the rows a predicate accepts — `Array.prototype.filter` for queries (LINQ `Where`). */
+  filter(p: Pred<T>): Queryable<T>;
+  /** Project each row through a selector — `Array.prototype.map` for queries (LINQ `Select`). */
+  map<R>(s: Proj<T, R>): Queryable<R>;
   orderBy<K>(k: Key<T, K>): Ordered<T>;
   orderByDescending<K>(k: Key<T, K>): Ordered<T>;
   distinct(): Queryable<T>;
@@ -249,11 +251,11 @@ class QueryableImpl<T> implements Ordered<T> {
     return new QueryableImpl<R>(this.provider, withOp(this.plan, op), this.relations);
   }
 
-  where(p: Pred<T>): Queryable<T> {
-    return this.next<T>({ op: "where", expr: toExpr(p) });
+  filter(p: Pred<T>): Queryable<T> {
+    return this.next<T>({ op: "filter", expr: toExpr(p) });
   }
-  select<R>(s: Proj<T, R>): Queryable<R> {
-    return this.next<R>({ op: "select", expr: toExpr(s) });
+  map<R>(s: Proj<T, R>): Queryable<R> {
+    return this.next<R>({ op: "map", expr: toExpr(s) });
   }
   orderBy<K>(k: Key<T, K>): Ordered<T> {
     return this.next<T>({ op: "orderBy", expr: toExpr(k), desc: false });

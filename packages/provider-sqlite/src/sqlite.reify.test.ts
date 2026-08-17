@@ -123,77 +123,77 @@ const ids = (rs: User[]): number[] => rs.map((u) => u.id).sort((a, b) => a - b);
 const evIds = (rs: Event[]): number[] => rs.map((e) => e.id).sort((a, b) => a - b);
 
 describe("SQLite provider ≡ memory reference (reified trees on sql.js)", () => {
-  it("where: numeric predicate", async () => {
+  it("filter: numeric predicate", async () => {
     const p = expr((u: User) => u.age >= 30);
-    expect(ids(await sqlDb.users.where(p).toArray())).toEqual(
-      ids(await memDb.users.where(p).toArray()),
+    expect(ids(await sqlDb.users.filter(p).toArray())).toEqual(
+      ids(await memDb.users.filter(p).toArray()),
     );
   });
 
-  it("where: boolean column (0/1) + AND", async () => {
+  it("filter: boolean column (0/1) + AND", async () => {
     const p = expr((u: User) => u.active && u.age > 20);
-    expect(ids(await sqlDb.users.where(p).toArray())).toEqual(
-      ids(await memDb.users.where(p).toArray()),
+    expect(ids(await sqlDb.users.filter(p).toArray())).toEqual(
+      ids(await memDb.users.filter(p).toArray()),
     );
   });
 
-  it("where: null comparison (city === null → IS NULL)", async () => {
+  it("filter: null comparison (city === null → IS NULL)", async () => {
     const p = expr((u: User) => u.city === null);
-    const sql = await sqlDb.users.where(p).toArray();
+    const sql = await sqlDb.users.filter(p).toArray();
     expect(sql.map((u) => u.id)).toEqual([3]);
-    expect(ids(sql)).toEqual(ids(await memDb.users.where(p).toArray()));
+    expect(ids(sql)).toEqual(ids(await memDb.users.filter(p).toArray()));
   });
 
-  it("where: startsWith is case-sensitive (GLOB)", async () => {
+  it("filter: startsWith is case-sensitive (GLOB)", async () => {
     const p = expr((u: User) => u.name.startsWith("A"));
     // "Ada" and "Alan" — not the lowercase "a_b".
-    expect((await sqlDb.users.where(p).toArray()).map((u) => u.name).sort()).toEqual([
+    expect((await sqlDb.users.filter(p).toArray()).map((u) => u.name).sort()).toEqual([
       "Ada",
       "Alan",
     ]);
-    expect(ids(await sqlDb.users.where(p).toArray())).toEqual(
-      ids(await memDb.users.where(p).toArray()),
+    expect(ids(await sqlDb.users.filter(p).toArray())).toEqual(
+      ids(await memDb.users.filter(p).toArray()),
     );
   });
 
-  it("where: startsWith escapes % (not a wildcard)", async () => {
+  it("filter: startsWith escapes % (not a wildcard)", async () => {
     const p = expr((u: User) => u.name.startsWith("50%"));
-    expect((await sqlDb.users.where(p).toArray()).map((u) => u.name)).toEqual(["50%off"]);
+    expect((await sqlDb.users.filter(p).toArray()).map((u) => u.name)).toEqual(["50%off"]);
   });
 
-  it("where: startsWith escapes _ and matches literally", async () => {
+  it("filter: startsWith escapes _ and matches literally", async () => {
     const p = expr((u: User) => u.name.startsWith("a_"));
-    expect((await sqlDb.users.where(p).toArray()).map((u) => u.name)).toEqual(["a_b"]);
+    expect((await sqlDb.users.filter(p).toArray()).map((u) => u.name)).toEqual(["a_b"]);
   });
 
-  it("select: object projection with toUpperCase", async () => {
+  it("map: object projection with toUpperCase", async () => {
     const s = expr((u: User) => ({ id: u.id, upper: u.name.toUpperCase() }));
     const p = expr((u: User) => u.age > 30);
-    expect(multiset(await sqlDb.users.where(p).select(s).toArray())).toEqual(
-      multiset(await memDb.users.where(p).select(s).toArray()),
+    expect(multiset(await sqlDb.users.filter(p).map(s).toArray())).toEqual(
+      multiset(await memDb.users.filter(p).map(s).toArray()),
     );
   });
 
-  it("select scalar + distinct (nulls included once)", async () => {
+  it("map scalar + distinct (nulls included once)", async () => {
     const s = expr((u: User) => u.city);
-    expect(multiset(await sqlDb.users.select(s).distinct().toArray())).toEqual(
-      multiset(await memDb.users.select(s).distinct().toArray()),
+    expect(multiset(await sqlDb.users.map(s).distinct().toArray())).toEqual(
+      multiset(await memDb.users.map(s).distinct().toArray()),
     );
   });
 
-  it("where after an object projection (wraps into a derived table)", async () => {
+  it("filter after an object projection (wraps into a derived table)", async () => {
     const s = expr((u: User) => ({ id: u.id, years: u.age }));
     const p = expr((r: { id: number; years: number }) => r.years > 30);
-    expect(multiset(await sqlDb.users.select(s).where(p).toArray())).toEqual(
-      multiset(await memDb.users.select(s).where(p).toArray()),
+    expect(multiset(await sqlDb.users.map(s).filter(p).toArray())).toEqual(
+      multiset(await memDb.users.map(s).filter(p).toArray()),
     );
   });
 
-  it("where after a scalar projection (the value is the row)", async () => {
+  it("filter after a scalar projection (the value is the row)", async () => {
     const s = expr((u: User) => u.age);
     const p = expr((a: number) => a > 30);
-    expect(multiset(await sqlDb.users.select(s).where(p).toArray())).toEqual(
-      multiset(await memDb.users.select(s).where(p).toArray()),
+    expect(multiset(await sqlDb.users.map(s).filter(p).toArray())).toEqual(
+      multiset(await memDb.users.map(s).filter(p).toArray()),
     );
   });
 
@@ -248,36 +248,34 @@ describe("SQLite date extraction ≡ memory reference", () => {
       m: e.at.getMonth(),
       d: e.at.getDate(),
     }));
-    expect(multiset(await eventsSql.events.select(s).toArray())).toEqual(
-      multiset(await eventsMem.events.select(s).toArray()),
+    expect(multiset(await eventsSql.events.map(s).toArray())).toEqual(
+      multiset(await eventsMem.events.map(s).toArray()),
     );
   });
 
   it("filters on getFullYear and the 0-based getMonth match the reference", async () => {
     const in2020 = expr((e: Event) => e.at.getFullYear() === 2020);
     const inJune = expr((e: Event) => e.at.getMonth() === 5); // 5 = June (0-based)
-    expect(evIds(await eventsSql.events.where(in2020).toArray())).toEqual([2, 3]);
-    expect(evIds(await eventsSql.events.where(in2020).toArray())).toEqual(
-      evIds(await eventsMem.events.where(in2020).toArray()),
+    expect(evIds(await eventsSql.events.filter(in2020).toArray())).toEqual([2, 3]);
+    expect(evIds(await eventsSql.events.filter(in2020).toArray())).toEqual(
+      evIds(await eventsMem.events.filter(in2020).toArray()),
     );
-    expect(evIds(await eventsSql.events.where(inJune).toArray())).toEqual(
-      evIds(await eventsMem.events.where(inJune).toArray()),
+    expect(evIds(await eventsSql.events.filter(inJune).toArray())).toEqual(
+      evIds(await eventsMem.events.filter(inJune).toArray()),
     );
   });
 
   it("binds a captured Date comparison as a coerced ISO parameter", async () => {
     const cutoff = new Date("2020-01-01T00:00:00Z");
     const p = expr((e: Event) => e.at >= cutoff);
-    expect(evIds(await eventsSql.events.where(p).toArray())).toEqual([2, 3, 4]);
-    expect(evIds(await eventsSql.events.where(p).toArray())).toEqual(
-      evIds(await eventsMem.events.where(p).toArray()),
+    expect(evIds(await eventsSql.events.filter(p).toArray())).toEqual([2, 3, 4]);
+    expect(evIds(await eventsSql.events.filter(p).toArray())).toEqual(
+      evIds(await eventsMem.events.filter(p).toArray()),
     );
   });
 
   it("compiles to strftime with the 0-based month adjustment", async () => {
-    const text = await eventsSql.events
-      .select(expr((e: Event) => ({ m: e.at.getMonth() })))
-      .explain();
+    const text = await eventsSql.events.map(expr((e: Event) => ({ m: e.at.getMonth() }))).explain();
     expect(text).toContain("strftime('%m'");
     expect(text).toContain("- 1)");
   });
@@ -330,7 +328,7 @@ describe("SQLite joins ≡ memory reference", () => {
   it("joins a filtered inner query (derived-table join)", async () => {
     const sql = await sqlDb.users
       .join(
-        sqlDb.orders.where((o) => o.total >= 10),
+        sqlDb.orders.filter((o) => o.total >= 10),
         (u) => u.id,
         (o) => o.userId,
         (u, o) => ({ name: u.name, total: o.total }),
@@ -338,7 +336,7 @@ describe("SQLite joins ≡ memory reference", () => {
       .toArray();
     const mem = await memDb.users
       .join(
-        memDb.orders.where((o) => o.total >= 10),
+        memDb.orders.filter((o) => o.total >= 10),
         (u) => u.id,
         (o) => o.userId,
         (u, o) => ({ name: u.name, total: o.total }),
@@ -347,7 +345,7 @@ describe("SQLite joins ≡ memory reference", () => {
     expect(multiset(sql)).toEqual(multiset(mem));
   });
 
-  it("where over the joined projection wraps into a derived table", async () => {
+  it("filter over the joined projection wraps into a derived table", async () => {
     const sql = await sqlDb.orders
       .join(
         sqlDb.users,
@@ -355,7 +353,7 @@ describe("SQLite joins ≡ memory reference", () => {
         (u) => u.id,
         (o, u) => ({ order: o.id, who: u.name, total: o.total }),
       )
-      .where((r) => r.total >= 10)
+      .filter((r) => r.total >= 10)
       .orderBy((r) => r.order)
       .toArray();
     const mem = await memDb.orders
@@ -365,7 +363,7 @@ describe("SQLite joins ≡ memory reference", () => {
         (u) => u.id,
         (o, u) => ({ order: o.id, who: u.name, total: o.total }),
       )
-      .where((r) => r.total >= 10)
+      .filter((r) => r.total >= 10)
       .orderBy((r) => r.order)
       .toArray();
     expect(sql).toEqual(mem);
@@ -375,11 +373,11 @@ describe("SQLite joins ≡ memory reference", () => {
 describe("SQLite includes (split queries) ≡ memory reference", () => {
   it("include() loads a collection through mapped columns", async () => {
     const [sqlAda] = await sqlDb.users
-      .where((u) => u.id === 1)
+      .filter((u) => u.id === 1)
       .include((u) => u.orders)
       .toArray();
     const [memAda] = await memDb.users
-      .where((u) => u.id === 1)
+      .filter((u) => u.id === 1)
       .include((u) => u.orders)
       .toArray();
     expect(sqlAda?.orders.map((o) => o.id).sort()).toEqual(memAda?.orders.map((o) => o.id).sort());
@@ -398,7 +396,7 @@ describe("SQLite includes (split queries) ≡ memory reference", () => {
     const rows = await sqlDb.users
       .include((u) => u.orders)
       .thenInclude((o) => o.items)
-      .where((u) => u.id === 1)
+      .filter((u) => u.id === 1)
       .toArray();
     const skus = rows[0]?.orders.flatMap((o) => (o.items ?? []).map((i) => i.sku)).sort();
     expect(skus).toEqual(["apple", "pear"]);
@@ -438,7 +436,7 @@ describe("SQLite includes (split queries) ≡ memory reference", () => {
 describe("SQLite provider — SQL shape (explain)", () => {
   it("uses positional ? params and case-sensitive GLOB, never $n", async () => {
     const p = expr((u: User) => u.age >= 18 && u.name.startsWith("A"));
-    const text = await sqlDb.users.where(p).explain();
+    const text = await sqlDb.users.filter(p).explain();
     expect(text).toContain('FROM "users" "t0"');
     expect(text).toContain('"t0"."age" >= ?');
     expect(text).toContain("GLOB ?");
@@ -568,26 +566,26 @@ describe("SQLite joins & includes — shapes and edges", () => {
   });
 
   it("some() over a navigation compiles to a correlated EXISTS", async () => {
-    const text = await sqlDb.users.where((u) => u.orders?.some((o) => o.total > 10)).explain();
+    const text = await sqlDb.users.filter((u) => u.orders?.some((o) => o.total > 10)).explain();
     expect(text).toMatch(/EXISTS \(SELECT 1 FROM "orders" "s\d+"/);
     expect(text).toMatch(/"s\d+"\."user_id" = "t\d+"\."id"/);
   });
 
   it("every() compiles to NOT EXISTS over the negated predicate", async () => {
-    const text = await sqlDb.users.where((u) => u.orders?.every((o) => o.total > 10)).explain();
+    const text = await sqlDb.users.filter((u) => u.orders?.every((o) => o.total > 10)).explain();
     expect(text).toMatch(/NOT EXISTS \(SELECT 1 FROM "orders" .*AND \(NOT/);
   });
 
   it("navigation predicates match the reference through mapped columns", async () => {
-    const sql = await sqlDb.users.where((u) => u.orders?.some((o) => o.total >= 10)).toArray();
-    const mem = await memDb.users.where((u) => u.orders?.some((o) => o.total >= 10)).toArray();
+    const sql = await sqlDb.users.filter((u) => u.orders?.some((o) => o.total >= 10)).toArray();
+    const mem = await memDb.users.filter((u) => u.orders?.some((o) => o.total >= 10)).toArray();
     expect(ids(sql)).toEqual(ids(mem));
     expect(sql.map((u) => u.name)).toEqual(["Ada"]);
   });
 
   it("a navigation count compiles to a correlated COUNT subquery", async () => {
     const text = await sqlDb.users
-      .select((u) => ({ name: u.name, n: u.orders?.length ?? 0 }))
+      .map((u) => ({ name: u.name, n: u.orders?.length ?? 0 }))
       .explain();
     expect(text).toMatch(/COALESCE\(\(SELECT CAST\(COUNT\(\*\) AS REAL\) FROM "orders" "s\d+"/);
     expect(text).toMatch(/"s\d+"\."user_id" = "t\d+"\."id"/);
@@ -595,28 +593,28 @@ describe("SQLite joins & includes — shapes and edges", () => {
 
   it("a filtered count folds the filter into the subquery WHERE", async () => {
     const text = await sqlDb.users
-      .select((u) => ({ big: u.orders?.filter((o) => o.total >= 10).length ?? 0 }))
+      .map((u) => ({ big: u.orders?.filter((o) => o.total >= 10).length ?? 0 }))
       .explain();
     expect(text).toMatch(/COUNT\(\*\).*WHERE.*AND \(\("s\d+"\."total" >= \?\)\)/);
   });
 
   it("the reduce sum idiom compiles to COALESCE(SUM(...), 0)", async () => {
     const text = await sqlDb.users
-      .select((u) => ({ spent: u.orders?.reduce((acc, o) => acc + o.total, 0) ?? 0 }))
+      .map((u) => ({ spent: u.orders?.reduce((acc, o) => acc + o.total, 0) ?? 0 }))
       .explain();
     expect(text).toMatch(/COALESCE\(\(SELECT CAST\(SUM\("s\d+"\."total"\) AS REAL\)/);
   });
 
   it("correlated projections match the reference", async () => {
     const sql = await sqlDb.users
-      .select((u) => ({
+      .map((u) => ({
         name: u.name,
         n: u.orders?.length ?? 0,
         spent: u.orders?.reduce((acc, o) => acc + o.total, 0) ?? 0,
       }))
       .toArray();
     const mem = await memDb.users
-      .select((u) => ({
+      .map((u) => ({
         name: u.name,
         n: u.orders?.length ?? 0,
         spent: u.orders?.reduce((acc, o) => acc + o.total, 0) ?? 0,
@@ -628,7 +626,7 @@ describe("SQLite joins & includes — shapes and edges", () => {
   it("rejects a reduce outside the recognized sum idiom", async () => {
     await expect(
       sqlDb.users
-        .select((u) => ({ x: u.orders?.reduce((acc, o) => acc * o.total, 1) ?? 0 }))
+        .map((u) => ({ x: u.orders?.reduce((acc, o) => acc * o.total, 1) ?? 0 }))
         .toArray(),
     ).rejects.toThrow(/sum idiom/);
   });
@@ -670,7 +668,7 @@ describe("SQLite groupBy — SQL shape and edges", () => {
   it("groups by a column with aggregate projections", async () => {
     const text = await sqlDb.orders
       .groupBy((o) => o.userId)
-      .select((g) => ({
+      .map((g) => ({
         userId: g.key,
         n: g.items.length,
         total: g.items.reduce((acc, o) => acc + o.total, 0),
@@ -681,11 +679,11 @@ describe("SQLite groupBy — SQL shape and edges", () => {
     expect(text).toMatch(/CAST\(COALESCE\(SUM\("t0"\."total"\), 0\) AS REAL\)/);
   });
 
-  it("where after a group projection wraps around the GROUP BY (HAVING semantics)", async () => {
+  it("filter after a group projection wraps around the GROUP BY (HAVING semantics)", async () => {
     const text = await sqlDb.orders
       .groupBy((o) => o.userId)
-      .select((g) => ({ userId: g.key, n: g.items.length }))
-      .where((r) => r.n > 1)
+      .map((g) => ({ userId: g.key, n: g.items.length }))
+      .filter((r) => r.n > 1)
       .explain();
     expect(text).toMatch(/FROM \(SELECT .*GROUP BY .*\) "d\d+" WHERE/);
   });
@@ -693,7 +691,7 @@ describe("SQLite groupBy — SQL shape and edges", () => {
   it("precomputes a non-column group key into a derived table", async () => {
     const text = await sqlDb.users
       .groupBy((u) => u.orders?.length ?? 0)
-      .select((g) => ({ orders: g.key, people: g.items.length }))
+      .map((g) => ({ orders: g.key, people: g.items.length }))
       .explain();
     expect(text).toMatch(/AS "__tql_g0" FROM "users"/);
     expect(text).toMatch(/GROUP BY "d\d+"\."__tql_g0"/);
@@ -706,7 +704,7 @@ describe("SQLite groupBy — SQL shape and edges", () => {
         .groupBy((o) => o.userId)
         .orderBy((g) => g.key)
         .toArray(),
-    ).rejects.toThrow(/followed by a select/);
+    ).rejects.toThrow(/followed by a map/);
   });
 
   it("counts groups without a projection", async () => {

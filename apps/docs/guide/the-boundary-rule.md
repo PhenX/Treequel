@@ -5,15 +5,15 @@ plain function value passed by reference does not.
 
 ```ts
 // reified: a literal at the call site
-db.users.where((u) => u.age > 18);
+db.users.filter((u) => u.age > 18);
 
 // reified: explicitly wrapped
 const adult = expr((u: User) => u.age > 18);
-db.users.where(adult);
+db.users.filter(adult);
 
 // NOT reified: an opaque function reference
 const adult = (u: User) => u.age > 18;
-db.users.where(adult); // → R2003 at a provider that needs the tree
+db.users.filter(adult); // → R2003 at a provider that needs the tree
 ```
 
 A provider that needs a tree rejects an opaque function with [R2003](/errors#R2003), telling you to inline the lambda
@@ -35,9 +35,9 @@ where any JavaScript is allowed.
 
 ```ts
 db.users
-  .where((u) => u.age > 18) // → SQL
+  .filter((u) => u.age > 18) // → SQL
   .inMemory() // rows cross here
-  .where((u) => scoreModel(u) > 0.7) // → in memory, arbitrary JS
+  .filter((u) => scoreModel(u) > 0.7) // → in memory, arbitrary JS
   .toArray();
 ```
 
@@ -50,7 +50,7 @@ and partial evaluation folds it to a constant before translation. A captured `Da
 
 ```ts
 const since = startOfWeek(new Date()); // any JS date library
-db.events.where((e) => e.at >= since); // → `at >= $1`
+db.events.filter((e) => e.at >= since); // → `at >= $1`
 ```
 
 For fields of a **column**, the SQL providers translate `getFullYear()`, `getMonth()`, and `getDate()` — to `EXTRACT`

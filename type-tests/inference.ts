@@ -37,18 +37,18 @@ const db = createContext<{ users: User; orders: Order }>(provider);
 type _ctxUsers = Expect<Equal<typeof db.users, Queryable<User>>>;
 type _ctxOrders = Expect<Equal<typeof db.orders, Queryable<Order>>>;
 
-// where: the lambda parameter is inferred through the `Pred<T>` union, no annotation.
-q.where((u) => {
+// filter: the lambda parameter is inferred through the `Pred<T>` union, no annotation.
+q.filter((u) => {
   type _p = Expect<Equal<typeof u, User>>;
   return u.age > 1;
 });
 
-// select: return type is inferred, including object-literal widening.
-const projected = db.users.select((u) => ({ id: u.id, upper: u.name }));
+// map: return type is inferred, including object-literal widening.
+const projected = db.users.map((u) => ({ id: u.id, upper: u.name }));
 type _sel = Expect<Equal<typeof projected, Queryable<{ id: number; upper: string }>>>;
 
-// select to a scalar.
-const ages = db.users.select((u) => u.age);
+// map to a scalar.
+const ages = db.users.map((u) => u.age);
 type _scalar = Expect<Equal<typeof ages, Queryable<number>>>;
 
 // Executors, with strictNullChecks-sensitive nullability.
@@ -73,9 +73,9 @@ type _grouped = Expect<Equal<typeof grouped, Queryable<Grouping<boolean, User>>>
 // predicate/projection is expected.
 const fnPred = (u: User) => u.age > 1;
 const exprPred = expr((u: User) => u.age > 1);
-q.where(fnPred);
-q.where(exprPred);
-q.select(exprPred);
+q.filter(fnPred);
+q.filter(exprPred);
+q.map(exprPred);
 
 // The phantom brand does not leak into a projected row's keys.
 type _noBrandLeak = Expect<
@@ -192,7 +192,7 @@ navDb.orders.leftJoin(
 
 // Navigation predicates read like plain JS: optional chaining may yield
 // `boolean | undefined`, and Pred accepts it.
-navDb.users.where((u) => u.orders?.some((o) => o.total > 10));
+navDb.users.filter((u) => u.orders?.some((o) => o.total > 10));
 navDb.users.every((u) => u.orders?.every((o) => o.total > 0));
 
 // flatMap: without a selector the element is the navigation's row type;

@@ -1,5 +1,5 @@
 import { adapterTsestree, capture } from "@treequel/capture";
-import { LINQ_METHODS } from "./methods.js";
+import { QUERY_METHODS } from "./methods.js";
 
 /* eslint-env node */
 // Minimal structural typings — we avoid a hard dep on @typescript-eslint/utils.
@@ -26,7 +26,10 @@ export interface Rule {
   create(context: RuleContext): Record<string, (node: AstNode) => void>;
 }
 
-/** Global namespaces whose static methods collide with query-operator names (`Math.min`, `Object.groupBy`). */
+/** Import sources whose `createContext` roots a query context. */
+const TRACED_PACKAGES: ReadonlySet<string> = new Set(["@treequel/linq"]);
+
+/** Global namespaces whose static methods share query-operator names (`Math.min`, `Object.groupBy`). */
 const GLOBAL_NAMESPACES: ReadonlySet<string> = new Set([
   "Math",
   "Object",
@@ -40,27 +43,137 @@ const GLOBAL_NAMESPACES: ReadonlySet<string> = new Set([
   "Atomics",
 ]);
 
-function calleeMethodName(call: AstNode): string | null {
-  const callee = call.callee as AstNode | undefined;
-  if (callee?.type === "MemberExpression") {
-    const obj = callee.object as AstNode;
-    if (obj?.type === "Identifier" && GLOBAL_NAMESPACES.has(obj.name as string)) return null;
-    const prop = callee.property as AstNode;
-    if (prop?.type === "Identifier") return prop.name as string;
+/** Peel the type-only and grouping wrappers a receiver expression may carry. */
+function unwrap(node: AstNode): AstNode {
+  let cur = node;
+  while (
+    cur &&
+    (cur.type === "TSAsExpression" ||
+      cur.type === "TSSatisfiesExpression" ||
+      cur.type === "TSNonNullExpression" ||
+      cur.type === "TSTypeAssertion" ||
+      cur.type === "ChainExpression")
+  ) {
+    cur = cur.expression as AstNode;
   }
-  return null;
+  return cur;
 }
 
-/** Is `arrow` a lambda literal written directly at a traced query call site or in expr()? */
-function isQueryLambdaArg(arrow: AstNode): boolean {
+function walk(node: unknown, enter: (n: AstNode) => void): void {
+  if (!node || typeof node !== "object") return;
+  if (Array.isArray(node)) {
+    for (const c of node) walk(c, enter);
+    return;
+  }
+  const n = node as Record<string, unknown>;
+  if (typeof n.type === "string") enter(n as unknown as AstNode);
+  for (const key in n) {
+    if (key === "parent" || key === "type") continue;
+    const v = n[key];
+    if (v && typeof v === "object") walk(v, enter);
+  }
+}
+
+/**
+ * Intra-module taint: a receiver is a query context when it roots at a
+ * `createContext()` result — the same rule the build transform reifies against.
+ * Names query methods after `Array` methods, so matching by method name alone
+ * would flag ordinary `array.map()`/`array.filter()` calls; the receiver taint
+ * is what tells `db.users.filter(…)` apart from `rows.filter(…)`.
+ */
+function computeTaint(program: AstNode): (node: AstNode) => boolean {
+  const createLocals = new Set<string>();
+  const namespaceLocals = new Set<string>();
+  for (const stmt of (program.body as AstNode[]) ?? []) {
+    if (stmt.type !== "ImportDeclaration") continue;
+    const source = (stmt.source as { value?: string })?.value;
+    if (!source || !TRACED_PACKAGES.has(source)) continue;
+    for (const spec of (stmt.specifiers as AstNode[]) ?? []) {
+      const local = (spec.local as { name: string } | undefined)?.name;
+      if (!local) continue;
+      if (spec.type === "ImportNamespaceSpecifier") namespaceLocals.add(local);
+      else if (
+        spec.type === "ImportSpecifier" &&
+        (spec.imported as { name?: string }).name === "createContext"
+      ) {
+        createLocals.add(local);
+      }
+    }
+  }
+
+  const isCreateContextCall = (n: AstNode): boolean => {
+    const callee = unwrap(n.callee as AstNode);
+    if (callee.type === "Identifier") return createLocals.has(callee.name as string);
+    if (callee.type === "MemberExpression") {
+      const obj = unwrap(callee.object as AstNode);
+      const prop = callee.property as AstNode;
+      return (
+        obj.type === "Identifier" &&
+        namespaceLocals.has(obj.name as string) &&
+        prop?.type === "Identifier" &&
+        prop.name === "createContext"
+      );
+    }
+    return false;
+  };
+
+  const taint = new Set<string>();
+  const declarators: Array<{ name: string; init: AstNode }> = [];
+  walk(program, (n) => {
+    if (n.type === "VariableDeclarator" && (n.id as AstNode)?.type === "Identifier" && n.init) {
+      declarators.push({ name: (n.id as { name: string }).name, init: n.init as AstNode });
+    }
+  });
+
+  const isTainted = (node: AstNode): boolean => {
+    const n = unwrap(node);
+    switch (n.type) {
+      case "Identifier":
+        return taint.has(n.name as string);
+      case "MemberExpression":
+        return isTainted(n.object as AstNode);
+      case "CallExpression":
+        return isCreateContextCall(n) || isTainted(n.callee as AstNode);
+      case "ConditionalExpression":
+        return isTainted(n.consequent as AstNode) && isTainted(n.alternate as AstNode);
+      default:
+        return false;
+    }
+  };
+
+  // Fixpoint so `const a = db.users; const q = a.filter(...)` both taint.
+  for (let changed = true; changed;) {
+    changed = false;
+    for (const d of declarators) {
+      if (!taint.has(d.name) && isTainted(d.init)) {
+        taint.add(d.name);
+        changed = true;
+      }
+    }
+  }
+  return isTainted;
+}
+
+/** A call of a query method on a query-context receiver (not `Math.min`, not a plain array). */
+function isQueryMethodCall(call: AstNode, isTainted: (n: AstNode) => boolean): boolean {
+  const callee = call.callee as AstNode | undefined;
+  if (callee?.type !== "MemberExpression") return false;
+  const obj = unwrap(callee.object as AstNode);
+  if (obj.type === "Identifier" && GLOBAL_NAMESPACES.has(obj.name as string)) return false;
+  const prop = callee.property as AstNode;
+  if (prop?.type !== "Identifier" || !QUERY_METHODS.has(prop.name as string)) return false;
+  return isTainted(callee.object as AstNode);
+}
+
+/** Is `arrow` a lambda literal written directly at a query call site or in expr()? */
+function isQueryLambdaArg(arrow: AstNode, isTainted: (n: AstNode) => boolean): boolean {
   const parent = arrow.parent;
   if (!parent || parent.type !== "CallExpression") return false;
   const args = (parent.arguments as AstNode[]) ?? [];
   if (!args.includes(arrow)) return false;
   const callee = parent.callee as AstNode;
   if (callee.type === "Identifier" && callee.name === "expr") return true;
-  const method = calleeMethodName(parent);
-  return method !== null && LINQ_METHODS.has(method);
+  return isQueryMethodCall(parent, isTainted);
 }
 
 function hasQueryLambdaAncestor(node: AstNode, set: WeakSet<AstNode>): boolean {
@@ -83,10 +196,14 @@ export const validExpression: Rule = {
   create(context) {
     const sc = context.sourceCode ?? context.getSourceCode();
     const queryLambdas = new WeakSet<AstNode>();
+    let isTainted: (n: AstNode) => boolean = () => false;
 
     return {
+      Program(node) {
+        isTainted = computeTaint(node);
+      },
       ArrowFunctionExpression(node) {
-        if (!isQueryLambdaArg(node)) return;
+        if (!isQueryLambdaArg(node, isTainted)) return;
         queryLambdas.add(node);
         const result = capture(node as never, adapterTsestree);
         for (const d of result.diagnostics) {
@@ -124,10 +241,13 @@ export const noOpaqueCallback: Rule = {
     schema: [],
   },
   create(context) {
+    let isTainted: (n: AstNode) => boolean = () => false;
     return {
+      Program(node) {
+        isTainted = computeTaint(node);
+      },
       CallExpression(node) {
-        const method = calleeMethodName(node);
-        if (method === null || !LINQ_METHODS.has(method)) return;
+        if (!isQueryMethodCall(node, isTainted)) return;
         for (const arg of (node.arguments as AstNode[]) ?? []) {
           if (arg.type === "Identifier" || arg.type === "FunctionExpression") {
             context.report({

@@ -12,8 +12,8 @@ A filter, a projection, and an ordering, written in each:
 
 ```ts [Treequel]
 const adults = await db.users
-  .where((u) => u.age >= 18 && u.name.startsWith("A"))
-  .select((u) => ({ id: u.id, name: u.name }))
+  .filter((u) => u.age >= 18 && u.name.startsWith("A"))
+  .map((u) => ({ id: u.id, name: u.name }))
   .orderBy((u) => u.name)
   .toArray();
 ```

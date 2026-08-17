@@ -31,7 +31,7 @@ async function fetchRefinedChunk(
   let layer = compiler.freshLayer(spec.target);
   const orderParts: string[] = [];
   for (const op of spec.ops ?? []) {
-    if (op.op === "where") {
+    if (op.op === "filter") {
       layer = compiler.foldWhere(layer, (l) => compiler.translateWith(op.expr, l.shape));
     } else if (op.op === "orderBy" || op.op === "thenBy") {
       orderParts.push(
@@ -40,7 +40,7 @@ async function fetchRefinedChunk(
     } else {
       throw new TreequelError(
         "R2001",
-        `An include refinement supports where/orderBy only (got '${op.op}').`,
+        `An include refinement supports filter/orderBy only (got '${op.op}').`,
       );
     }
   }

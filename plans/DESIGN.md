@@ -134,11 +134,11 @@ To make one implementation serve hosts with different parsers, `capture` defines
 
 ### 2.3 Data flow of a single query
 
-1. **Author** writes `db.users.where(u => u.age > minAge)`.
+1. **Author** writes `db.users.filter(u => u.age > minAge)`.
 2. **Build**: tracer sees `db` derives from `createContext()` imported from `@treequel/linq`; the arrow in argument position of a traced chain is an expression position; validator OKs it; serializer emits `__expr({ compiled, params, body, scope, meta })` in place, preserving the original lambda as `compiled`.
-3. **Runtime**: `where()` receives an `Expr`, appends `{ op: "where", expr }` to an immutable `QueryPlan`.
+3. **Runtime**: `filter()` receives an `Expr`, appends `{ op: "filter", expr }` to an immutable `QueryPlan`.
 4. **Execution point** (`await`/`toArray()`): plan handed to the provider. Provider runs **partial evaluation** — every subtree composed only of `Capture`/`Constant` nodes is evaluated against `scope()` and folded to `Constant` — then translates the residual tree (SQL provider → parameterized SQL; memory provider → just calls `compiled`).
-5. **Results** typed as `T[]` (or `R[]` after `select`), end to end via the phantom brand.
+5. **Results** typed as `T[]` (or `R[]` after `map`), end to end via the phantom brand.
 
 ---
 
@@ -477,8 +477,8 @@ export const db = createContext<{ users: User; orders: Order }>(pgProvider(pool,
 
 // Queryable<T> — lazy, immutable; every method returns a NEW Queryable
 interface Queryable<T> {
-  where(p: Pred<T>): Queryable<T>;
-  select<R>(s: Proj<T, R>): Queryable<R>;
+  filter(p: Pred<T>): Queryable<T>;              // Array.prototype.filter (LINQ Where) — ADR-0013
+  map<R>(s: Proj<T, R>): Queryable<R>;           // Array.prototype.map (LINQ Select) — ADR-0013
   orderBy<K>(k: Key<T, K>): Ordered<T>;          // Ordered adds thenBy/thenByDescending
   orderByDescending<K>(k: Key<T, K>): Ordered<T>;
   distinct(): Queryable<T>;
@@ -522,8 +522,8 @@ interface QueryPlan {
   readonly ops: readonly PlanOp[];                // ordered
 }
 type PlanOp =
-  | { op:"where";  expr: Expr<any> }
-  | { op:"select"; expr: Expr<any> }
+  | { op:"filter"; expr: Expr<any> }
+  | { op:"map";    expr: Expr<any> }
   | { op:"orderBy"|"thenBy"; expr: Expr<any>; desc: boolean }
   | { op:"take"|"skip"; n: number }
   | { op:"distinct" } | { op:"groupBy"; expr: Expr<any> }
@@ -567,13 +567,13 @@ Core translation table (pg dialect):
 | `In` (array constant) | `= ANY($n)` |
 | `Ternary` | `CASE WHEN t THEN a ELSE b END` |
 | `Template` | `\|\|` concatenation with `COALESCE` per null policy |
-| `select` ObjectLit | projection list with aliases; nested objects → `jsonb_build_object` (flag-gated) |
-| ops `where/orderBy/take/skip/distinct/join/leftJoin` | `WHERE` (ANDed), `ORDER BY`, `LIMIT/OFFSET`, `DISTINCT`, `INNER/LEFT JOIN ON` — compiled as a layer stack: an op that would change meaning under SQL clause order wraps the current SELECT into a derived table (ADR-0004); `groupBy` stays memory-only in v1 |
+| `map` ObjectLit | projection list with aliases; nested objects → `jsonb_build_object` (flag-gated) |
+| ops `filter/orderBy/take/skip/distinct/join/leftJoin` | `WHERE` (ANDed), `ORDER BY`, `LIMIT/OFFSET`, `DISTINCT`, `INNER/LEFT JOIN ON` — compiled as a layer stack: an op that would change meaning under SQL clause order wraps the current SELECT into a derived table (ADR-0004); `groupBy` stays memory-only in v1 |
 | `include` | split queries: per navigation one batched fetch (`= ANY($n)` pg / chunked `IN` sqlite via `dialect.maxBatchKeys`), stitched by the shared helpers in `linq`; attaches to final rows only |
 | `nav.some(p)` / `nav.every(p)` in predicates | correlated `EXISTS (SELECT 1 …)` / `NOT EXISTS (… NOT p)` against the navigation's target (relations ride on the plan; the nested lambda translates in a lexical child scope) |
 | `nav.length`, `nav.filter(p).length`, `nav.reduce((acc,o)=>acc+e,0)` | correlated scalar subqueries: `COUNT(*)`, filtered `COUNT(*)`, `COALESCE(SUM(e),0)` — usable in projections, predicates, orderBy keys and aggregate selectors (ADR-0006) |
-| `groupBy(k)` + `select(g => …)` | `GROUP BY` with aggregate projections over `g.key`/`g.items` (`length`→COUNT, filtered counts, reduce sum/min/max idioms, `sum/count` for averages); non-column keys precompute into a derived table; `where` after the projection wraps = HAVING; raw groups stay memory-only (ADR-0007) |
-| `include(nav, q => q.where/orderBy/take/skip)` | refined split fetch: filters/order fold into the batched child query; per-parent slices via `ROW_NUMBER() OVER (PARTITION BY key …)` gated by `dialect.windowFunctions` (ADR-0008) |
+| `groupBy(k)` + `map(g => …)` | `GROUP BY` with aggregate projections over `g.key`/`g.items` (`length`→COUNT, filtered counts, reduce sum/min/max idioms, `sum/count` for averages); non-column keys precompute into a derived table; `filter` after the projection wraps = HAVING; raw groups stay memory-only (ADR-0007) |
+| `include(nav, q => q.filter/orderBy/take/skip)` | refined split fetch: filters/order fold into the batched child query; per-parent slices via `ROW_NUMBER() OVER (PARTITION BY key …)` gated by `dialect.windowFunctions` (ADR-0008) |
 | `flatMap(nav)` / `flatMap(nav, result)` | expand through a navigation (EF `SelectMany`): `INNER JOIN` onto the target; without a selector the layer swaps to the child shape so chained flatMap/include/nav-predicates resolve against the flattened source (ADR-0009) |
 | executors | `count`→`COUNT(*)`, `some`→`EXISTS(...)`, `first`→`LIMIT 1` (+`single` → `LIMIT 2` + runtime cardinality check) |
 

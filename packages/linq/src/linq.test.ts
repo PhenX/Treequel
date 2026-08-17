@@ -79,8 +79,8 @@ const db = (): Context<Schema> => createContext<Schema>(memoryProvider(fixtures)
 describe("Queryable over the memory provider", () => {
   it("filters and projects", async () => {
     const rows = await db()
-      .users.where((u) => u.age >= 18 && u.active)
-      .select((u) => ({ id: u.id, name: u.name }))
+      .users.filter((u) => u.age >= 18 && u.active)
+      .map((u) => ({ id: u.id, name: u.name }))
       .toArray();
     expect(rows).toEqual([
       { id: 1, name: "Ada" },
@@ -89,8 +89,8 @@ describe("Queryable over the memory provider", () => {
   });
 
   it("is immutable — each operator returns a new query", async () => {
-    const base = db().users.where((u) => u.active);
-    const younger = base.where((u) => u.age < 40);
+    const base = db().users.filter((u) => u.active);
+    const younger = base.filter((u) => u.age < 40);
     expect(await base.count()).toBe(3);
     expect(await younger.count()).toBe(2);
   });
@@ -150,23 +150,23 @@ describe("Queryable over the memory provider", () => {
 
   it("async iteration yields rows", async () => {
     const names: string[] = [];
-    for await (const u of db().users.where((u) => u.active)) names.push(u.name);
+    for await (const u of db().users.filter((u) => u.active)) names.push(u.name);
     expect(names.sort()).toEqual(["Ada", "Bob", "Grace"]);
   });
 
   it(".inMemory() runs the provider prefix then evaluates the suffix locally", async () => {
     const scoreModel = (u: User): number => u.age / 100;
     const rows = await db()
-      .users.where((u) => u.active) // provider prefix
+      .users.filter((u) => u.active) // provider prefix
       .inMemory()
-      .where((u) => scoreModel(u) > 0.4) // arbitrary JS after the boundary
+      .filter((u) => scoreModel(u) > 0.4) // arbitrary JS after the boundary
       .toArray();
     expect(rows.map((u) => u.name)).toEqual(["Grace"]);
   });
 
   it("explain() renders a plan", async () => {
     const text = await db()
-      .users.where((u) => u.active)
+      .users.filter((u) => u.active)
       .explain();
     expect(text).toContain("memory scan");
   });
@@ -222,7 +222,7 @@ describe("joins", () => {
   it("joins a filtered inner query", async () => {
     const rows = await db()
       .users.join(
-        db().orders.where((o) => o.total >= 10),
+        db().orders.filter((o) => o.total >= 10),
         (u) => u.id,
         (o) => o.userId,
         (u, o) => ({ name: u.name, total: o.total }),
@@ -266,7 +266,7 @@ describe("flatMap", () => {
     const rows = await db()
       .users.flatMap((u) => u.orders)
       .include((i) => i.items)
-      .where((o) => o.total >= 10)
+      .filter((o) => o.total >= 10)
       .toArray();
     expect(rows.map((o) => o.id)).toEqual([1, 2]);
     expect(rows[0]?.items.map((i) => i.sku).sort()).toEqual(["apple", "pear"]);
@@ -290,7 +290,7 @@ describe("flatMap", () => {
 describe("includes", () => {
   it("include() loads a collection navigation", async () => {
     const rows = await db()
-      .users.where((u) => u.id === 1)
+      .users.filter((u) => u.id === 1)
       .include((u) => u.orders)
       .toArray();
     expect(rows).toHaveLength(1);
@@ -327,7 +327,7 @@ describe("includes", () => {
 
   it("merges repeated include() of the same navigation", async () => {
     const rows = await db()
-      .orders.where((o) => o.id === 1)
+      .orders.filter((o) => o.id === 1)
       .include((o) => o.items)
       .include((o) => o.user)
       .include((o) => o.items)
@@ -336,10 +336,10 @@ describe("includes", () => {
     expect(rows[0]?.user?.name).toBe("Ada");
   });
 
-  it("include() composes with where/orderBy/take", async () => {
+  it("include() composes with filter/orderBy/take", async () => {
     const rows = await db()
       .users.include((u) => u.orders)
-      .where((u) => u.active)
+      .filter((u) => u.active)
       .orderByDescending((u) => u.age)
       .take(2)
       .toArray();
@@ -368,18 +368,18 @@ describe("includes", () => {
 
   it("throws R2008 when thenInclude does not follow include", () => {
     const q = db().users.include((u) => u.orders) as unknown as {
-      where: (p: (u: User) => boolean) => {
+      filter: (p: (u: User) => boolean) => {
         thenInclude?: (n: (o: Order) => Item[] | undefined) => unknown;
       };
     };
-    const afterWhere = q.where((u) => u.active);
-    expect(() => afterWhere.thenInclude?.((o) => o.items)).toThrow(/thenInclude/);
+    const afterFilter = q.filter((u) => u.active);
+    expect(() => afterFilter.thenInclude?.((o) => o.items)).toThrow(/thenInclude/);
   });
 
   it("throws R2002 when the parent key was projected away", async () => {
     await expect(
       db()
-        .users.select((u) => ({ name: u.name }))
+        .users.map((u) => ({ name: u.name }))
         .include((u) => (u as unknown as User).orders)
         .toArray(),
     ).rejects.toThrow(/requires the key 'id'/);
@@ -412,7 +412,7 @@ describe("self-referential navigations", () => {
       .users.include((u) => u.orders)
       .thenInclude((o) => o.items)
       .thenInclude((i) => i.order)
-      .where((u) => u.id === 1)
+      .filter((u) => u.id === 1)
       .toArray();
     const item = ada?.orders.flatMap((o) => o.items ?? []).find((i) => i.sku === "apple");
     expect(item?.order?.id).toBe(item?.orderId);
@@ -424,7 +424,7 @@ describe("self-referential navigations", () => {
       .thenInclude((u) => u.reports)
       .include((o) => o.user)
       .thenInclude((u) => u.boss)
-      .where((o) => o.id === 3)
+      .filter((o) => o.id === 3)
       .toArray();
     // One fetch of `user`, carrying both nested branches.
     expect(order?.user?.name).toBe("Grace");
@@ -456,7 +456,7 @@ describe("fail-fast behavior", () => {
     let executed = 0;
     const limited: QueryProvider = {
       name: "limited",
-      capabilities: () => capabilities(["where", "join", "exec"]),
+      capabilities: () => capabilities(["filter", "join", "exec"]),
       execute: async <T>(): Promise<T> => {
         executed++;
         return [] as unknown as T;
@@ -498,7 +498,7 @@ describe("fail-fast behavior", () => {
     expect(() =>
       db().users.include(
         (u) => u.orders,
-        (q) => q.take(2).where((o) => o.total > 0),
+        (q) => q.take(2).filter((o) => o.total > 0),
       ),
     ).toThrow(/before slicing/);
   });
@@ -508,7 +508,7 @@ describe("fail-fast behavior", () => {
       db()
         .users.include(
           (u) => u.orders,
-          (q) => q.where((o) => o.total > 0),
+          (q) => q.filter((o) => o.total > 0),
         )
         .include((u) => u.orders)
         .toArray(),
@@ -521,7 +521,7 @@ describe("fail-fast behavior", () => {
     // fail with a teachable error instead.
     await expect(
       db()
-        .users.where((u) => u.orders?.some((o) => o.total > 5))
+        .users.filter((u) => u.orders?.some((o) => o.total > 5))
         .toArray(),
     ).rejects.toThrow(/navigation 'orders'/);
   });

@@ -10,8 +10,8 @@ import type { Schema, User } from "./schema.js";
 
 export const activeAdults = (db: Context<Schema>) =>
   db.users
-    .where(expr((u: User) => u.age >= 18 && u.active))
-    .select(expr((u: User) => ({ id: u.id, name: u.name })))
+    .filter(expr((u: User) => u.age >= 18 && u.active))
+    .map(expr((u: User) => ({ id: u.id, name: u.name })))
     .toArray();
 
 export const oldestThreeNames = (db: Context<Schema>) =>
@@ -19,11 +19,11 @@ export const oldestThreeNames = (db: Context<Schema>) =>
     .orderByDescending(expr((u: User) => u.age))
     .thenBy(expr((u: User) => u.name))
     .take(3)
-    .select(expr((u: User) => u.name))
+    .map(expr((u: User) => u.name))
     .toArray();
 
 export const londoners = (db: Context<Schema>) =>
   db.users.count(expr((u: User) => u.city === "London"));
 
 export const namesStartingWith = (db: Context<Schema>, prefix: string) =>
-  db.users.where(expr((u: User) => u.name.startsWith(prefix))).toArray();
+  db.users.filter(expr((u: User) => u.name.startsWith(prefix))).toArray();

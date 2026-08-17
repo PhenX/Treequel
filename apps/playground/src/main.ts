@@ -237,7 +237,7 @@ async function render(): Promise<void> {
       scope: () => captures,
     });
     // oxlint-disable-next-line treequel/no-opaque-callback -- `expr` holds a reified Expr value, not a function reference
-    const query = body.kind === "ObjectLit" ? db.users.select(expr) : db.users.where(expr);
+    const query = body.kind === "ObjectLit" ? db.users.map(expr) : db.users.filter(expr);
     sqlEl.textContent = await query.explain();
     sqlEl.classList.remove("error");
   } catch (e) {

@@ -19,9 +19,9 @@ traced call sites and rewrites each into a literal carrying **both** forms — t
 the tree as plain data:
 
 ```ts
-db.users.where((u) => u.age > minAge);
+db.users.filter((u) => u.age > minAge);
 // ⇣ what the plugin emits
-db.users.where(
+db.users.filter(
   __tql_expr$({
     v: 1,
     compiled: (u) => u.age > minAge, // the function it always was
@@ -60,7 +60,7 @@ tree; SQL providers bind it as `$1` / `?`:
 
 ```ts
 let minAge = 18;
-const adults = db.users.where((u) => u.age > minAge);
+const adults = db.users.filter((u) => u.age > minAge);
 minAge = 21;
 await adults.toArray(); // WHERE "users"."age" > $1 — with $1 = 21, the value at execution
 ```
@@ -70,7 +70,7 @@ await adults.toArray(); // WHERE "users"."age" > $1 — with $1 = 21, the value 
 EF Core is the reference implementation for "LINQ over a real database", and Treequel borrows its answers directly:
 
 - **`include` / `thenInclude`** are EF Core's navigation-loading names and rules — includes attach to result rows and
-  are invisible to `where` in the same query. Treequel always executes them the way EF Core's `AsSplitQuery()` does:
+  are invisible to `filter` in the same query. Treequel always executes them the way EF Core's `AsSplitQuery()` does:
   one batched statement per navigation, so joins never duplicate parents and `take`/`skip` apply to parents alone.
 - **`flatMap` is `SelectMany`** — querying through a navigation becomes a join.
 - **`.inMemory()` is `AsEnumerable()`, made mandatory.** Pre-Core EF silently finished untranslatable queries on the
@@ -97,20 +97,58 @@ EF Core is the reference implementation for "LINQ over a real database", and Tre
 
 ## The map
 
-| C# / .NET                                                 | Treequel                                                 |
-| --------------------------------------------------------- | -------------------------------------------------------- |
-| `Expression<Func<User, bool>>`                            | `Expr<(u: User) => boolean>`                             |
-| Compiler-built expression trees                           | Build-time reification (`@treequel/vite`)                |
-| `IQueryable<T>`                                           | `Queryable<T>`                                           |
-| `IQueryProvider`                                          | `QueryProvider`                                          |
-| LINQ to Objects                                           | `@treequel/provider-memory`                              |
-| `ExpressionVisitor`                                       | The visitor / rewriter in `@treequel/core`               |
-| `Where` / `Select` / `OrderBy` / `ThenBy` / `Skip` / `Take` | `where` / `select` / `orderBy` / `thenBy` / `skip` / `take` |
-| `SelectMany`                                              | `flatMap`                                                |
-| `Include` / `ThenInclude`, `AsSplitQuery`                 | `include` / `thenInclude` (always split)                 |
-| `FirstOrDefaultAsync` / `SingleAsync`                     | `first` / `single`                                       |
-| `AsEnumerable()`                                          | `.inMemory()`                                            |
-| `ToListAsync()`                                           | `toArray()`                                              |
+The types and architecture carry across one-to-one:
+
+| C# / .NET                                | Treequel                                   |
+| ---------------------------------------- | ------------------------------------------ |
+| `Expression<Func<User, bool>>`           | `Expr<(u: User) => boolean>`               |
+| Compiler-built expression trees          | Build-time reification (`@treequel/vite`)  |
+| `IQueryable<T>`                          | `Queryable<T>`                             |
+| `IQueryProvider`                         | `QueryProvider`                            |
+| LINQ to Objects                          | `@treequel/provider-memory`                |
+| `ExpressionVisitor`                      | The visitor / rewriter in `@treequel/core` |
+| `Include` / `ThenInclude`, `AsSplitQuery` | `include` / `thenInclude` (always split)  |
+
+## Operators, three ways
+
+LINQ named its operators after SQL (`Where`, `Select`). Treequel names them after the JavaScript `Array` methods they
+mirror, because the same lambda already runs against a plain array in the memory provider — so a query reads the way
+the equivalent array transform reads. The LINQ name is kept in the last column for anyone arriving from C#:
+
+| Treequel                                 | JavaScript `Array`                            | LINQ (C#)                         |
+| ---------------------------------------- | --------------------------------------------- | --------------------------------- |
+| `filter(p)`                              | `Array.prototype.filter`                      | `Where`                           |
+| `map(s)`                                 | `Array.prototype.map`                         | `Select`                          |
+| `flatMap(nav)`                           | `Array.prototype.flatMap`                     | `SelectMany`                      |
+| `orderBy(k)` / `orderByDescending(k)`    | `Array.prototype.sort` (by a key)             | `OrderBy` / `OrderByDescending`   |
+| `thenBy(k)` / `thenByDescending(k)`      | a stable `sort` on the previous key           | `ThenBy` / `ThenByDescending`     |
+| `take(n)` / `skip(n)`                    | `slice(0, n)` / `slice(n)`                    | `Take` / `Skip`                   |
+| `distinct()`                             | `[...new Set(xs)]`                            | `Distinct`                        |
+| `groupBy(k)`                             | `Object.groupBy` / `Map.groupBy`              | `GroupBy`                         |
+| `join(...)` / `leftJoin(...)`            | hand-written (`Array.join` is string-joining) | `Join` / `GroupJoin`              |
+| `include` / `thenInclude`                | — (loads a declared navigation)               | `Include` / `ThenInclude`         |
+
+The executors — the terminal calls that actually run the query — follow the same rule:
+
+| Treequel                     | JavaScript `Array`                    | LINQ (C#)                       |
+| ---------------------------- | ------------------------------------- | ------------------------------- |
+| `some(p?)`                   | `Array.prototype.some`                | `Any`                           |
+| `every(p)`                   | `Array.prototype.every`               | `All`                           |
+| `first(p?)` → `T \| null`    | `Array.prototype.find`                | `FirstOrDefault`                |
+| `firstOrThrow(p?)`           | —                                     | `First`                         |
+| `single(p?)`                 | —                                     | `Single`                        |
+| `count(p?)`                  | `Array.prototype.length`              | `Count`                         |
+| `sum(s)`                     | `Array.prototype.reduce`              | `Sum`                           |
+| `min(s)` / `max(s)`          | `Math.min` / `Math.max` over the keys | `Min` / `Max`                   |
+| `avg(s)`                     | `reduce` ÷ `length`                   | `Average`                       |
+| `toArray()`                  | `[...xs]`                             | `ToList` / `ToArray`            |
+| `.inMemory()`                | — (crosses into the array world)      | `AsEnumerable`                  |
+
+Three names deliberately keep a non-`Array` spelling, because no array method carries the same meaning: `orderBy` takes
+a key selector and sorts stably across levels rather than mutating in place like `sort`; `groupBy` returns `Grouping`
+values (and predates `Object.groupBy`); and `join` is the relational join, since `Array.prototype.join` already means
+string concatenation. The executor names were settled first — `some`/`every` over LINQ's `Any`/`All`, and a nullable
+`first` over a throwing one — and `filter`/`map` extend that same JS-first convention to the operators.
 
 What Treequel does **not** rebuild is the rest of EF Core: no `DbContext` change tracking, no `SaveChanges`, no
 migrations, no write path at all. That split is deliberate — [Compared to ORMs & EF Core](/guide/comparison) covers

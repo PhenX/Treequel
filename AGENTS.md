@@ -18,7 +18,7 @@ Read the section covering the area you are editing, in addition to this file:
 | `packages/ts-transformer/` — TypeScript-compiler transformer (ts-patch) | plan §7 + [area guide](packages/ts-transformer/AGENTS.md) |
 | `packages/core/` — `Expr`, visitor/rewriter, partial evaluation | plan §8 |
 | `packages/fallback/` — runtime `toString()` path | plan §8.4 |
-| `packages/linq/` — `Queryable`, `QueryPlan`, provider protocol | plan §9 |
+| `packages/linq/` — `Queryable`, `QueryPlan`, provider protocol | plan §9 + [area guide](packages/linq/AGENTS.md) |
 | `packages/sql-core/` — shared SQL translator, dialect seam, provider builder | plan §10 |
 | `packages/provider-*/` — providers (`memory`, `postgres`, `sqlite`) | plan §10 |
 | `packages/ts-plugin/`, `packages/eslint-plugin/` — editor & lint surface | plan §12 |

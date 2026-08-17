@@ -4,11 +4,11 @@ import { transformModule } from "./transform.js";
 const run = (code: string, id = "src/q.ts", opts = {}) => transformModule(code, id, opts);
 
 describe("transformModule — reification", () => {
-  it("reifies a lambda at a traced where() call site", async () => {
+  it("reifies a lambda at a traced filter() call site", async () => {
     const code = [
       'import { createContext } from "@treequel/linq";',
       "const db = createContext(provider);",
-      "const q = db.users.where(u => u.age > minAge);",
+      "const q = db.users.filter(u => u.age > minAge);",
     ].join("\n");
     const out = await run(code);
     expect(out).not.toBeNull();
@@ -25,7 +25,7 @@ describe("transformModule — reification", () => {
   });
 
   it("skips modules that reference no traced package", async () => {
-    expect(await run("const x = arr.where(u => u.age > 1);")).toBeNull();
+    expect(await run("const x = arr.filter(u => u.age > 1);")).toBeNull();
   });
 
   it("does not reify lambdas on untainted receivers", async () => {
@@ -44,7 +44,7 @@ describe("transformModule — reification", () => {
       "const db = createContext(provider);",
       "const q = db.users.include(",
       "  (u) => u.orders,",
-      "  (r) => r.where(o => o.total > 10).orderByDescending(o => o.total).take(1),",
+      "  (r) => r.filter(o => o.total > 10).orderByDescending(o => o.total).take(1),",
       ");",
     ].join("\n");
     const out = await run(code);
@@ -53,7 +53,7 @@ describe("transformModule — reification", () => {
     expect(out!.count).toBe(2);
     expect(out!.code).toContain("compiled:o => o.total > 10");
     expect(out!.code).toContain("(u) => u.orders,");
-    expect(out!.code).toContain("(r) => r.where(");
+    expect(out!.code).toContain("(r) => r.filter(");
   });
 
   it("taints intermediate bindings across the fixpoint", async () => {
@@ -61,7 +61,7 @@ describe("transformModule — reification", () => {
       'import { createContext } from "@treequel/linq";',
       "const db = createContext(provider);",
       "const base = db.users;",
-      "const q = base.where(u => u.active).select(u => u.id);",
+      "const q = base.filter(u => u.active).map(u => u.id);",
     ].join("\n");
     const out = await run(code);
     expect(out!.count).toBe(2);
@@ -81,7 +81,7 @@ describe("transformModule — reification", () => {
     const code = [
       'import { createContext } from "@treequel/linq";',
       "const db = createContext(provider);",
-      "const q = db.users.where(u => u.tags.some(t => t.startsWith(prefix)));",
+      "const q = db.users.filter(u => u.tags.some(t => t.startsWith(prefix)));",
     ].join("\n");
     const out = await run(code);
     expect(out!.count).toBe(1); // outer only; nested some() lambda is inside the tree
@@ -92,7 +92,7 @@ describe("transformModule — reification", () => {
     const code = [
       'import { createContext } from "@treequel/linq";',
       "const db = createContext(provider);",
-      "const q = db.users.where(u => u.id == 1);",
+      "const q = db.users.filter(u => u.id == 1);",
     ].join("\n");
     const out = await run(code);
     // A result is returned so the plugin can surface diagnostics, but nothing is reified.
@@ -106,7 +106,7 @@ describe("transformModule — reification", () => {
     const code = [
       'import { createContext } from "@treequel/linq";',
       "const db = createContext(provider);",
-      "const q = db.users.where(u => u.age > minAge);",
+      "const q = db.users.filter(u => u.age > minAge);",
     ].join("\n");
     const first = await run(code);
     const second = await run(first!.code, "src/q.ts");
@@ -117,7 +117,7 @@ describe("transformModule — reification", () => {
     const code = [
       'import { createContext } from "@treequel/linq";',
       "const db = createContext(provider);",
-      "const q = db.users.where(u => u.age > 1);",
+      "const q = db.users.filter(u => u.age > 1);",
     ].join("\n");
     const out = await run(code);
     expect(out!.code).toMatch(/loc:"src\/q\.ts:3:\d+"/);
@@ -128,7 +128,7 @@ describe("transformModule — reification", () => {
     const code = [
       'import { createContext } from "@treequel/linq";',
       "const db = createContext(provider);",
-      "const q = db.users.where(u => u.age > 1);",
+      "const q = db.users.filter(u => u.age > 1);",
     ].join("\n");
     const out = await transformModule(code, "src/q.ts", { emitSource: false });
     expect(out!.code).not.toContain('src:"u');
@@ -138,7 +138,7 @@ describe("transformModule — reification", () => {
     const code = [
       'import { createContext } from "@treequel/linq";',
       "const db = createContext(provider);",
-      "const q = db.users.where(u => u.age > 1);",
+      "const q = db.users.filter(u => u.age > 1);",
     ].join("\n");
     const out = await run(code);
     expect(out!.map.mappings.length).toBeGreaterThan(0);

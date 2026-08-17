@@ -89,65 +89,65 @@ beforeAll(async () => {
 });
 
 describe("pg provider ≡ memory reference (reified trees run on PGlite)", () => {
-  it("where: numeric predicate", async () => {
+  it("filter: numeric predicate", async () => {
     const p = expr((u: User) => u.age >= 30);
-    expect(multiset(await sqlDb.users.where(p).toArray())).toEqual(
-      multiset(await memDb.users.where(p).toArray()),
+    expect(multiset(await sqlDb.users.filter(p).toArray())).toEqual(
+      multiset(await memDb.users.filter(p).toArray()),
     );
   });
 
-  it("where: boolean column + AND", async () => {
+  it("filter: boolean column + AND", async () => {
     const p = expr((u: User) => u.active && u.age > 20);
-    expect(multiset(await sqlDb.users.where(p).toArray())).toEqual(
-      multiset(await memDb.users.where(p).toArray()),
+    expect(multiset(await sqlDb.users.filter(p).toArray())).toEqual(
+      multiset(await memDb.users.filter(p).toArray()),
     );
   });
 
-  it("where: null comparison (city === null → IS NULL)", async () => {
+  it("filter: null comparison (city === null → IS NULL)", async () => {
     const p = expr((u: User) => u.city === null);
-    const sql = await sqlDb.users.where(p).toArray();
+    const sql = await sqlDb.users.filter(p).toArray();
     expect(sql.map((u) => u.id)).toEqual([3]);
-    expect(multiset(sql)).toEqual(multiset(await memDb.users.where(p).toArray()));
+    expect(multiset(sql)).toEqual(multiset(await memDb.users.filter(p).toArray()));
   });
 
-  it("where: startsWith escapes LIKE metacharacters", async () => {
+  it("filter: startsWith escapes LIKE metacharacters", async () => {
     const p = expr((u: User) => u.name.startsWith("50%"));
-    const sql = await sqlDb.users.where(p).toArray();
+    const sql = await sqlDb.users.filter(p).toArray();
     // Only "50%off" — the % is escaped, so it does NOT act as a wildcard.
     expect(sql.map((u) => u.name)).toEqual(["50%off"]);
-    expect(multiset(sql)).toEqual(multiset(await memDb.users.where(p).toArray()));
+    expect(multiset(sql)).toEqual(multiset(await memDb.users.filter(p).toArray()));
   });
 
-  it("where: startsWith escapes underscore", async () => {
+  it("filter: startsWith escapes underscore", async () => {
     const p = expr((u: User) => u.name.startsWith("a_"));
-    const sql = await sqlDb.users.where(p).toArray();
+    const sql = await sqlDb.users.filter(p).toArray();
     expect(sql.map((u) => u.name)).toEqual(["a_b"]);
-    expect(multiset(sql)).toEqual(multiset(await memDb.users.where(p).toArray()));
+    expect(multiset(sql)).toEqual(multiset(await memDb.users.filter(p).toArray()));
   });
 
-  it("select: object projection", async () => {
+  it("map: object projection", async () => {
     const s = expr((u: User) => ({ id: u.id, upper: u.name.toUpperCase() }));
     const p = expr((u: User) => u.active);
-    expect(multiset(await sqlDb.users.where(p).select(s).toArray())).toEqual(
-      multiset(await memDb.users.where(p).select(s).toArray()),
+    expect(multiset(await sqlDb.users.filter(p).map(s).toArray())).toEqual(
+      multiset(await memDb.users.filter(p).map(s).toArray()),
     );
   });
 
-  it("select scalar + distinct", async () => {
+  it("map scalar + distinct", async () => {
     const s = expr((u: User) => u.city);
-    expect(multiset(await sqlDb.users.select(s).distinct().toArray())).toEqual(
-      multiset(await memDb.users.select(s).distinct().toArray()),
+    expect(multiset(await sqlDb.users.map(s).distinct().toArray())).toEqual(
+      multiset(await memDb.users.map(s).distinct().toArray()),
     );
   });
 
-  it("where after an object projection (wraps into a derived table)", async () => {
+  it("filter after an object projection (wraps into a derived table)", async () => {
     const rows = await sqlDb.users
-      .select((u) => ({ id: u.id, years: u.age }))
-      .where((r) => r.years > 30)
+      .map((u) => ({ id: u.id, years: u.age }))
+      .filter((r) => r.years > 30)
       .toArray();
     const mem = await memDb.users
-      .select((u) => ({ id: u.id, years: u.age }))
-      .where((r) => r.years > 30)
+      .map((u) => ({ id: u.id, years: u.age }))
+      .filter((r) => r.years > 30)
       .toArray();
     expect(multiset(rows)).toEqual(multiset(mem));
   });
@@ -213,36 +213,34 @@ describe("pg date extraction ≡ memory reference", () => {
       m: e.at.getMonth(),
       d: e.at.getDate(),
     }));
-    expect(multiset(await eventsSql.events.select(s).toArray())).toEqual(
-      multiset(await eventsMem.events.select(s).toArray()),
+    expect(multiset(await eventsSql.events.map(s).toArray())).toEqual(
+      multiset(await eventsMem.events.map(s).toArray()),
     );
   });
 
   it("filters on getFullYear and the 0-based getMonth match the reference", async () => {
     const in2020 = expr((e: Event) => e.at.getFullYear() === 2020);
     const inJune = expr((e: Event) => e.at.getMonth() === 5); // 5 = June (0-based)
-    expect(eid(await eventsSql.events.where(in2020).toArray())).toEqual([2, 3]);
-    expect(eid(await eventsSql.events.where(in2020).toArray())).toEqual(
-      eid(await eventsMem.events.where(in2020).toArray()),
+    expect(eid(await eventsSql.events.filter(in2020).toArray())).toEqual([2, 3]);
+    expect(eid(await eventsSql.events.filter(in2020).toArray())).toEqual(
+      eid(await eventsMem.events.filter(in2020).toArray()),
     );
-    expect(eid(await eventsSql.events.where(inJune).toArray())).toEqual(
-      eid(await eventsMem.events.where(inJune).toArray()),
+    expect(eid(await eventsSql.events.filter(inJune).toArray())).toEqual(
+      eid(await eventsMem.events.filter(inJune).toArray()),
     );
   });
 
   it("binds a captured Date comparison against the reference", async () => {
     const cutoff = new Date("2020-01-01T00:00:00Z");
     const p = expr((e: Event) => e.at >= cutoff);
-    expect(eid(await eventsSql.events.where(p).toArray())).toEqual([2, 3, 4]);
-    expect(eid(await eventsSql.events.where(p).toArray())).toEqual(
-      eid(await eventsMem.events.where(p).toArray()),
+    expect(eid(await eventsSql.events.filter(p).toArray())).toEqual([2, 3, 4]);
+    expect(eid(await eventsSql.events.filter(p).toArray())).toEqual(
+      eid(await eventsMem.events.filter(p).toArray()),
     );
   });
 
   it("compiles to EXTRACT with the 0-based month adjustment", async () => {
-    const text = await eventsSql.events
-      .select(expr((e: Event) => ({ m: e.at.getMonth() })))
-      .explain();
+    const text = await eventsSql.events.map(expr((e: Event) => ({ m: e.at.getMonth() }))).explain();
     expect(text).toContain("EXTRACT(MONTH FROM");
     expect(text).toContain("- 1)");
   });
@@ -337,7 +335,7 @@ describe("pg includes (split queries) ≡ memory reference", () => {
     const sql = await sqlDb.users
       .include((u) => u.orders)
       .thenInclude((o) => o.items)
-      .where((u) => u.id === 1)
+      .filter((u) => u.id === 1)
       .toArray();
     const skus = sql[0]?.orders.flatMap((o) => (o.items ?? []).map((i) => i.sku)).sort();
     expect(skus).toEqual(["apple", "pear"]);
@@ -377,7 +375,7 @@ describe("pg includes (split queries) ≡ memory reference", () => {
 describe("pg provider — SQL shape (explain)", () => {
   it("parameterizes constants and never interpolates", async () => {
     const p = expr((u: User) => u.age >= 18 && u.name.startsWith("A"));
-    const text = await sqlDb.users.where(p).explain();
+    const text = await sqlDb.users.filter(p).explain();
     expect(text).toContain('FROM "users" "t0"');
     expect(text).toContain('"t0"."age" >= $1');
     expect(text).toContain("LIKE $2 ESCAPE");
@@ -396,12 +394,12 @@ describe("pg provider — SQL shape (explain)", () => {
   it("numbers placeholders in textual order across joined clauses", async () => {
     const text = await sqlDb.users
       .join(
-        sqlDb.orders.where((o) => o.total >= 10),
+        sqlDb.orders.filter((o) => o.total >= 10),
         (u) => u.id,
         (o) => o.userId,
         (u, o) => ({ name: u.name, big: o.total * 2 }),
       )
-      .where((r) => r.big > 25)
+      .filter((r) => r.big > 25)
       .explain();
     // The SELECT-list param ($1: the 2 multiplier) precedes the JOIN subquery
     // param ($2: the 10 threshold) and the outer WHERE param ($3: 25).

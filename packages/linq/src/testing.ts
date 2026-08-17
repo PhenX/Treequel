@@ -161,25 +161,25 @@ export function defaultCases(): ConformanceCase[] {
 
   return [
     {
-      name: "where numeric",
+      name: "filter numeric",
       run: (db) =>
         users(db)
-          .where(expr((u: U) => u.age >= 18))
+          .filter(expr((u: U) => u.age >= 18))
           .toArray(),
     },
     {
-      name: "where + select projection",
+      name: "filter + map projection",
       run: (db) =>
         users(db)
-          .where(expr((u: U) => u.active))
-          .select(expr((u: U) => ({ id: u.id, name: u.name })))
+          .filter(expr((u: U) => u.active))
+          .map(expr((u: U) => ({ id: u.id, name: u.name })))
           .toArray(),
     },
     {
-      name: "where startsWith",
+      name: "filter startsWith",
       run: (db) =>
         users(db)
-          .where(expr((u: U) => u.name.startsWith("A")))
+          .filter(expr((u: U) => u.name.startsWith("A")))
           .toArray(),
     },
     {
@@ -216,10 +216,10 @@ export function defaultCases(): ConformanceCase[] {
     { name: "some", run: (db) => users(db).some(expr((u: U) => u.age > 90)) },
     { name: "sum", run: (db) => orders(db).sum(expr((o: O) => o.total)) },
     {
-      name: "select distinct city",
+      name: "map distinct city",
       run: (db) =>
         users(db)
-          .select(expr((u: U) => u.city))
+          .map(expr((u: U) => u.city))
           .distinct()
           .toArray(),
     },
@@ -234,19 +234,19 @@ export function defaultCases(): ConformanceCase[] {
           .toArray(),
     },
     {
-      name: "where after select projection",
+      name: "filter after map projection",
       run: (db) =>
         users(db)
-          .select(expr((u: U) => ({ id: u.id, years: u.age })))
-          .where(expr((r: { id: number; years: number }) => r.years > 30))
+          .map(expr((u: U) => ({ id: u.id, years: u.age })))
+          .filter(expr((r: { id: number; years: number }) => r.years > 30))
           .toArray(),
     },
     {
-      name: "where after scalar select",
+      name: "filter after scalar map",
       run: (db) =>
         users(db)
-          .select(expr((u: U) => u.age))
-          .where(expr((a: number) => a > 30))
+          .map(expr((u: U) => u.age))
+          .filter(expr((a: number) => a > 30))
           .toArray(),
     },
     {
@@ -266,7 +266,7 @@ export function defaultCases(): ConformanceCase[] {
       run: (db) =>
         users(db)
           .join(
-            orders(db).where(expr((o: O) => o.total >= 10)),
+            orders(db).filter(expr((o: O) => o.total >= 10)),
             expr((u: U) => u.id),
             expr((o: O) => o.userId),
             expr((u: U, o: O) => ({ name: u.name, total: o.total })),
@@ -286,7 +286,7 @@ export function defaultCases(): ConformanceCase[] {
           .toArray(),
     },
     {
-      name: "join then where over the joined shape",
+      name: "join then filter over the joined shape",
       run: (db) =>
         orders(db)
           .join(
@@ -295,7 +295,7 @@ export function defaultCases(): ConformanceCase[] {
             expr((u: U) => u.id),
             expr((o: O, u: U) => ({ order: o.id, who: u.name, total: o.total })),
           )
-          .where(expr((r: { order: number; who: string; total: number }) => r.total >= 10))
+          .filter(expr((r: { order: number; who: string; total: number }) => r.total >= 10))
           .toArray(),
     },
     {
@@ -321,12 +321,12 @@ export function defaultCases(): ConformanceCase[] {
           .toArray(),
     },
     {
-      name: "include composes with where and take",
+      name: "include composes with filter and take",
       ordered: true,
       run: (db) =>
         users(db)
           .include((u) => u.orders)
-          .where(expr((u: U) => u.active))
+          .filter(expr((u: U) => u.active))
           .orderBy(expr((u: U) => u.id))
           .take(2)
           .toArray(),
@@ -366,7 +366,7 @@ export function defaultCases(): ConformanceCase[] {
       run: (db) =>
         orders(db)
           .join(
-            users(db).select(expr((u: U) => ({ uid: u.id, label: u.name }))),
+            users(db).map(expr((u: U) => ({ uid: u.id, label: u.name }))),
             expr((o: O) => o.userId),
             expr((r: { uid: number; label: string }) => r.uid),
             expr((o: O, r: { uid: number; label: string }) => ({ order: o.id, label: r.label })),
@@ -419,7 +419,7 @@ export function defaultCases(): ConformanceCase[] {
             expr((u: U) => u.id),
             expr((o: O, _u: U) => ({ order: o.id, total: o.total })),
           )
-          .where(expr((r: { order: number; total: number }) => r.total > 9999))
+          .filter(expr((r: { order: number; total: number }) => r.total > 9999))
           .first(),
     },
     {
@@ -440,7 +440,7 @@ export function defaultCases(): ConformanceCase[] {
       name: "distinct then count",
       run: (db) =>
         users(db)
-          .select(expr((u: U) => u.city))
+          .map(expr((u: U) => u.city))
           .distinct()
           .count(),
     },
@@ -456,7 +456,7 @@ export function defaultCases(): ConformanceCase[] {
       name: "include after a projection that keeps the key",
       run: (db) =>
         users(db)
-          .select(expr((u: U) => ({ id: u.id })))
+          .map(expr((u: U) => ({ id: u.id })))
           .include((u) => (u as unknown as U).orders)
           .toArray(),
     },
@@ -473,35 +473,35 @@ export function defaultCases(): ConformanceCase[] {
       name: "some over a navigation filters like EXISTS",
       run: (db) =>
         users(db)
-          .where(expr((u: U) => u.orders?.some((o) => o.total >= 10)))
+          .filter(expr((u: U) => u.orders?.some((o) => o.total >= 10)))
           .toArray(),
     },
     {
       name: "every over a navigation is vacuously true without children",
       run: (db) =>
         users(db)
-          .where(expr((u: U) => u.orders?.every((o) => o.total >= 10)))
+          .filter(expr((u: U) => u.orders?.every((o) => o.total >= 10)))
           .toArray(),
     },
     {
       name: "negated navigation some",
       run: (db) =>
         users(db)
-          .where(expr((u: U) => !u.orders?.some((o) => o.total > 0)))
+          .filter(expr((u: U) => !u.orders?.some((o) => o.total > 0)))
           .toArray(),
     },
     {
       name: "navigation some combined with a column predicate",
       run: (db) =>
         users(db)
-          .where(expr((u: U) => u.active && u.orders?.some((o) => o.total > 5)))
+          .filter(expr((u: U) => u.active && u.orders?.some((o) => o.total > 5)))
           .toArray(),
     },
     {
       name: "navigation some nests two levels",
       run: (db) =>
         users(db)
-          .where(expr((u: U) => u.orders?.some((o) => o.items?.some((i) => i.sku === "apple"))))
+          .filter(expr((u: U) => u.orders?.some((o) => o.items?.some((i) => i.sku === "apple"))))
           .toArray(),
     },
     {
@@ -512,14 +512,14 @@ export function defaultCases(): ConformanceCase[] {
       name: "projection counts a navigation",
       run: (db) =>
         users(db)
-          .select(expr((u: U) => ({ name: u.name, orderCount: u.orders?.length ?? 0 })))
+          .map(expr((u: U) => ({ name: u.name, orderCount: u.orders?.length ?? 0 })))
           .toArray(),
     },
     {
       name: "projection counts a filtered navigation",
       run: (db) =>
         users(db)
-          .select(
+          .map(
             expr((u: U) => ({
               id: u.id,
               big: u.orders?.filter((o) => o.total >= 10).length ?? 0,
@@ -531,7 +531,7 @@ export function defaultCases(): ConformanceCase[] {
       name: "projection sums a navigation via the reduce idiom",
       run: (db) =>
         users(db)
-          .select(
+          .map(
             expr((u: U) => ({
               name: u.name,
               spent: u.orders?.reduce((acc, o) => acc + o.total, 0) ?? 0,
@@ -540,10 +540,10 @@ export function defaultCases(): ConformanceCase[] {
           .toArray(),
     },
     {
-      name: "where compares a navigation count",
+      name: "filter compares a navigation count",
       run: (db) =>
         users(db)
-          .where(expr((u: U) => (u.orders?.length ?? 0) > 1))
+          .filter(expr((u: U) => (u.orders?.length ?? 0) > 1))
           .toArray(),
     },
     {
@@ -567,7 +567,7 @@ export function defaultCases(): ConformanceCase[] {
         // oxlint-disable-next-line unicorn/prefer-set-has
         const cities: Array<string | null> = ["London", "NYC"];
         return users(db)
-          .where(expr((u: U) => cities.includes(u.city)))
+          .filter(expr((u: U) => cities.includes(u.city)))
           .toArray();
       },
     },
@@ -576,7 +576,7 @@ export function defaultCases(): ConformanceCase[] {
       run: (db) =>
         orders(db)
           .groupBy(expr((o: O) => o.userId))
-          .select(
+          .map(
             expr((g: { key: number | null; items: readonly O[] }) => ({
               userId: g.key,
               n: g.items.length,
@@ -589,7 +589,7 @@ export function defaultCases(): ConformanceCase[] {
       run: (db) =>
         orders(db)
           .groupBy(expr((o: O) => ({ uid: o.userId })))
-          .select(
+          .map(
             expr((g: { key: { uid: number | null }; items: readonly O[] }) => ({
               uid: g.key.uid,
               n: g.items.length,
@@ -602,7 +602,7 @@ export function defaultCases(): ConformanceCase[] {
       run: (db) =>
         orders(db)
           .groupBy(expr((o: O) => o.userId))
-          .select(
+          .map(
             expr((g: { key: number | null; items: readonly O[] }) => ({
               userId: g.key,
               total: g.items.reduce((acc, o) => acc + o.total, 0),
@@ -618,7 +618,7 @@ export function defaultCases(): ConformanceCase[] {
       run: (db) =>
         orders(db)
           .groupBy(expr((o: O) => o.userId))
-          .select(
+          .map(
             expr((g: { key: number | null; items: readonly O[] }) => ({
               userId: g.key,
               big: g.items.filter((o) => o.total >= 10).length,
@@ -627,17 +627,17 @@ export function defaultCases(): ConformanceCase[] {
           .toArray(),
     },
     {
-      name: "having via where over the group projection",
+      name: "having via filter over the group projection",
       run: (db) =>
         orders(db)
           .groupBy(expr((o: O) => o.userId))
-          .select(
+          .map(
             expr((g: { key: number | null; items: readonly O[] }) => ({
               userId: g.key,
               n: g.items.length,
             })),
           )
-          .where(expr((r: { userId: number | null; n: number }) => r.n > 1))
+          .filter(expr((r: { userId: number | null; n: number }) => r.n > 1))
           .toArray(),
     },
     {
@@ -646,7 +646,7 @@ export function defaultCases(): ConformanceCase[] {
       run: (db) =>
         orders(db)
           .groupBy(expr((o: O) => o.userId))
-          .select(
+          .map(
             expr((g: { key: number | null; items: readonly O[] }) => ({
               userId: g.key,
               total: g.items.reduce((acc, o) => acc + o.total, 0),
@@ -668,7 +668,7 @@ export function defaultCases(): ConformanceCase[] {
       run: (db) =>
         users(db)
           .groupBy(expr((u: U) => u.orders?.length ?? 0))
-          .select(
+          .map(
             expr((g: { key: number; items: readonly U[] }) => ({
               orders: g.key,
               people: g.items.length,
@@ -682,7 +682,7 @@ export function defaultCases(): ConformanceCase[] {
         users(db)
           .include(
             (u) => u.orders,
-            (q) => q.where(expr((o: O) => o.total >= 10)),
+            (q) => q.filter(expr((o: O) => o.total >= 10)),
           )
           .toArray(),
     },
@@ -716,7 +716,7 @@ export function defaultCases(): ConformanceCase[] {
         users(db)
           .include(
             (u) => u.orders,
-            (q) => q.where(expr((o: O) => o.items?.some((i) => i.sku === "apple"))),
+            (q) => q.filter(expr((o: O) => o.items?.some((i) => i.sku === "apple"))),
           )
           .toArray(),
     },
@@ -727,7 +727,7 @@ export function defaultCases(): ConformanceCase[] {
           .include((u) => u.orders)
           .thenInclude(
             (o) => o.items,
-            (q) => q.where(expr((i: I) => i.sku !== "pear")),
+            (q) => q.filter(expr((i: I) => i.sku !== "pear")),
           )
           .toArray(),
     },
@@ -767,11 +767,11 @@ export function defaultCases(): ConformanceCase[] {
           .toArray(),
     },
     {
-      name: "flatMap composes with where, orderBy and take",
+      name: "flatMap composes with filter, orderBy and take",
       ordered: true,
       run: (db) =>
         users(db)
-          .where(expr((u: U) => u.active))
+          .filter(expr((u: U) => u.active))
           .flatMap((u) => u.orders)
           .orderByDescending(expr((o: O) => o.total))
           .thenBy(expr((o: O) => o.id))
@@ -783,7 +783,7 @@ export function defaultCases(): ConformanceCase[] {
       run: (db) =>
         users(db)
           .flatMap((u) => u.orders)
-          .where(expr((o: O) => o.items?.some((i) => i.sku === "apple")))
+          .filter(expr((o: O) => o.items?.some((i) => i.sku === "apple")))
           .toArray(),
     },
     {

@@ -2,8 +2,8 @@
 layout: home
 hero:
   name: Treequel
-  text: Expression trees and LINQ for TypeScript
-  tagline: Write an ordinary lambda; it stays the function it always was, and becomes a typed, serializable expression tree that providers translate to SQL, remote filters, policy checks — or anything else. Not an ORM.
+  text: Expression trees for TypeScript
+  tagline: "Write an ordinary lambda; it stays the function it always was, and becomes a typed, serializable tree you can evaluate, rewrite, print, store, send over the wire — or hand to a provider that translates it: a policy check, a remote filter, parameterized SQL. Not an ORM."
   actions:
     - theme: brand
       text: Get started

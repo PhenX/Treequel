@@ -6,7 +6,7 @@ export default defineConfig({
   lang: "en-US",
   title: "Treequel",
   description:
-    "Expression trees and LINQ for TypeScript. Write an ordinary lambda; it stays the function it always was, and becomes a typed, serializable expression tree that providers translate to SQL, remote filters, policy checks — or anything else. Not an ORM.",
+    "Expression trees for TypeScript. Write an ordinary lambda; it stays the function it always was, and becomes a typed, serializable tree you can evaluate, rewrite, print, store, send over the wire — or hand to a provider that translates it: a policy check, a remote filter, parameterized SQL. Not an ORM.",
   base: "/Treequel/",
   cleanUrls: true,
   lastUpdated: true,
@@ -57,7 +57,7 @@ export default defineConfig({
     socialLinks: [{ icon: "github", link: "https://github.com/PhenX/Treequel" }],
     footer: {
       message:
-        "MIT licensed. Expression trees for TypeScript, with LINQ as the flagship application.",
+        "MIT licensed. Expression trees for TypeScript, with LINQ-style querying as the flagship application.",
       copyright: "© Fabien Ménager",
     },
     search: { provider: "local" },

@@ -2,7 +2,7 @@
   "name": "treequel-monorepo",
   "version": "0.1.0",
   "private": true,
-  "description": "Expression trees & LINQ for TypeScript — trees in, queries out.",
+  "description": "Expression trees for TypeScript — ordinary lambdas become typed, serializable trees; LINQ-style querying is the flagship application. Not an ORM.",
   "license": "MIT",
   "author": "Fabien Ménager",
   "workspaces": [

@@ -1,11 +1,12 @@
 # Treequel
 
-> Trees in, queries out. The sequel is trees.
+> Lambdas in, trees out. The sequel is trees.
 
-**Expression trees and LINQ for TypeScript.** Write an ordinary lambda; it stays the function it always was, and
-becomes a typed, serializable expression tree that providers translate to SQL, remote filters, policy checks — or
-anything else. The same query file runs against fixture arrays in your tests and compiles to parameterized SQL in
-production. Expression trees are the product; LINQ is the flagship application. Not an ORM.
+**Expression trees for TypeScript.** Write an ordinary lambda; it stays the function it always was, and becomes a
+typed, serializable tree you can evaluate, rewrite, print, store, send over the wire — or hand to a provider that
+translates it: a policy check, a remote filter, parameterized SQL. The flagship application is LINQ-style querying:
+the same query file runs against fixture arrays in your tests and compiles to parameterized SQL in production. Not
+an ORM.
 
 ```ts
 const adults = await db.users

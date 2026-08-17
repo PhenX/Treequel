@@ -59,10 +59,10 @@ complete.**
 ## Project overview
 
 Write ordinary TypeScript lambdas — `u => u.age > minAge` — and have them exist simultaneously as an executable
-function and as a serializable, typed expression tree that providers translate to SQL, remote filters, policy checks,
-IndexedDB queries, or anything else. C#'s `Expression<Func<T,bool>>` + `IQueryable<T>`, rebuilt for TypeScript with a
-build-time Vite plugin as the reification mechanism. Expression trees are the product; LINQ-style querying is the
-flagship application. Not an ORM.
+function and as a serializable, typed expression tree you can evaluate, rewrite, print, store, send over the wire —
+or hand to a provider that translates it: policy checks, remote filters, IndexedDB queries, SQL. C#'s
+`Expression<Func<T,bool>>` + `IQueryable<T>`, rebuilt for TypeScript with a build-time Vite plugin as the reification
+mechanism. Expression trees are the product; LINQ-style querying is the flagship application. Not an ORM.
 
 ## Repository layout & where things go
 
@@ -196,15 +196,15 @@ scripts/*.mjs`), never bash.
 Treequel is not a product being sold. Copy is informative, specific and honest — never promotional. The project
 describes itself the same way everywhere:
 
-> **Expression trees and LINQ for TypeScript.** Write an ordinary lambda; it stays the function it always was, and
-> becomes a typed, serializable expression tree that providers translate to SQL, remote filters, policy checks — or
-> anything else. The same query file runs against fixture arrays in your tests and compiles to parameterized SQL in
-> production. Expression trees are the product; LINQ is the flagship application. Not an ORM.
+> **Expression trees for TypeScript.** Write an ordinary lambda; it stays the function it always was, and becomes a
+> typed, serializable tree you can evaluate, rewrite, print, store, send over the wire — or hand to a provider that
+> translates it: a policy check, a remote filter, parameterized SQL. The flagship application is LINQ-style querying:
+> the same query file runs against fixture arrays in your tests and compiles to parameterized SQL in production. Not
+> an ORM.
 
 Surfaces that carry it drift the moment one changes alone. Update them **in the same commit**: the `README.md`
-subtitle · the docs hero + site description (`apps/docs`, once it exists) · the GitHub repo description + topics
-(repository settings — check by hand). When the docs site lands (M7), add a drift test that pins the in-repo surfaces
-clause by clause.
+subtitle · the docs hero + site description (`apps/docs`) · the root `package.json` description · the GitHub repo
+description + topics (repository settings — check by hand). A drift test pins the in-repo surfaces clause by clause.
 
 #### Voice
 
@@ -213,8 +213,8 @@ clause by clause.
 - **Prefer the concrete over the categorical:** "compiles to one parameterized `WHERE` clause" beats "powerful query
   engine". Name a number, a behavior, or a limit.
 - **State limits plainly.** Expression-only subset, the boundary rule, what a provider rejects, pre-1.0 status, "not
-  an ORM" — trust is the point, not a caveat to bury. Docs lead with "expression trees for TypeScript, with LINQ as
-  the flagship application", never "a new way to talk to Postgres".
+  an ORM" — trust is the point, not a caveat to bury. Docs lead with "expression trees for TypeScript, with LINQ-style
+  querying as the flagship application", never "a new way to talk to Postgres".
 
 ### Tests
 

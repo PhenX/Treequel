@@ -4,16 +4,55 @@ import { createContext, defineRelations } from "@treequel/linq";
 import { type SchemaMeta, postgres } from "@treequel/provider-postgres";
 import { emitNode } from "@treequel/transform/emit";
 import { serialize } from "@treequel/tree";
+import {
+  diagnosticMarkers,
+  parseErrorInfo,
+  parseErrorMarkers,
+  setMarkers,
+  type SpanDiagnostic,
+} from "./markers.js";
+import { TS_LANGUAGE, type Mounted, mountEditor } from "./monaco.js";
 
 const $ = (id: string): HTMLElement => document.getElementById(id) as HTMLElement;
 const samplesEl = $("samples");
-const lambdaEl = $("lambda") as HTMLTextAreaElement;
-const capturesEl = $("captures") as HTMLTextAreaElement;
 const diagnosticsEl = $("diagnostics");
-const prettyEl = $("pretty");
-const emittedEl = $("emitted");
-const sqlEl = $("sql");
-const jsonEl = $("json");
+
+const INITIAL_LAMBDA = "u => u.age >= minAge && u.name.startsWith(prefix)";
+const INITIAL_CAPTURES = '{ "minAge": 18, "prefix": "A" }';
+const EMPTY = "—";
+
+// The lambda editor uses the Monarch TypeScript mode so arrows, optional chaining
+// and `as` casts all colorize; the SQL viewer is `pgsql` to match the Postgres
+// text it renders.
+const lambda = mountEditor($("lambda"), {
+  language: TS_LANGUAGE,
+  value: INITIAL_LAMBDA,
+  ariaLabel: "Query lambda",
+  minHeight: 72,
+  maxHeight: 220,
+});
+const captures = mountEditor($("captures"), {
+  language: "json",
+  value: INITIAL_CAPTURES,
+  ariaLabel: "Captured values as JSON",
+  minHeight: 44,
+  maxHeight: 160,
+});
+const prettyViewer = viewer("pretty", TS_LANGUAGE);
+const emittedViewer = viewer("emitted", TS_LANGUAGE);
+const sqlViewer = viewer("sql", "pgsql");
+const jsonViewer = viewer("json", "json");
+const sqlPanel = sqlViewer.editor.getContainerDomNode().closest(".panel") as HTMLElement;
+
+function viewer(id: string, language: string): Mounted {
+  return mountEditor($(id), {
+    language,
+    value: EMPTY,
+    readOnly: true,
+    lineNumbers: true,
+    maxHeight: 420,
+  });
+}
 
 // The demo schema: users → orders → items, with mapped physical columns so
 // the SQL panel shows the logical→physical translation too.
@@ -68,8 +107,8 @@ const relations = defineRelations<Schema>({
 const noExec = async (): Promise<{ rows: Array<Record<string, unknown>> }> => ({ rows: [] });
 const db = createContext<Schema>(postgres(noExec, schema), { relations }) as unknown as {
   users: {
-    where(e: unknown): { explain(): Promise<string> };
-    select(e: unknown): { explain(): Promise<string> };
+    filter(e: unknown): { explain(): Promise<string> };
+    map(e: unknown): { explain(): Promise<string> };
   };
 };
 
@@ -144,8 +183,8 @@ function renderSamples(): void {
     button.className = "sample";
     button.textContent = sample.label;
     button.addEventListener("click", () => {
-      lambdaEl.value = sample.lambda;
-      capturesEl.value = sample.captures;
+      lambda.setValue(sample.lambda);
+      captures.setValue(sample.captures);
       void render();
     });
     samplesEl.appendChild(button);
@@ -153,7 +192,7 @@ function renderSamples(): void {
 }
 
 function readCaptures(): Record<string, unknown> {
-  const text = capturesEl.value.trim();
+  const text = captures.model.getValue().trim();
   if (text === "") return {};
   try {
     const parsed = JSON.parse(text) as unknown;
@@ -163,9 +202,7 @@ function readCaptures(): Record<string, unknown> {
   }
 }
 
-function renderDiagnostics(
-  diags: ReadonlyArray<{ code: string; severity: string; message: string; hint?: string }>,
-): void {
+function renderDiagnostics(diags: readonly SpanDiagnostic[]): void {
   if (diags.length === 0) {
     diagnosticsEl.innerHTML = `<span class="ok">✓ valid — inside the expression subset</span>`;
     return;
@@ -202,30 +239,42 @@ function emittedShape(
   ].join("\n");
 }
 
+function clearOutputs(): void {
+  prettyViewer.setValue(EMPTY);
+  emittedViewer.setValue(EMPTY);
+  jsonViewer.setValue(EMPTY, "json");
+  sqlViewer.setValue(EMPTY, "pgsql");
+  sqlPanel.classList.remove("error");
+}
+
 async function render(): Promise<void> {
-  const src = lambdaEl.value.trim();
-  const captures = readCaptures();
+  const source = lambda.model.getValue();
+  const src = source.trim();
+  const capturedValues = readCaptures();
 
   let result;
   try {
     result = parseFunctionSource(src);
   } catch (e) {
-    renderDiagnostics([{ code: "R1100", severity: "error", message: (e as Error).message }]);
-    prettyEl.textContent = emittedEl.textContent = sqlEl.textContent = jsonEl.textContent = "—";
+    const info = parseErrorInfo(e);
+    renderDiagnostics([{ code: "R1100", severity: "error", message: info.message }]);
+    setMarkers(lambda.model, parseErrorMarkers(lambda.model, source, info));
+    clearOutputs();
     return;
   }
 
   renderDiagnostics(result.diagnostics);
+  setMarkers(lambda.model, diagnosticMarkers(lambda.model, source, result.diagnostics));
 
   if (!result.body) {
-    prettyEl.textContent = emittedEl.textContent = sqlEl.textContent = jsonEl.textContent = "—";
+    clearOutputs();
     return;
   }
   const body = result.body;
 
-  prettyEl.textContent = print(body);
-  emittedEl.textContent = emittedShape(src, result.params, body, result.freeVars);
-  jsonEl.textContent = JSON.stringify(serialize(body), null, 2);
+  prettyViewer.setValue(print(body));
+  emittedViewer.setValue(emittedShape(src, result.params, body, result.freeVars));
+  jsonViewer.setValue(JSON.stringify(serialize(body), null, 2), "json");
 
   // Build a real Expr and ask the SQL provider for the statement it would run.
   try {
@@ -234,19 +283,19 @@ async function render(): Promise<void> {
       compiled: (() => undefined) as (...a: never[]) => unknown,
       params: result.params,
       body,
-      scope: () => captures,
+      scope: () => capturedValues,
     });
     // oxlint-disable-next-line treequel/no-opaque-callback -- `expr` holds a reified Expr value, not a function reference
     const query = body.kind === "ObjectLit" ? db.users.map(expr) : db.users.filter(expr);
-    sqlEl.textContent = await query.explain();
-    sqlEl.classList.remove("error");
+    sqlViewer.setValue(await query.explain(), "pgsql");
+    sqlPanel.classList.remove("error");
   } catch (e) {
-    sqlEl.textContent = (e as Error).message;
-    sqlEl.classList.add("error");
+    sqlViewer.setValue((e as Error).message, "plaintext");
+    sqlPanel.classList.add("error");
   }
 }
 
 renderSamples();
-lambdaEl.addEventListener("input", () => void render());
-capturesEl.addEventListener("input", () => void render());
+lambda.editor.onDidChangeModelContent(() => void render());
+captures.editor.onDidChangeModelContent(() => void render());
 void render();

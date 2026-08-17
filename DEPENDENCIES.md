@@ -37,6 +37,16 @@ Runtime packages (`tree`, `core`, `linq`, `provider-memory`, `sql-core`) carry *
 | `tinybench` | The `bench/` transform microbenchmark and its CI regression gate. |
 | `eslint`, `@typescript-eslint/parser` | Scoped to `@treequel/eslint-plugin` tests (RuleTester). |
 
+## App dependencies
+
+`apps/*` are private and bundled — their dependencies are compiled into the deployed site and never reach a consumer of
+`@treequel/*`. They are inventoried here all the same.
+
+| App | Dependency | Why |
+|---|---|---|
+| `playground` | `vite` | Dev server and bundler for the app. |
+| `playground` | `monaco-editor` | Syntax highlighting for the lambda editor, the captures editor and the read-only viewers (TypeScript / JSON / `pgsql`), plus inline squiggles that render the capture diagnostics at their exact source spans. Browser-only, code-split, and confined to the playground; no runtime `@treequel/*` package depends on it, and Treequel's own capture pipeline — not Monaco's TypeScript service — stays the source of truth for validation. |
+
 ## Deliberately not used
 
 pnpm (npm workspaces suffice), Turborepo (cold build is small), Biome (oxlint/oxfmt), unplugin (Rollup-compatible Vite

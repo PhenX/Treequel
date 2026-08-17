@@ -64,23 +64,20 @@ label {
   color: var(--muted);
 }
 
-textarea {
-  width: 100%;
+.editor {
+  min-height: 72px;
   background: var(--panel);
-  color: var(--fg);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 12px;
-  font:
-    14px/1.5 ui-monospace,
-    SFMono-Regular,
-    Menlo,
-    monospace;
-  resize: vertical;
+  overflow: hidden;
 }
-textarea:focus {
+#captures.editor {
+  min-height: 44px;
+}
+.editor:focus-within {
   outline: 2px solid var(--accent);
   outline-offset: -1px;
+  border-color: var(--accent);
 }
 
 .diagnostics {
@@ -138,19 +135,14 @@ textarea:focus {
   font-weight: 400;
   margin-left: 6px;
 }
-pre {
-  margin: 0;
-  padding: 14px;
-  overflow-x: auto;
-  font:
-    13px/1.55 ui-monospace,
-    SFMono-Regular,
-    Menlo,
-    monospace;
-  white-space: pre-wrap;
-  word-break: break-word;
+.viewer {
+  min-height: 44px;
+  background: var(--panel);
 }
-pre.error {
+.panel.error {
+  border-color: var(--error);
+}
+.panel.error h2 {
   color: var(--error);
 }
 

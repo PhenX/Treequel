@@ -5,8 +5,7 @@
 **Expression trees for TypeScript.** Write an ordinary lambda; it stays the function it always was, and becomes a
 typed, serializable tree you can evaluate, rewrite, print, store, send over the wire — or hand to a provider that
 translates it: a policy check, a remote filter, parameterized SQL. The flagship application is LINQ-style querying:
-the same query file runs against fixture arrays in your tests and compiles to parameterized SQL in production. Not
-an ORM.
+the same query file runs against fixture arrays in your tests and compiles to parameterized SQL in production.
 
 ## One lambda, three lives
 

@@ -6,7 +6,7 @@ export default defineConfig({
   lang: "en-US",
   title: "Treequel",
   description:
-    "Expression trees for TypeScript. Write an ordinary lambda; it stays the function it always was, and becomes a typed, serializable tree you can evaluate, rewrite, print, store, send over the wire — or hand to a provider that translates it: a policy check, a remote filter, parameterized SQL. Not an ORM.",
+    "Expression trees for TypeScript. Write an ordinary lambda; it stays the function it always was, and becomes a typed, serializable tree you can evaluate, rewrite, print, store, send over the wire — or hand to a provider that translates it: a policy check, a remote filter, parameterized SQL.",
   base: "/Treequel/",
   cleanUrls: true,
   lastUpdated: true,

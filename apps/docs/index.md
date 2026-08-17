@@ -3,7 +3,7 @@ layout: home
 hero:
   name: Treequel
   text: Expression trees for TypeScript
-  tagline: "Write an ordinary lambda; it stays the function it always was, and becomes a typed, serializable tree you can evaluate, rewrite, print, store, send over the wire — or hand to a provider that translates it: a policy check, a remote filter, parameterized SQL. Not an ORM."
+  tagline: "Write an ordinary lambda; it stays the function it always was, and becomes a typed, serializable tree you can evaluate, rewrite, print, store, send over the wire — or hand to a provider that translates it: a policy check, a remote filter, parameterized SQL."
   actions:
     - theme: brand
       text: Get started
@@ -36,8 +36,8 @@ features:
     details: Untranslatable queries are located, coded errors — not silent client-side table scans. Rows cross into JavaScript only at an explicit inMemory() boundary.
     link: /guide/the-boundary-rule
     linkText: The boundary rule
-  - title: Not an ORM
-    details: No migrations, no change tracker, no writes — Treequel is the query layer, next to whatever owns your schema. Here is how it relates to Prisma, Drizzle, Kysely, TypeORM, MikroORM, and EF Core.
+  - title: The query layer only
+    details: No migrations, no change tracker, no writes — Treequel sits next to whatever owns your schema. Here is how it relates to Prisma, Drizzle, Kysely, TypeORM, MikroORM, EF Core, and the rules engines.
     link: /guide/comparison
     linkText: Compared to ORMs & rules engines
 ---

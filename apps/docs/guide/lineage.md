@@ -151,5 +151,5 @@ string concatenation. The executor names were settled first — `some`/`every` o
 `first` over a throwing one — and `filter`/`map` extend that same JS-first convention to the operators.
 
 What Treequel does **not** rebuild is the rest of EF Core: no `DbContext` change tracking, no `SaveChanges`, no
-migrations, no write path at all. That split is deliberate — [Compared to ORMs & EF Core](/guide/comparison) covers
+migrations, no write path at all. That split is deliberate — [Compared to ORMs & rules engines](/guide/comparison) covers
 it.

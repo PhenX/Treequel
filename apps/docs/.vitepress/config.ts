@@ -48,7 +48,7 @@ export default defineConfig({
           text: "Background",
           items: [
             { text: "The C# lineage", link: "/guide/lineage" },
-            { text: "Compared to ORMs & EF Core", link: "/guide/comparison" },
+            { text: "Compared to ORMs & rules engines", link: "/guide/comparison" },
           ],
         },
         {

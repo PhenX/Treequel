@@ -39,5 +39,5 @@ features:
   - title: Not an ORM
     details: No migrations, no change tracker, no writes — Treequel is the query layer, next to whatever owns your schema. Here is how it relates to Prisma, Drizzle, Kysely, TypeORM, MikroORM, and EF Core.
     link: /guide/comparison
-    linkText: Compared to ORMs & EF Core
+    linkText: Compared to ORMs & rules engines
 ---

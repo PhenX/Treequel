@@ -162,4 +162,4 @@ they trace your context imports instead of matching names.
 - From C#: LINQ and EF Core are this design's ancestors, and the concepts map one-to-one —
   [The C# lineage](/guide/lineage).
 - From Prisma, Drizzle, Kysely, TypeORM, or MikroORM: Treequel is not an ORM, and the overlap is narrower than it
-  looks — [Compared to ORMs & EF Core](/guide/comparison).
+  looks — [Compared to ORMs & rules engines](/guide/comparison).

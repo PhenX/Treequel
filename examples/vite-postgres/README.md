@@ -1,6 +1,6 @@
 # Example: vite-postgres (the headline)
 
-The `§1.5` success criterion, executable: **one set of query definitions**
+The headline promise, executable: **one set of query definitions**
 ([`src/queries.ts`](src/queries.ts)) runs unchanged against an in-memory
 provider and against Postgres (PGlite), producing equal results — property
 checked in [`src/headline.reify.test.ts`](src/headline.reify.test.ts).

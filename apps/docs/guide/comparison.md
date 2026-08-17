@@ -109,8 +109,8 @@ Every tool above turns its query representation into SQL. Treequel's difference 
 - EF Core has the tree too — but as an in-process .NET object graph with no wire format; serializing one is a
   third-party exercise. In Treequel, serialization is the point.
 
-[Beyond queries](/guide/beyond-queries) is the catalog of what that buys — authorization rules, filters over the
-wire, rules-as-data, and running a serialized tree directly against plain objects.
+[Applications](/guide/applications) is the catalog of what that buys — authorization rules, filters over the wire,
+rules-as-data, and running a serialized tree directly against plain objects.
 
 ## What Treequel deliberately does not do
 

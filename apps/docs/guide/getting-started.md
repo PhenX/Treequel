@@ -1,12 +1,13 @@
 # Getting started
 
-Treequel turns ordinary query lambdas into expression trees at build time. You write a lambda; a provider translates
-the tree. The same query runs in memory in your tests and compiles to parameterized SQL in production.
+Treequel turns ordinary lambdas into expression trees at build time. The lambda stays callable; the tree is data you
+can evaluate, serialize, or hand to a provider. This page starts with the tree itself, then the flagship application:
+the same query running in memory in your tests and compiling to parameterized SQL in production.
 
 ## Install
 
 ```sh
-npm i @treequel/query @treequel/provider-memory
+npm i @treequel/core @treequel/query @treequel/provider-memory
 npm i -D @treequel/vite
 ```
 
@@ -21,6 +22,27 @@ export default {
   plugins: [treequel()],
 };
 ```
+
+## Your first tree
+
+A tree needs no database and no provider. `expr()` marks a standalone lambda for reification; the result is both the
+function it always was and a tree you can print, interpret, and serialize:
+
+```ts
+import { evaluate, expr, print, serialize } from "@treequel/core";
+
+const minAge = 18;
+const isAdult = expr((u: { age: number }) => u.age >= minAge);
+
+isAdult.compiled({ age: 36 }); // true — the original function, untouched
+print(isAdult.body); // "(u.age >= minAge)" — readable, for logs and audits
+evaluate(isAdult.body, { params: { u: { age: 36 } }, scope: { minAge } }); // true — no function needed
+JSON.stringify(serialize(isAdult.body)); // versioned JSON — store it, send it, diff it
+```
+
+[The expression tree](/guide/the-tree) covers this toolkit — `evaluate`, `partialEval`, `rewrite`, building trees
+without a lambda — and [Applications](/guide/applications) catalogs what it opens up. The rest of this page is the
+flagship application: querying.
 
 ## Write a query
 
@@ -52,8 +74,8 @@ const adults = await db.users
 // [{ id: 1, name: "Ada" }]
 ```
 
-Queries over more than one source — `join`, `leftJoin`, and EF-style `include`/`thenInclude` — are covered in
-[Joins & includes](/guide/joins-and-includes).
+Queries over more than one source — `join`, `leftJoin`, and `include`/`thenInclude` over declared relations — are
+covered in [Joins & includes](/guide/joins-and-includes).
 
 ## The same query, on Postgres
 

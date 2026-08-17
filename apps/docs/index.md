@@ -13,25 +13,25 @@ hero:
       link: /playground/
       target: _self
     - theme: alt
-      text: The subset
-      link: /guide/the-subset
+      text: Applications
+      link: /guide/applications
 features:
+  - title: The tree is the product
+    details: A typed, versioned, JSON-serializable algebra with zero dependencies and a public schema. Evaluate it without its function, rewrite it, print it, ship it across a process boundary.
+    link: /guide/the-tree
+    linkText: The expression tree
   - title: One lambda, two lives
     details: The same query file runs against fixture arrays in your tests and compiles to a parameterized SQL WHERE clause in production. The in-memory provider is the reference semantics; the SQL provider is property-tested against it.
     link: /guide/getting-started
     linkText: Getting started
-  - title: A small closed tree
-    details: The wire format is a versioned, JSON-serializable algebra with zero dependencies. Providers are pure translators over a finite grammar — SQL first, then anything.
-    link: /guide/beyond-queries
-    linkText: Beyond queries
+  - title: Policy checks, wire filters, rules as data
+    details: The predicate that filters a list query also authorizes one object, runs in the browser, and serializes into an auditable store — one definition, four jobs.
+    link: /guide/applications
+    linkText: Applications
   - title: One shared validator
     details: The subset validator, free-variable analysis, and serializer live once and back the build, the editor, the ESLint rule, and the runtime fallback — so they never disagree about what is legal.
     link: /guide/the-subset
     linkText: The expression subset
-  - title: Closure capture
-    details: Free variables in a lambda are captured live, like C# closures. `u => u.age > minAge` folds `minAge` into a bound `$n` parameter at execution time.
-    link: /guide/lineage
-    linkText: The C# lineage
   - title: Fail fast, never guess
     details: Untranslatable queries are located, coded errors — not silent client-side table scans. Rows cross into JavaScript only at an explicit inMemory() boundary.
     link: /guide/the-boundary-rule

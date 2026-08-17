@@ -28,14 +28,20 @@ export default defineConfig({
           text: "Guide",
           items: [
             { text: "Getting started", link: "/guide/getting-started" },
+            { text: "The expression tree", link: "/guide/the-tree" },
             { text: "The expression subset", link: "/guide/the-subset" },
+            { text: "Applications", link: "/guide/applications" },
+            { text: "Writing a provider", link: "/guide/writing-a-provider" },
+          ],
+        },
+        {
+          text: "Querying — the flagship",
+          items: [
             { text: "Joins & includes", link: "/guide/joins-and-includes" },
             { text: "Grouping & aggregates", link: "/guide/grouping" },
             { text: "Computed members", link: "/guide/computed-members" },
             { text: "The boundary rule", link: "/guide/the-boundary-rule" },
             { text: "Compiling with tsc", link: "/guide/compiling-with-tsc" },
-            { text: "Writing a provider", link: "/guide/writing-a-provider" },
-            { text: "Beyond queries", link: "/guide/beyond-queries" },
           ],
         },
         {

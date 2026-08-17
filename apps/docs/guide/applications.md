@@ -25,6 +25,8 @@ Instead of inventing query parameters or a bespoke filter DSL, a client can send
 The server re-validates it against the closed grammar and then either translates it (a provider) or interprets it
 (`evaluate`). The same shape backs a saved search stored as a column and re-run later, and "notify me when something
 matches" — where the stored tree runs as SQL for the backfill and as `evaluate` against each new event.
+[`examples/wire-filter`](https://github.com/PhenX/Treequel/tree/main/examples/wire-filter) runs this round trip as a
+CI test, tampered-payload rejection included.
 
 ## Rules as data
 

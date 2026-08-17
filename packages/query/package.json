@@ -3,8 +3,10 @@
   "version": "0.1.0",
   "description": "Treequel query layer: Queryable, QueryPlan, provider protocol, createContext, and the in-memory reference engine.",
   "keywords": [
+    "expression-tree",
     "iqueryable",
     "linq",
+    "query",
     "queryable",
     "treequel"
   ],

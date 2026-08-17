@@ -201,3 +201,9 @@ const users = await db.users.include(
 - Scalar executors (`count`, `sum`, …) ignore includes; `first`/`single`/`toArray` attach them.
 - An unknown navigation is R2007; a selector that is not a single property access, or a `thenInclude` that does not
   follow an `include`, is R2008.
+
+## Where to go next
+
+- [Grouping & aggregates](/guide/grouping) — bucket rows by a key and measure the buckets.
+- [Computed members](/guide/computed-members) — derived properties and methods usable inside any of these queries.
+- [SQL providers](/guide/sql-providers) — the executors and schema mapping these queries run on.

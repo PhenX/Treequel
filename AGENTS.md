@@ -22,7 +22,7 @@ Read the section covering the area you are editing, in addition to this file:
 | `packages/sql-core/` — shared SQL translator, dialect seam, provider builder | plan §10 |
 | `packages/provider-*/` — providers (`memory`, `postgres`, `sqlite`) | plan §10 |
 | `packages/ts-plugin/`, `packages/eslint-plugin/` — editor & lint surface | plan §12 |
-| `apps/docs/` — VitePress documentation site | plan §15.1 + [voice](#voice) below |
+| `apps/docs/` — VitePress documentation site | plan §15.1 + [area guide](apps/docs/AGENTS.md) + [voice](#voice) below |
 | `.github/`, `scripts/`, `tooling/` — CI, release, shared configs | plan §15 |
 
 When a package accrues rules of its own that this file doesn't carry, add an `AGENTS.md` area guide inside that

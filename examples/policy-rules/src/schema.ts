@@ -1,4 +1,4 @@
-import type { SchemaMeta } from "@treequel/provider-postgres";
+import type { SchemaMeta } from "@greffon/provider-postgres";
 
 export interface Doc {
   id: number;

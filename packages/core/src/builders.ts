@@ -17,7 +17,7 @@ import type {
   Ternary,
   Unary,
   UnaryOp,
-} from "@treequel/tree";
+} from "@greffon/tree";
 
 /**
  * Terse node constructors for tests, capture output, and rewrite passes. Names

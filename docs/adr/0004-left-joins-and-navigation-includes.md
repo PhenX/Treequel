@@ -26,7 +26,7 @@ The query layer had `join` (inner, memory-only) and no way to load related rows 
    transform's traced-method list.
 5. **SQL executes includes as split queries** (the no-cartesian-explosion strategy): per navigation, one batched fetch
    — `= ANY($n)` on Postgres, chunked `IN (…)` on SQLite via the new optional `SqlDialect.maxBatchKeys` — recursively
-   for `thenInclude`, stitched by shared helpers in `@treequel/linq` (`collectIncludes`, `collectKeys`,
+   for `thenInclude`, stitched by shared helpers in `@greffon/linq` (`collectIncludes`, `collectKeys`,
    `attachChildren`). Children attach in canonical JSON order because SQL row order without `ORDER BY` is undefined;
    both engines use the same stitcher, so the reference and SQL agree byte-for-byte.
 6. **The SQL compiler is a layer stack.** Each op extends the current SELECT or, when SQL clause order would change
@@ -47,4 +47,4 @@ The query layer had `join` (inner, memory-only) and no way to load related rows 
   rendering diverged from the reference.
 - The conformance corpus wraps its lambdas in `expr()` and gained join/include cases plus `defaultRelations()`;
   provider suites run the full corpus on PGlite and sql.js.
-- `@treequel/linq` stays within its 4 kB min+gz budget (3.31 kB after the change).
+- `@greffon/linq` stays within its 4 kB min+gz budget (3.31 kB after the change).

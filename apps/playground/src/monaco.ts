@@ -1,7 +1,7 @@
 // `editor.main` brings the whole editor — hovers, folding, bracket matching — the
 // Monarch grammars for every language it knows, and Monaco's CSS/HTML/JSON/TS
 // language services. The playground colors with the grammars and surfaces
-// Treequel's own diagnostics as markers, so of those services it wants only JSON
+// Greffon's own diagnostics as markers, so of those services it wants only JSON
 // (to validate the captures object); the CSS/HTML/TS ones — including the ~7 MB TS
 // worker — are stubbed out of the bundle in `vite.config.ts`. TS surfaces use a
 // Monarch-only mode (`TS_LANGUAGE`) that never touches the TS service.
@@ -32,12 +32,12 @@ window.MonacoEnvironment = {
  * A Monarch-only TypeScript mode. It colors the lambda and the code viewers with
  * the same grammar Monaco ships, but registers no language service — so opening a
  * TS document never starts the TypeScript worker, which the playground has no use
- * for (Treequel supplies the diagnostics).
+ * for (Greffon supplies the diagnostics).
  */
-export const TS_LANGUAGE = "treequel-ts";
+export const TS_LANGUAGE = "greffon-ts";
 
 /** The playground's dark palette, matched to the surrounding page. */
-const THEME = "treequel-dark";
+const THEME = "greffon-dark";
 
 let configured = false;
 

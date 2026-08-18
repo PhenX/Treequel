@@ -1,8 +1,8 @@
 {
-  "name": "@treequel-docs/site",
+  "name": "@greffon-docs/site",
   "version": "0.1.0",
   "private": true,
-  "description": "Treequel documentation site (VitePress).",
+  "description": "Greffon documentation site (VitePress).",
   "type": "module",
   "scripts": {
     "docs:generate": "node ../../scripts/gen-docs.mjs",

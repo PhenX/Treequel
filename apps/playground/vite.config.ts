@@ -18,7 +18,7 @@ const monacoEsmVs = path
 // empty modules so their workers (the TypeScript one alone is ~7 MB) never enter
 // the bundle. JSON is left alone, so it keeps validating the captures object.
 const dropUnusedMonacoServices: Plugin = {
-  name: "treequel:drop-unused-monaco-services",
+  name: "greffon:drop-unused-monaco-services",
   enforce: "pre",
   load(id) {
     return /languages[\\/]features[\\/](css|html|typescript)[\\/]register\.js$/.test(id)
@@ -27,10 +27,10 @@ const dropUnusedMonacoServices: Plugin = {
   },
 };
 
-// The playground is served under the docs site at /Treequel/playground/, so it
+// The playground is served under the docs site at /Greffon/playground/, so it
 // builds straight into the docs `public/` folder that VitePress copies verbatim.
 export default defineConfig({
-  base: "/Treequel/playground/",
+  base: "/Greffon/playground/",
   build: {
     outDir: "../docs/public/playground",
     emptyOutDir: true,

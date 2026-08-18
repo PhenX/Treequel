@@ -1,4 +1,4 @@
-import type { Node } from "@treequel/tree";
+import type { Node } from "@greffon/tree";
 import { describe, expect, it } from "vitest";
 import { adapterOxc } from "./adapter.js";
 import { type CaptureResult, capture } from "./capture.js";

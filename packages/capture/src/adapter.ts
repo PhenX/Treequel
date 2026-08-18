@@ -1,4 +1,4 @@
-import type { Span } from "@treequel/tree";
+import type { Span } from "@greffon/tree";
 
 /**
  * A parser-agnostic ESTree node. Both oxc-parser (build transform) and

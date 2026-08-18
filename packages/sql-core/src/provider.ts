@@ -4,7 +4,7 @@
  * dialect packages (and any third-party dialect) call: it compiles each plan,
  * runs it through the executor, and stitches any includes.
  */
-import { type QueryPlan, type QueryProvider, capabilities } from "@treequel/query";
+import { type QueryPlan, type QueryProvider, capabilities } from "@greffon/query";
 import { compile } from "./compile.js";
 import type { SqlDialect } from "./dialect.js";
 import { type SqlExecutor, explainIncludes, stitchIncludes } from "./include-sql.js";

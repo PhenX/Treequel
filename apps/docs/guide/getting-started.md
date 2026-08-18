@@ -1,14 +1,14 @@
 # Getting started
 
-Treequel turns ordinary lambdas into expression trees at build time. The lambda stays callable; the tree is data you
+Greffon turns ordinary lambdas into expression trees at build time. The lambda stays callable; the tree is data you
 can evaluate, serialize, or hand to a provider. This page starts with the tree itself, then querying: the same query
 running in memory in your tests and compiling to parameterized SQL in production.
 
 ## Install
 
 ```sh
-npm i @treequel/core @treequel/query @treequel/provider-memory
-npm i -D @treequel/vite
+npm i @greffon/core @greffon/query @greffon/provider-memory
+npm i -D @greffon/vite
 ```
 
 Add the plugin to your Vite config. It reifies traced query lambdas into expression trees; it uses only
@@ -16,14 +16,14 @@ Rollup-compatible hooks, so the same plugin works in Vite, Rollup, and Rolldown.
 
 ```ts
 // vite.config.ts
-import { treequel } from "@treequel/vite";
+import { greffon } from "@greffon/vite";
 
 export default {
-  plugins: [treequel()],
+  plugins: [greffon()],
 };
 ```
 
-Building with the TypeScript compiler directly, no bundler? `@treequel/ts-transformer` does the same job during
+Building with the TypeScript compiler directly, no bundler? `@greffon/ts-transformer` does the same job during
 `tsc` emit — see [Compiling with tsc](/guide/compiling-with-tsc).
 
 ## Your first tree
@@ -32,7 +32,7 @@ A tree needs no database and no provider. `expr()` marks a standalone lambda for
 function it always was and a tree you can print, interpret, and serialize:
 
 ```ts
-import { evaluate, expr, print, serialize } from "@treequel/core";
+import { evaluate, expr, print, serialize } from "@greffon/core";
 
 const minAge = 18;
 const isAdult = expr((u: { age: number }) => u.age >= minAge);
@@ -53,8 +53,8 @@ A context is the traced root. Property access on it (`db.users`) is a `Queryable
 immutable query. Execution is explicit — `toArray()`, `first()`, `count()`, and so on.
 
 ```ts
-import { createContext } from "@treequel/query";
-import { memoryProvider } from "@treequel/provider-memory";
+import { createContext } from "@greffon/query";
+import { memoryProvider } from "@greffon/provider-memory";
 
 interface User {
   id: number;
@@ -87,7 +87,7 @@ Swap the provider. The query definitions do not change. The Postgres provider ta
 `pg`, `postgres.js`, Neon, or PGlite — and explicit schema metadata.
 
 ```ts
-import { postgres } from "@treequel/provider-postgres";
+import { postgres } from "@greffon/provider-postgres";
 
 const db = createContext<{ users: User }>(
   postgres(executor, { users: { table: "users" } }),
@@ -98,10 +98,10 @@ await db.users.filter((u) => u.age >= 18 && u.active).toArray();
 ```
 
 Constants become bound `$n` parameters — values are never interpolated into the SQL string. Call `explain()` on any
-query to see the text a provider would run. The SQLite provider (`@treequel/provider-sqlite`) is the same swap with a
+query to see the text a provider would run. The SQLite provider (`@greffon/provider-sqlite`) is the same swap with a
 SQLite `executor`. Executor wiring for the common drivers, column and JSON mapping, and the SQLite specifics are in
 [SQL providers](/guide/sql-providers);
-[`examples/vite-postgres`](https://github.com/PhenX/Treequel/tree/main/examples/vite-postgres) runs this
+[`examples/vite-postgres`](https://github.com/PhenX/Greffon/tree/main/examples/vite-postgres) runs this
 same-query-two-providers story as a CI test.
 
 ## Without the plugin
@@ -112,10 +112,10 @@ That path is closure-blind: a lambda capturing a variable reports [R3002](/error
 than returning a wrong result. Enable it with:
 
 ```ts
-import "@treequel/fallback/register";
+import "@greffon/fallback/register";
 ```
 
-[`examples/no-plugin-fallback`](https://github.com/PhenX/Treequel/tree/main/examples/no-plugin-fallback) exercises
+[`examples/no-plugin-fallback`](https://github.com/PhenX/Greffon/tree/main/examples/no-plugin-fallback) exercises
 this degradation story as a CI test.
 
 ## Editor squiggles & lint
@@ -128,5 +128,5 @@ entries — [Editor & lint](/guide/editor-and-lint).
 
 - From C#: LINQ and EF Core are this design's ancestors, and the concepts map one-to-one —
   [The C# lineage](/guide/lineage).
-- From Prisma, Drizzle, Kysely, TypeORM, or MikroORM: Treequel is not an ORM, and the overlap is narrower than it
+- From Prisma, Drizzle, Kysely, TypeORM, or MikroORM: Greffon is not an ORM, and the overlap is narrower than it
   looks — [Compared to ORMs & rules engines](/guide/comparison).

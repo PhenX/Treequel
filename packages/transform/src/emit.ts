@@ -1,4 +1,4 @@
-import { type Node, isSpread } from "@treequel/tree";
+import { type Node, isSpread } from "@greffon/tree";
 
 /** Render a JS-source expression for a `Constant`'s value (build-time literals only). */
 function emitValue(v: unknown): string {

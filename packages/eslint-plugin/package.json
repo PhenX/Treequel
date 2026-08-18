@@ -1,12 +1,12 @@
 {
-  "name": "@treequel/eslint-plugin",
+  "name": "@greffon/eslint-plugin",
   "version": "0.1.0",
-  "description": "ESLint rules enforcing the Treequel expression subset (shares the capture validator).",
+  "description": "ESLint rules enforcing the Greffon expression subset (shares the capture validator).",
   "keywords": [
     "eslint",
     "eslint-plugin",
     "expression-tree",
-    "treequel"
+    "greffon"
   ],
   "license": "MIT",
   "files": [
@@ -30,7 +30,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@treequel/capture": "*"
+    "@greffon/capture": "*"
   },
   "devDependencies": {
     "@typescript-eslint/parser": "^8.0.0",

@@ -1,11 +1,9 @@
-# Treequel — Expression Trees & LINQ for TypeScript
-
-> *Trees in, queries out. The sequel is trees.*
+# Greffon — Expression Trees & LINQ for TypeScript
 
 **Design & Implementation Plan**
 Status: Draft for implementation · Version: 1.0 · Target runtime: ESM, Node ≥ 20, modern browsers
 
-> Name: **Treequel** — tree + sequel, where "sequel" is both how SQL is pronounced and what this is to LINQ. Bare package name `treequel` verified free on the npm registry; npm scope `@treequel/*` — verify org availability at publish time, fallback prefix `treequel-*`. Known prior use: a Ruby LDAP gem of the same name (2008, unmaintained for ~7+ years, different ecosystem and domain; its name was also a tree+Sequel pun, which independently validates the joke). Expect its docs in search results for the first months; mitigate with "treequel typescript" SEO framing. Runners-up, verified free: `treeson`, `syntree`, `extree`, `stumped`, `symmetree`, `marquetry`, and `quosure` (R/rlang's quoted-expression+closure term — kept in docs prose as the name of the `Expr` concept, where it's genuinely the precise word).
+> Name: **Greffon** is French for the *scion*, the living cutting grafted onto a rootstock, and the everyday French word for a software plug-in. The horticultural sense fits the mechanism: a captured lambda stays callable while it also becomes an expression tree, the way a grafted scion keeps growing on the rootstock. npm scope `@greffon/*` (and the bare `greffon` package): verify availability on the registry at publish time; fallback prefix `greffon-*`. Nothing is published yet, so the rename from the earlier name is a clean break with no downstream consumers.
 
 ---
 
@@ -15,11 +13,11 @@ Status: Draft for implementation · Version: 1.0 · Target runtime: ESM, Node �
 2. [System architecture](#2-system-architecture)
 3. [Monorepo layout](#3-monorepo-layout)
 4. [Package specifications](#4-package-specifications)
-5. [The expression tree format (`@treequel/tree`)](#5-the-expression-tree-format)
+5. [The expression tree format (`@greffon/tree`)](#5-the-expression-tree-format)
 6. [Capture: subset grammar, free variables, emitted code](#6-capture)
-7. [The build transform (`@treequel/transform` + `@treequel/vite`)](#7-the-build-transform)
-8. [Runtime core (`@treequel/core`)](#8-runtime-core)
-9. [The query layer (`@treequel/linq`)](#9-the-query-layer)
+7. [The build transform (`@greffon/transform` + `@greffon/vite`)](#7-the-build-transform)
+8. [Runtime core (`@greffon/core`)](#8-runtime-core)
+9. [The query layer (`@greffon/linq`)](#9-the-query-layer)
 10. [Providers](#10-providers)
 11. [Type system design](#11-type-system-design)
 12. [Editor & lint surface](#12-editor--lint-surface)
@@ -46,7 +44,7 @@ Write ordinary TypeScript lambdas — `u => u.age > minAge && u.name.startsWith(
 - **G4 — Retargetable trees.** The tree format is a small, closed, versioned, JSON-serializable algebra. Providers are pure tree translators.
 - **G5 — Dual execution.** Every `Expr` carries the compiled original; the in-memory provider is the reference semantics for all other providers.
 - **G6 — Graceful degradation.** Without the plugin: in-memory paths work fully; remote providers fall back to runtime parse with precise, teachable errors on closures.
-- **G7 — Vite-native, portable by construction.** The plugin uses only Rollup-compatible hooks (`enforce: "pre"` + `transform` + `load`), so it runs unchanged in Vite, Rollup, and Rolldown. The transform itself is a pure function in its own package (`@treequel/transform`), so webpack/Rspack adapters (e.g. a community unplugin wrapper) are possible post-0.1 without touching core.
+- **G7 — Vite-native, portable by construction.** The plugin uses only Rollup-compatible hooks (`enforce: "pre"` + `transform` + `load`), so it runs unchanged in Vite, Rollup, and Rolldown. The transform itself is a pure function in its own package (`@greffon/transform`), so webpack/Rspack adapters (e.g. a community unplugin wrapper) are possible post-0.1 without touching core.
 - **G8 — First-class DX.** Language-service plugin (red squiggles in-editor for out-of-subset syntax), ESLint rule, code-framed build errors, pretty tree printing.
 
 ### 1.3 Non-goals (v1)
@@ -86,11 +84,11 @@ Design consequences already in place: trees are JSON-plain and versioned (§5), 
                           ┌────────────────────────────────────────────┐
    your source            │  BUILD TIME                                │
    ────────────           │                                            │
-   db.users               │  @treequel/vite (thin plugin)              │
-     .where(u =>          │   └─ @treequel/transform (pure function)    │
+   db.users               │  @greffon/vite (thin plugin)              │
+     .where(u =>          │   └─ @greffon/transform (pure function)    │
                           │       ├─ import tracer (traced roots)      │
         u.age > minAge)   │       ├─ call-chain detector (expr pos.)   │
-     .select(...)   ────▶ │       └─ @treequel/capture                  │
+     .select(...)   ────▶ │       └─ @greffon/capture                  │
                           │           ├─ subset validator ─▶ diagnostics│
                           │           ├─ free-variable analysis        │
                           │           └─ tree serializer               │
@@ -100,29 +98,29 @@ Design consequences already in place: trees are JSON-plain and versioned (§5), 
                           ┌────────────────────────────────────────────┐
                           │  RUN TIME                                  │
                           │                                            │
-                          │  @treequel/core                            │
+                          │  @greffon/core                            │
                           │   ├─ Expr<F> (brand, compiled, tree, scope)│
                           │   ├─ visitor / rewriter                    │
                           │   ├─ partial evaluator (fold captures)     │
                           │   └─ printer / inspect                     │
                           │                                            │
-                          │  @treequel/linq                            │
+                          │  @greffon/linq                            │
                           │   ├─ Queryable<T> (lazy, immutable)        │
                           │   ├─ QueryPlan (source + ops[])            │
                           │   └─ QueryProvider interface               │
-                          │        ├─ @treequel/provider-memory (reference)
-                          │        ├─ @treequel/sql-core (pg first)│
+                          │        ├─ @greffon/provider-memory (reference)
+                          │        ├─ @greffon/sql-core (pg first)│
                           │        └─ third-party providers            │
                           │                                            │
-                          │  @treequel/fallback (dev-only path)        │
+                          │  @greffon/fallback (dev-only path)        │
                           │   └─ fn.toString() → meriyah → capture     │
                           └────────────────────────────────────────────┘
 
-   editor/CI surface: @treequel/ts-plugin (language service),
-                      @treequel/eslint-plugin — both reuse @treequel/capture
+   editor/CI surface: @greffon/ts-plugin (language service),
+                      @greffon/eslint-plugin — both reuse @greffon/capture
 ```
 
-### 2.2 The one shared brain: `@treequel/capture`
+### 2.2 The one shared brain: `@greffon/capture`
 
 The subset validator, free-variable analysis, and tree serializer are implemented **once**, operating on a normalized ESTree-with-TS AST, and consumed by four hosts: the build transform, the runtime fallback, the language-service plugin, and the lint rule. This is the most important structural decision in the repo — it guarantees the editor, the build, and the fallback never disagree about what's legal.
 
@@ -135,7 +133,7 @@ To make one implementation serve hosts with different parsers, `capture` defines
 ### 2.3 Data flow of a single query
 
 1. **Author** writes `db.users.filter(u => u.age > minAge)`.
-2. **Build**: tracer sees `db` derives from `createContext()` imported from `@treequel/linq`; the arrow in argument position of a traced chain is an expression position; validator OKs it; serializer emits `__expr({ compiled, params, body, scope, meta })` in place, preserving the original lambda as `compiled`.
+2. **Build**: tracer sees `db` derives from `createContext()` imported from `@greffon/linq`; the arrow in argument position of a traced chain is an expression position; validator OKs it; serializer emits `__expr({ compiled, params, body, scope, meta })` in place, preserving the original lambda as `compiled`.
 3. **Runtime**: `filter()` receives an `Expr`, appends `{ op: "filter", expr }` to an immutable `QueryPlan`.
 4. **Execution point** (`await`/`toArray()`): plan handed to the provider. Provider runs **partial evaluation** — every subtree composed only of `Capture`/`Constant` nodes is evaluated against `scope()` and folded to `Constant` — then translates the residual tree (SQL provider → parameterized SQL; memory provider → just calls `compiled`).
 5. **Results** typed as `T[]` (or `R[]` after `map`), end to end via the phantom brand.
@@ -147,7 +145,7 @@ To make one implementation serve hosts with different parsers, `capture` defines
 npm workspaces (native). ESM-only. TypeScript project references for editor speed and topological typechecking via `tsc -b`; **tsdown** for build output — it is the library bundler of the same rolldown/oxc stack Vite itself is built on, so it adds no second compiler vendor to the repo.
 
 ```
-treequel/
+greffon/
 ├─ .github/
 │  ├─ workflows/
 │  │  ├─ ci.yml                  # lint + typecheck + test + build, matrix Node 20/22, OS ubuntu+windows
@@ -157,17 +155,17 @@ treequel/
 │  ├─ PULL_REQUEST_TEMPLATE.md
 │  └─ dependabot.yml             # GitHub-native dep updates, weekly, grouped
 ├─ packages/
-│  ├─ tree/                      # @treequel/tree      — node types, (de)serialization, schema, ZERO deps
-│  ├─ core/                      # @treequel/core      — Expr, visitor, partial eval, printer
-│  ├─ capture/                   # @treequel/capture   — validator + free-var analysis + serializer + AstAdapter
-│  ├─ fallback/                  # @treequel/fallback  — runtime toString→meriyah path
-│  ├─ transform/                 # @treequel/transform — pure transformModule(code,id,opts) → {code,map,diagnostics}
-│  ├─ vite/                      # @treequel/vite      — thin Vite plugin over transform (Rollup/Rolldown-compatible)
-│  ├─ linq/                      # @treequel/linq      — Queryable, QueryPlan, provider protocol, createContext
-│  ├─ provider-memory/           # @treequel/provider-memory
-│  ├─ sql-core/              # @treequel/sql-core (dialect: postgres first; mysql/sqlite later)
-│  ├─ ts-plugin/                 # @treequel/ts-plugin — language service plugin
-│  └─ eslint-plugin/             # @treequel/eslint-plugin
+│  ├─ tree/                      # @greffon/tree      — node types, (de)serialization, schema, ZERO deps
+│  ├─ core/                      # @greffon/core      — Expr, visitor, partial eval, printer
+│  ├─ capture/                   # @greffon/capture   — validator + free-var analysis + serializer + AstAdapter
+│  ├─ fallback/                  # @greffon/fallback  — runtime toString→meriyah path
+│  ├─ transform/                 # @greffon/transform — pure transformModule(code,id,opts) → {code,map,diagnostics}
+│  ├─ vite/                      # @greffon/vite      — thin Vite plugin over transform (Rollup/Rolldown-compatible)
+│  ├─ linq/                      # @greffon/linq      — Queryable, QueryPlan, provider protocol, createContext
+│  ├─ provider-memory/           # @greffon/provider-memory
+│  ├─ sql-core/              # @greffon/sql-core (dialect: postgres first; mysql/sqlite later)
+│  ├─ ts-plugin/                 # @greffon/ts-plugin — language service plugin
+│  └─ eslint-plugin/             # @greffon/eslint-plugin
 ├─ apps/
 │  ├─ docs/                      # VitePress site (guide, provider-author guide, tree spec)
 │  └─ playground/                # Vite app: live transform output + tree inspector (dogfoods everything)
@@ -230,23 +228,23 @@ Summary table; detailed specs in §5–§12.
 
 | Package | Purpose | Runtime deps | Size budget (min+gz) |
 |---|---|---|---|
-| `@treequel/tree` | Node types, serialize/deserialize, format version, JSON schema | none | < 2 kB |
-| `@treequel/core` | `Expr<F>`, visitor/rewriter, partial eval, printer, inspect | `tree` | < 5 kB |
-| `@treequel/capture` | Subset validator, free-var analysis, serializer, `AstAdapter` | `tree` | n/a (build/edit-time) |
-| `@treequel/fallback` | Runtime `toString()` capture | `core`, `capture`, `meriyah` | < 25 kB, **lazy-loaded** |
-| `@treequel/transform` | Pure per-module transform (tracer, detector, splicing) | `capture`, `oxc-parser`, `magic-string` | n/a (dev-time) |
-| `@treequel/vite` | Thin Vite plugin over `transform` (Rollup-compatible hooks) | `transform` | n/a (dev dep) |
-| `@treequel/linq` | `Queryable`, `QueryPlan`, provider protocol, `createContext` | `core` | < 4 kB |
-| `@treequel/provider-memory` | Reference provider | `linq` | < 2 kB |
-| `@treequel/sql-core` | Tree → parameterized SQL (pg dialect first) | `linq` | < 10 kB |
-| `@treequel/ts-plugin` | LS diagnostics in-editor | `capture` | n/a |
-| `@treequel/eslint-plugin` | Same rules for lint-gated CI | `capture` | n/a |
+| `@greffon/tree` | Node types, serialize/deserialize, format version, JSON schema | none | < 2 kB |
+| `@greffon/core` | `Expr<F>`, visitor/rewriter, partial eval, printer, inspect | `tree` | < 5 kB |
+| `@greffon/capture` | Subset validator, free-var analysis, serializer, `AstAdapter` | `tree` | n/a (build/edit-time) |
+| `@greffon/fallback` | Runtime `toString()` capture | `core`, `capture`, `meriyah` | < 25 kB, **lazy-loaded** |
+| `@greffon/transform` | Pure per-module transform (tracer, detector, splicing) | `capture`, `oxc-parser`, `magic-string` | n/a (dev-time) |
+| `@greffon/vite` | Thin Vite plugin over `transform` (Rollup-compatible hooks) | `transform` | n/a (dev dep) |
+| `@greffon/linq` | `Queryable`, `QueryPlan`, provider protocol, `createContext` | `core` | < 4 kB |
+| `@greffon/provider-memory` | Reference provider | `linq` | < 2 kB |
+| `@greffon/sql-core` | Tree → parameterized SQL (pg dialect first) | `linq` | < 10 kB |
+| `@greffon/ts-plugin` | LS diagnostics in-editor | `capture` | n/a |
+| `@greffon/eslint-plugin` | Same rules for lint-gated CI | `capture` | n/a |
 
 ---
 
 ## 5. The expression tree format
 
-`@treequel/tree` is the contract of the whole system: a **small, closed, versioned** discriminated union. Design principles: JSON-plain (structuredClone/postMessage/HTTP-safe), no functions, no prototypes, no cycles; every node optionally carries `span` (source offsets) which is **stripped on serialize by default**.
+`@greffon/tree` is the contract of the whole system: a **small, closed, versioned** discriminated union. Design principles: JSON-plain (structuredClone/postMessage/HTTP-safe), no functions, no prototypes, no cycles; every node optionally carries `span` (source offsets) which is **stripped on serialize by default**.
 
 ### 5.1 Node kinds (v1 — the complete list)
 
@@ -345,7 +343,7 @@ Edge cases that must have dedicated tests: same-name param and capture in siblin
 ### 6.4 Emitted code shape (build) — normative
 
 ```ts
-import { __expr } from "@treequel/core";  // injected once per module, aliased to avoid collision: __tql_expr$
+import { __expr } from "@greffon/core";  // injected once per module, aliased to avoid collision: __tql_expr$
 
 __tql_expr$({
   v: 1,
@@ -358,7 +356,7 @@ __tql_expr$({
 })
 ```
 
-Idempotence rule: the transform must recognize `__tql_expr$({ v: 1, ...` (call to an identifier imported from `@treequel/core` named `__expr`) and skip it. This makes double-transformation (plugin listed twice, pre-transformed library code shipped to npm) safe. `__expr` at runtime: validates `v`, freezes the object, brands it, returns it — O(1), no parsing.
+Idempotence rule: the transform must recognize `__tql_expr$({ v: 1, ...` (call to an identifier imported from `@greffon/core` named `__expr`) and skip it. This makes double-transformation (plugin listed twice, pre-transformed library code shipped to npm) safe. `__expr` at runtime: validates `v`, freezes the object, brands it, returns it — O(1), no parsing.
 
 ---
 
@@ -366,16 +364,16 @@ Idempotence rule: the transform must recognize `__tql_expr$({ v: 1, ...` (call t
 
 Two packages with a hard boundary:
 
-- **`@treequel/transform`** — a pure function `transformModule(code, id, options, host) → { code, map, diagnostics } | null`, plus the context-manifest registry. No bundler imports; `host` is a tiny interface (`loadModule(id)`, `resolve(id, importer)`) so any bundler can drive it. All logic in §7.2–§7.5 lives here and is tested bundler-free via snapshots.
-- **`@treequel/vite`** — ~100 lines: a Vite plugin with `enforce: "pre"` wiring `transform()` and `this.load()` into the host interface. Because it uses only Rollup-compatible hooks, the same export works in Rollup and Rolldown; document that. (webpack/Rspack via a community unplugin wrapper post-0.1 — deliberately not a v1 dependency.)
+- **`@greffon/transform`** — a pure function `transformModule(code, id, options, host) → { code, map, diagnostics } | null`, plus the context-manifest registry. No bundler imports; `host` is a tiny interface (`loadModule(id)`, `resolve(id, importer)`) so any bundler can drive it. All logic in §7.2–§7.5 lives here and is tested bundler-free via snapshots.
+- **`@greffon/vite`** — ~100 lines: a Vite plugin with `enforce: "pre"` wiring `transform()` and `this.load()` into the host interface. Because it uses only Rollup-compatible hooks, the same export works in Rollup and Rolldown; document that. (webpack/Rspack via a community unplugin wrapper post-0.1 — deliberately not a v1 dependency.)
 
 ### 7.1 Plugin options
 
 ```ts
-interface TreequelPluginOptions {
+interface GreffonPluginOptions {
   include?: FilterPattern;        // default: /\.[cm]?[jt]sx?$/
   exclude?: FilterPattern;        // default: node_modules (except packages listing "reify" keyword? no — v2)
-  packages?: string[];            // traced import sources; default: ["@treequel/linq"] + auto: providers re-exporting createContext
+  packages?: string[];            // traced import sources; default: ["@greffon/linq"] + auto: providers re-exporting createContext
   diagnostics?: "error" | "warn"; // default "error" in build, "warn" in dev serve
   emitSource?: boolean | "dev";   // default "dev"
   globals?: string[];             // extend globals safelist
@@ -393,7 +391,7 @@ Performance budget: < 1 ms per non-matching module (pre-scan only), < 10 ms per 
 
 ### 7.3 Import tracing & expression-position detection
 
-**Roots.** Collect local bindings for: (a) any import from a traced package (`createContext`, `expr`, `from`, and namespace imports `* as r`); (b) re-exports of those through project files are *not* followed cross-module in v1 (see boundary rule) — instead, the common pattern is blessed: any call result of a traced `createContext()` in the *same module graph* is typically exported as `db` from a `db.ts`, and importing modules see `db` as… untraceable without cross-module info. **Resolution (ADR-5): type-free cross-module tracing via a "context manifest":** `createContext()` call sites are transformed to also register their exported binding; the plugin maintains a build-scoped registry (`Map<moduleId, exportName[]>`) populated in a first pass over `packages` + user modules matching `include`. Vite's dev server does modules on demand, so the registry is filled lazily: when module A imports `{ db } from "./db"`, the transform of A queries the registry; if `./db` isn't transformed yet, transform it on demand via `this.load()` (Rollup/Vite context API) — Vite, Rollup, and Rolldown all support requesting another module's transform via the plugin context. Fallback for hosts without `load()` (future non-Rollup adapters): a documented `/* @treequel-context */` comment on the import line, or the `expr()` wrapper.
+**Roots.** Collect local bindings for: (a) any import from a traced package (`createContext`, `expr`, `from`, and namespace imports `* as r`); (b) re-exports of those through project files are *not* followed cross-module in v1 (see boundary rule) — instead, the common pattern is blessed: any call result of a traced `createContext()` in the *same module graph* is typically exported as `db` from a `db.ts`, and importing modules see `db` as… untraceable without cross-module info. **Resolution (ADR-5): type-free cross-module tracing via a "context manifest":** `createContext()` call sites are transformed to also register their exported binding; the plugin maintains a build-scoped registry (`Map<moduleId, exportName[]>`) populated in a first pass over `packages` + user modules matching `include`. Vite's dev server does modules on demand, so the registry is filled lazily: when module A imports `{ db } from "./db"`, the transform of A queries the registry; if `./db` isn't transformed yet, transform it on demand via `this.load()` (Rollup/Vite context API) — Vite, Rollup, and Rolldown all support requesting another module's transform via the plugin context. Fallback for hosts without `load()` (future non-Rollup adapters): a documented `/* @greffon-context */` comment on the import line, or the `expr()` wrapper.
 **Chains.** Within a module, a traced value taints: direct call results (`db.users`), member access, `const q = db.users.where(...)` intermediates, ternaries where both arms are tainted. Standard intra-module taint over the binding graph — no type checker.
 **Expression positions.** Arrow literals appearing as **direct arguments** to member-calls on tainted values whose method name is in the LINQ surface (`where/select/orderBy/orderByDescending/thenBy/take/skip/groupBy/count/any/all/first/single/sum/min/max/distinct/join`) are reified. Arrows passed as *variables* are NOT (boundary rule §7.4). `expr(...)` calls are always reified regardless of taint.
 
@@ -449,7 +447,7 @@ Two passes:
 
 Exposed as `partialEval(expr): Node`; providers call it first, always. Property test: for a corpus of trees, `evaluate(partialEval(t)) === compiled(...)` on random inputs.
 
-### 8.4 The runtime fallback (`@treequel/fallback`)
+### 8.4 The runtime fallback (`@greffon/fallback`)
 
 When `expr(f)` executes with a plain function (no plugin ran):
 1. Warn once per process (R3001) with a link to setup docs.
@@ -619,20 +617,20 @@ db.users
 
 ## 12. Editor & lint surface
 
-### 12.1 `@treequel/ts-plugin` (language service)
+### 12.1 `@greffon/ts-plugin` (language service)
 
-- Hooks `getSemanticDiagnostics`; finds traced call sites with the *same* detector logic compiled against the `adapter-tsc`; runs the validator; maps capture diagnostics to `ts.Diagnostic` (category from severity, code = numeric part of Rxxxx, source: "treequel").
+- Hooks `getSemanticDiagnostics`; finds traced call sites with the *same* detector logic compiled against the `adapter-tsc`; runs the validator; maps capture diagnostics to `ts.Diagnostic` (category from severity, code = numeric part of Rxxxx, source: "greffon").
 - Also enhances `getQuickInfoAtPosition` on `expr`-produced values to show the printed tree (small delight, cheap).
-- Ships with a `configurePlugin` handshake so the Vite plugin can print a hint if the LS plugin isn't configured (`tsconfig.json → compilerOptions.plugins: [{ "name": "@treequel/ts-plugin" }]`).
+- Ships with a `configurePlugin` handshake so the Vite plugin can print a hint if the LS plugin isn't configured (`tsconfig.json → compilerOptions.plugins: [{ "name": "@greffon/ts-plugin" }]`).
 
-### 12.2 `@treequel/eslint-plugin`
+### 12.2 `@greffon/eslint-plugin`
 
-- Rule `treequel/valid-expression`: same validator over TSESTree via the shared adapter; autofix for R1103 (`==`→`===`).
-- Rule `treequel/no-opaque-callback`: flags function *references* passed to traced LINQ methods (the boundary rule, at lint time instead of runtime).
-- Preset `plugin:treequel/recommended`.
+- Rule `greffon/valid-expression`: same validator over TSESTree via the shared adapter; autofix for R1103 (`==`→`===`).
+- Rule `greffon/no-opaque-callback`: flags function *references* passed to traced LINQ methods (the boundary rule, at lint time instead of runtime).
+- Preset `plugin:greffon/recommended`.
 - The same package is an oxlint plugin: oxlint's `jsPlugins` runs ESLint-API plugins on oxc's TS-ESTree-compatible AST,
-  so consumers on either linter load `@treequel/eslint-plugin` unchanged. The repo dogfoods this — root
-  `.oxlintrc.json` loads the built plugin (alias `treequel`) and enforces both rules repo-wide (tests and type-tests
+  so consumers on either linter load `@greffon/eslint-plugin` unchanged. The repo dogfoods this — root
+  `.oxlintrc.json` loads the built plugin (alias `greffon`) and enforces both rules repo-wide (tests and type-tests
   opted out by override; they exercise the opaque/memory path deliberately).
 
 Definition of done for this section: the same invalid lambda produces the same code + message in editor squiggle, eslint output (asserted for the ESLint and oxlint hosts), and build error (golden-file test asserts all three).
@@ -641,7 +639,7 @@ Definition of done for this section: the same invalid lambda produces the same c
 
 ## 13. Diagnostics catalog
 
-Single source of truth `packages/capture/src/diagnostics.ts`; every diagnostic has code, severity, message template, docs anchor (`https://treequel.dev/errors#R1101`), and a fixture in the test corpus.
+Single source of truth `packages/capture/src/diagnostics.ts`; every diagnostic has code, severity, message template, docs anchor (`https://greffon.dev/errors#R1101`), and a fixture in the test corpus.
 
 | Range | Domain | Examples |
 |---|---|---|
@@ -649,7 +647,7 @@ Single source of truth `packages/capture/src/diagnostics.ts`; every diagnostic h
 | R1900–R1999 | Tree format | R1901 bad/newer serialized format |
 | R2000–R2099 | Provider/plan | R2001 untranslatable call (names provider + call + loc) · R2002 dynamic index / unresolvable column path · R2003 opaque function at provider · R2004 opaque function in reference (warn) · R2005 Param-dependent call to captured function · R2006 ambiguous call — declare column type in schema meta |
 | R3000–R3099 | Fallback | R3001 fallback active (warn once) · R3002 closure in fallback (names variables) · R3003 fallback refused in production |
-| R4000–R4099 | Plugin/config | R4001 context import untraceable (suggests `expr()` or `@treequel-context`) · R4002 double-transform detected (info) |
+| R4000–R4099 | Plugin/config | R4001 context import untraceable (suggests `expr()` or `@greffon-context`) · R4002 double-transform detected (info) |
 
 ---
 
@@ -693,7 +691,7 @@ Philosophy, stated as policy: **native-first, minimal dependencies.** npm-native
 | Lint | **oxlint** (root `.oxlintrc.json`) | categories: correctness + suspicious + perf; adopt type-aware rules as they stabilize. The `eslint-plugin` package still ships for *consumers* (its ESLint deps are peer/dev-local to that package and its tests — they never touch the rest of the repo) — and is loaded back into oxlint via `jsPlugins` from its built `dist/`, so lint runs after `tsc -b` in `verify` and CI. |
 | Format | **oxfmt** | `oxfmt --check` in CI; no formatter config debates. |
 | Tests | **Vitest 3** workspace | coverage via v8 provider; thresholds on `tree`/`core`/`capture` at 95%. |
-| Versioning/release | **Lockstep** — all `@treequel/*` share one version (the oxc/vite-ecosystem model) | `scripts/release.mjs` (plain Node, zero deps): bump all package.json versions, rewrite internal `"*"` ranges to the concrete version at publish time, update root `CHANGELOG.md` from git log (Conventional Commits enforced by a 15-line commit-msg check), tag `vX.Y.Z`, `npm publish --provenance` per public package. Changesets deliberately omitted; adopt later only if per-package versioning becomes a real contributor need (ADR-9). |
+| Versioning/release | **Lockstep** — all `@greffon/*` share one version (the oxc/vite-ecosystem model) | `scripts/release.mjs` (plain Node, zero deps): bump all package.json versions, rewrite internal `"*"` ranges to the concrete version at publish time, update root `CHANGELOG.md` from git log (Conventional Commits enforced by a 15-line commit-msg check), tag `vX.Y.Z`, `npm publish --provenance` per public package. Changesets deliberately omitted; adopt later only if per-package versioning becomes a real contributor need (ADR-9). |
 | Publishing | **npm with `--provenance`** via GitHub OIDC (`id-token: write`) | tarballs pass publint before publish. |
 | Dep updates | **Dependabot** (GitHub-native) | weekly, grouped; separate always-open canary PR pinning oxc/TS `next` handled by a scheduled workflow instead of Renovate. |
 | Docs | **VitePress** in `apps/docs` → GitHub Pages via Actions | includes generated tree JSON-schema page and diagnostics reference generated from `diagnostics.ts` (single source of truth). |
@@ -746,15 +744,15 @@ This table is normative: adding a dependency means adding a row and a justificat
 | Where | Dependency | Why it can't reasonably be vendored/omitted |
 |---|---|---|
 | **Runtime packages** (`tree`, `core`, `linq`, `provider-*`) | **none** | Zero production dependencies is a headline feature; CI fails if any appear. |
-| `@treequel/transform` (user dev-time) | `oxc-parser` | TS-aware native-speed parsing; the one parser the whole VoidZero stack shares. |
+| `@greffon/transform` (user dev-time) | `oxc-parser` | TS-aware native-speed parsing; the one parser the whole VoidZero stack shares. |
 | | `magic-string` | Sourcemap-correct splicing; tiny; maintained by the Vite team's orbit and used by Vite itself. |
-| `@treequel/fallback` (dev-only path, lazy `import()`) | `meriyah` | Pure-JS ESTree parser for browser-safe runtime parsing; oxc-parser is a native binding and can't ship to browsers. |
+| `@greffon/fallback` (dev-only path, lazy `import()`) | `meriyah` | Pure-JS ESTree parser for browser-safe runtime parsing; oxc-parser is a native binding and can't ship to browsers. |
 | Repo devDependencies | `typescript`, `vitest`, `tsdown`, `oxlint`, `oxfmt` | the toolchain |
 | | `vitepress` | docs (isolated in `apps/docs`) |
 | | `fast-check` | the reference property tests (§14.2) are the correctness strategy; not vendorable |
 | | `@electric-sql/pglite` | real-Postgres conformance in CI without service containers |
 | | `publint`, `tinybench` | tiny, CI-only |
-| `@treequel/eslint-plugin` only | `eslint`, `@typescript-eslint/utils` (peer/dev) | required to *be* an ESLint plugin; scoped to that package |
+| `@greffon/eslint-plugin` only | `eslint`, `@typescript-eslint/utils` (peer/dev) | required to *be* an ESLint plugin; scoped to that package |
 
 Dropped relative to a conventional 2026 setup, with the reasoning on record: pnpm (npm workspaces suffice at lockstep), Turborepo (§15.1), Biome/ESLint-for-the-repo (oxlint+oxfmt), unplugin (Rollup-compatible Vite plugin covers Vite/Rollup/Rolldown; wrapper later), changesets (lockstep script), Renovate (Dependabot), dependency-cruiser/syncpack (`check-graph.mjs`), arethetypeswrong (ESM-only + publint + the pack-and-install smoke covers the failure modes it would catch), Verdaccio (pack-and-install smoke).
 
@@ -770,7 +768,7 @@ Each milestone ends green-in-CI and demo-able. Estimates assume one focused engi
 
 **M2 — Capture (1.5 wk).** `AstAdapter` + oxc adapter; validator with full R11xx catalog; free-var analysis incl. §6.3 edge-case corpus; serializer. *Exit: diagnostics golden suite passes; 40+ fixture corpus.*
 
-**M3 — Transform (1.5 wk).** `@treequel/transform` pure function + host interface, pre-scan, `expr()` reification, emitted-shape + idempotence, sourcemaps; `@treequel/vite` wrapper; then import tracing + taint + context manifest (ADR-5). *Exit: transform snapshot suite (bundler-free); e2e Vite build of a toy app; same plugin object smoke-tested under Rollup; double-transform test.*
+**M3 — Transform (1.5 wk).** `@greffon/transform` pure function + host interface, pre-scan, `expr()` reification, emitted-shape + idempotence, sourcemaps; `@greffon/vite` wrapper; then import tracing + taint + context manifest (ADR-5). *Exit: transform snapshot suite (bundler-free); e2e Vite build of a toy app; same plugin object smoke-tested under Rollup; double-transform test.*
 
 **M4 — LINQ + memory provider (1 wk).** `Queryable`/plan/protocol/capability pre-check; memory provider; type-test suite (§11) — **checkpoint: if `F | Expr<F>` inference fails here, exercise plan B before proceeding.** *Exit: examples/no-plugin path fully works; type tests green on TS latest+next.*
 
@@ -793,7 +791,7 @@ Maintain full ADRs in `docs/adr/NNNN-*.md`; summaries:
 - **ADR-3: Small closed tree, not ESTree.** Providers need a finite grammar to promise translation over; ESTree is neither closed nor stable for this purpose. Consequence: a normalization layer in capture, and a format-version discipline.
 - **ADR-4: ESM-only, Node ≥ 20.** Dual builds double the test surface for a 2026-new library with a bundler-first audience.
 - **ADR-9: Native-first, minimal-dependency toolchain.** npm workspaces + npm scripts + `tsc -b`; VoidZero stack (oxc-parser/oxlint/oxfmt/tsdown/Vitest) as the single compiler vendor; GitHub-native services; lockstep versioning via a zero-dep release script; every dev dependency justified in a normative inventory (§15.4). Consequences: no per-package versions, no build cache beyond tsc/Vitest — accepted at this repo's scale, revisited by ADR if it grows.
-- **ADR-11: No silent client-side evaluation.** EF pre-Core silently pulled rows and evaluated untranslatable fragments in memory; it caused accidental table scans severe enough that EF Core 3.0 removed it as a breaking change. Treequel fails fast (R2001/R2002/R2005/R2006, with `loc`) and offers the explicit `.inMemory()` boundary instead — same expressiveness, but the performance cliff is a visible line in the code.
+- **ADR-11: No silent client-side evaluation.** EF pre-Core silently pulled rows and evaluated untranslatable fragments in memory; it caused accidental table scans severe enough that EF Core 3.0 removed it as a breaking change. Greffon fails fast (R2001/R2002/R2005/R2006, with `loc`) and offers the explicit `.inMemory()` boundary instead — same expressiveness, but the performance cliff is a visible line in the code.
 - **ADR-10: Vite-native plugin instead of unplugin.** Rollup-compatible hooks give Vite/Rollup/Rolldown from one export with zero framework dependency; the pure `transform` package keeps the door open for other bundlers without core changes.
 - **ADR-5: Context manifest for cross-module tracing** (registry filled via on-demand `this.load()` through the transform host interface), `expr()`/comment fallback for hosts without it. Consequence: non-Rollup-family adapters are best-effort for traceless call sites.
 - **ADR-6: No thenable Queryable; explicit executors.**

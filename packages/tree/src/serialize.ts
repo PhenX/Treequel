@@ -1,4 +1,4 @@
-import { TreequelError } from "./error.js";
+import { GreffonError } from "./error.js";
 import { type Node, isSpread } from "./nodes.js";
 import { FORMAT_VERSION } from "./version.js";
 
@@ -60,7 +60,7 @@ function encodeValue(v: unknown): unknown {
       break;
     default:
       // functions / symbols are not serializable
-      throw new TreequelError(
+      throw new GreffonError(
         "R1901",
         `Cannot serialize Constant of type ${typeof v}; only JSON-native values, Date, bigint, RegExp and undefined are supported.`,
       );
@@ -193,7 +193,7 @@ export function serialize(node: Node, opts: SerializeOptions = {}): TreeJson {
 }
 
 function fail(msg: string): never {
-  throw new TreequelError("R1901", msg);
+  throw new GreffonError("R1901", msg);
 }
 
 function deserializeNode(raw: unknown, path: string): Node {
@@ -330,7 +330,7 @@ export function deserialize(json: unknown): Node {
   }
   if (env.v > FORMAT_VERSION) {
     fail(
-      `Tree format v${env.v} is newer than this runtime understands (v${FORMAT_VERSION}). Upgrade @treequel/tree.`,
+      `Tree format v${env.v} is newer than this runtime understands (v${FORMAT_VERSION}). Upgrade @greffon/tree.`,
     );
   }
   return deserializeNode(env.root, "root");

@@ -1,4 +1,4 @@
-import type { ArrayElement, Node, ObjectProp, Span } from "@treequel/tree";
+import type { ArrayElement, Node, ObjectProp, Span } from "@greffon/tree";
 import { type AstAdapter, type EsNode } from "./adapter.js";
 import { type Diagnostic, makeDiagnostic } from "./diagnostics.js";
 

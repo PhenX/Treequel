@@ -1,5 +1,5 @@
-import { enableFallback } from "@treequel/fallback";
-import { memoryProvider } from "@treequel/provider-memory";
+import { enableFallback } from "@greffon/fallback";
+import { memoryProvider } from "@greffon/provider-memory";
 import { describe, expect, it } from "vitest";
 import { type Context, createContext, defineRelations } from "./index.js";
 

@@ -1,12 +1,12 @@
-# `@treequel/ts-transformer` — area guide
+# `@greffon/ts-transformer` — area guide
 
 Read this with the root [AGENTS.md](../../AGENTS.md) and plan §7. This package lets the reification run when the build
 goes through the TypeScript compiler (via ts-patch or the compiler API) instead of a bundler. It is the compiler-side
-sibling of `@treequel/vite`.
+sibling of `@greffon/vite`.
 
 ## The rules that are easy to get wrong
 
-- **One parser, and it is not here.** All tracing, capture and detection live in `@treequel/transform` (oxc). This
+- **One parser, and it is not here.** All tracing, capture and detection live in `@greffon/transform` (oxc). This
   package never parses query source with `oxc-parser` or re-implements detection — it calls `planModuleSync` /
   `scanModuleContexts` and applies the result. Reusing the transform is what keeps the tsc path and the Vite path from
   disagreeing about what is legal. `typescript` is a **peer** dependency: the compiler is the host, brought by the user.
@@ -22,9 +22,9 @@ sibling of `@treequel/vite`.
   synthesized (the `Synthesized` node flag **and** `pos/end = -1`) so the emitter prints them from structure and the
   emit resolver skips them.
 
-- **ES modules only.** The injected `import { __expr as __tql_expr$ } from "@treequel/core"` is a live ES-module
+- **ES modules only.** The injected `import { __expr as __tql_expr$ } from "@greffon/core"` is a live ES-module
   binding. Under CommonJS output the reference is left unbound (the module transform only rewrites parse-tree
-  references, not our synthesized one), so the transformer throws rather than emit broken code. This matches Treequel's
+  references, not our synthesized one), so the transformer throws rather than emit broken code. This matches Greffon's
   ESM-only stance; `module` must be `esnext`/`nodenext`/`es20xx`.
 
 - **The emitted shape is the contract.** The `__tql_expr$({ v: 1, … })` literal and its idempotence guard are shared

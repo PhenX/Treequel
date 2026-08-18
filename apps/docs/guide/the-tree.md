@@ -7,17 +7,17 @@ it, store it — or hand it to a provider for translation. This page is the tool
 
 ## The toolkit
 
-Everything here is in `@treequel/tree` and `@treequel/core` — zero-dependency, and independent of any provider.
+Everything here is in `@greffon/tree` and `@greffon/core` — zero-dependency, and independent of any provider.
 
 | Function | From | What it does |
 | --- | --- | --- |
-| `serialize(node)` / `deserialize(json)` | `@treequel/tree` | Tree ⇄ a `{ v, root }` JSON envelope. Versioned; refuses trees from a newer format. |
-| `evaluate(node, env)` | `@treequel/core` | Interpret a tree against `{ params, scope }` bindings — no compiled function required. |
-| `partialEval({ body, scope })` | `@treequel/core` | Fold captured variables and constant subtrees to `Constant`s, leaving a residual tree. |
-| `print(node)` | `@treequel/core` | Render a tree back to readable pseudo-source, for logs and audits. |
-| `visit(node, fns)` / `rewrite(node, fns)` | `@treequel/core` | Walk a tree, or rebuild it with per-kind replacements. |
-| `b` | `@treequel/core` | Terse node constructors, for building a tree by hand (a rule builder, a codegen). |
-| `makeExpr(params, body, opts?)` | `@treequel/core` | Wrap a hand-built tree as an `Expr` a query operator accepts; `compiled` defaults to the interpreter over `body`. |
+| `serialize(node)` / `deserialize(json)` | `@greffon/tree` | Tree ⇄ a `{ v, root }` JSON envelope. Versioned; refuses trees from a newer format. |
+| `evaluate(node, env)` | `@greffon/core` | Interpret a tree against `{ params, scope }` bindings — no compiled function required. |
+| `partialEval({ body, scope })` | `@greffon/core` | Fold captured variables and constant subtrees to `Constant`s, leaving a residual tree. |
+| `print(node)` | `@greffon/core` | Render a tree back to readable pseudo-source, for logs and audits. |
+| `visit(node, fns)` / `rewrite(node, fns)` | `@greffon/core` | Walk a tree, or rebuild it with per-kind replacements. |
+| `b` | `@greffon/core` | Terse node constructors, for building a tree by hand (a rule builder, a codegen). |
+| `makeExpr(params, body, opts?)` | `@greffon/core` | Wrap a hand-built tree as an `Expr` a query operator accepts; `compiled` defaults to the interpreter over `body`. |
 
 ## Using a serialized tree
 
@@ -25,8 +25,8 @@ A tree survives `JSON.stringify` and comes back with `deserialize`. The received
 it with `evaluate`, which interprets the closed grammar directly (no `eval`, no `new Function`):
 
 ```ts
-import { serialize, deserialize } from "@treequel/tree";
-import { evaluate, expr } from "@treequel/core";
+import { serialize, deserialize } from "@greffon/tree";
+import { evaluate, expr } from "@greffon/core";
 
 // One side: turn a lambda into a tree and serialize it.
 const tree = expr((u: User) => u.age >= minAge && u.active);
@@ -54,7 +54,7 @@ A tree with captures needs its `scope` at evaluation time. To ship a tree that s
 constants with `partialEval` before serializing — the result is param-rooted data access and constants only:
 
 ```ts
-import { partialEval, print } from "@treequel/core";
+import { partialEval, print } from "@greffon/core";
 
 const folded = partialEval({ body: tree.body, scope: () => ({ minAge: 18 }) });
 print(folded); // "(u.age >= 18)" — minAge is now a constant
@@ -73,7 +73,7 @@ You do not need a lambda to get a tree. The `b` constructors build nodes directl
 UI emits trees, or a codegen that targets the format:
 
 ```ts
-import { b, evaluate } from "@treequel/core";
+import { b, evaluate } from "@greffon/core";
 
 // u => u.age >= 18 && u.active
 const rule = b.logical(
@@ -91,7 +91,7 @@ To hand a built tree straight to a query operator, wrap it with `makeExpr` — t
 result runs in the memory provider and translates in SQL just like a reified lambda:
 
 ```ts
-import { b, makeExpr } from "@treequel/core";
+import { b, makeExpr } from "@greffon/core";
 
 const isAdult = makeExpr<(u: User) => boolean>(
   ["u"],

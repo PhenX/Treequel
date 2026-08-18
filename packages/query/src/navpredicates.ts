@@ -5,7 +5,7 @@
  * (`u.orders.some(…)`, `u.orders.length`, the reduce idiom); `tryBody` and
  * `touchedRootProps` handle the tree-less fallback path.
  */
-import { type Node, TreequelError, children } from "@treequel/core";
+import { type Node, GreffonError, children } from "@greffon/core";
 import type { AnyExpr, IncludeSpec } from "./plan.js";
 import type { Relation, RelationsMeta } from "./relations.js";
 import { mergeIncludeSpecs } from "./include-spec.js";
@@ -112,7 +112,7 @@ export function tryBody(e: AnyExpr): Node | null {
   try {
     return e.body;
   } catch (err) {
-    if (err instanceof TreequelError && err.code === "R3001") return null;
+    if (err instanceof GreffonError && err.code === "R3001") return null;
     throw err;
   }
 }

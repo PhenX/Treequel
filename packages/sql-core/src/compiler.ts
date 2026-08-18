@@ -6,8 +6,8 @@
  * it into a derived table and continues on top. Joins become real JOIN clauses;
  * projections, groups and navigation subqueries render through {@link translate}.
  */
-import { type Node, TreequelError, partialEval } from "@treequel/core";
-import type { AnyExpr, PlanOp, QueryPlan, RelationsMeta } from "@treequel/query";
+import { type Node, GreffonError, partialEval } from "@greffon/core";
+import type { AnyExpr, PlanOp, QueryPlan, RelationsMeta } from "@greffon/query";
 import {
   type ColumnShape,
   SCALAR_COLUMN,
@@ -80,7 +80,7 @@ export class Compiler {
 
   tableMeta(source: string): TableMeta {
     const meta = this.schema[source];
-    if (!meta) throw new TreequelError("R2002", `No schema meta for source '${source}'.`);
+    if (!meta) throw new GreffonError("R2002", `No schema meta for source '${source}'.`);
     return meta;
   }
 
@@ -120,7 +120,7 @@ export class Compiler {
   /** A `groupBy` needs its projection before any other operator continues. */
   private rejectPendingGroup(layer: Layer, doing: string): void {
     if (layer.pendingGroup) {
-      throw new TreequelError(
+      throw new GreffonError(
         "R2001",
         `groupBy must be followed by a map projection (${doing} over raw groups is memory-only in v1).`,
       );
@@ -232,12 +232,12 @@ export class Compiler {
     if (body.kind === "ObjectLit") {
       for (const prop of body.props) {
         if ("spread" in prop) {
-          throw new TreequelError("R2001", "Spread in a groupBy key is not supported.");
+          throw new GreffonError("R2001", "Spread in a groupBy key is not supported.");
         }
         parts.push({ name: prop.key, node: prop.value });
       }
       if (parts.length === 0) {
-        throw new TreequelError("R2001", "A composite groupBy key needs at least one property.");
+        throw new GreffonError("R2001", "A composite groupBy key needs at least one property.");
       }
     } else {
       parts.push({ name: null, node: body });
@@ -431,13 +431,13 @@ export class Compiler {
       const lm = plain(lb);
       const rm = plain(rb);
       if (!lm || !rm || lm.size !== rm.size || lm.size === 0) {
-        throw new TreequelError("R2001", "Composite join keys must be plain object literals.");
+        throw new GreffonError("R2001", "Composite join keys must be plain object literals.");
       }
       const parts: string[] = [];
       for (const [key, lnode] of [...lm.entries()].sort(([a], [b]) => (a < b ? -1 : 1))) {
         const rnode = rm.get(key);
         if (!rnode) {
-          throw new TreequelError(
+          throw new GreffonError(
             "R2001",
             `Composite join keys must have the same properties (missing '${key}').`,
           );
@@ -502,7 +502,7 @@ export class Compiler {
       case "flatMap":
         return this.foldFlatMap(layer, op);
       default:
-        throw new TreequelError(
+        throw new GreffonError(
           "R2001",
           `${this.dialect.name} provider does not support op '${op.op}' here.`,
         );

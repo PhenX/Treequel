@@ -1,10 +1,10 @@
-# ADR 0010 — Rename `@treequel/provider-sql` to `@treequel/sql-core`
+# ADR 0010 — Rename `@greffon/provider-sql` to `@greffon/sql-core`
 
 Status: accepted
 
 ## Context
 
-ADR-0003 established a `SqlDialect` seam and kept `@treequel/provider-sql` as the shared, dialect-agnostic core that the
+ADR-0003 established a `SqlDialect` seam and kept `@greffon/provider-sql` as the shared, dialect-agnostic core that the
 Postgres and SQLite providers build on — "retained as the shared core, not a provider." The name carried over from the
 plan's original single-`provider-sql` packaging.
 
@@ -19,12 +19,12 @@ so the package was already being reorganized when the naming question resurfaced
 
 ## Decision
 
-Rename the package and its directory: `@treequel/provider-sql` → `@treequel/sql-core`, `packages/provider-sql/` →
+Rename the package and its directory: `@greffon/provider-sql` → `@greffon/sql-core`, `packages/provider-sql/` →
 `packages/sql-core/`. The name states the role — a shared SQL core, not a provider — and leaves `provider-*` to mean
 exactly the runnable providers.
 
 The public export surface is unchanged; only the specifier moves. The dependents update their import from
-`@treequel/provider-sql` to `@treequel/sql-core` (the two dialect packages and the SQLite reify suite), as do the
+`@greffon/provider-sql` to `@greffon/sql-core` (the two dialect packages and the SQLite reify suite), as do the
 dependency-graph allowlist, the TypeScript project references, the Vitest alias, and the docs. The Conventional-Commits
 scope stays `sql`, which already covered all four SQL packages.
 

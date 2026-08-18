@@ -1,12 +1,12 @@
 {
-  "name": "@treequel/vite",
+  "name": "@greffon/vite",
   "version": "0.1.0",
-  "description": "Vite/Rollup/Rolldown plugin that reifies Treequel query lambdas into expression trees.",
+  "description": "Vite/Rollup/Rolldown plugin that reifies Greffon query lambdas into expression trees.",
   "keywords": [
     "plugin",
     "rolldown",
     "rollup",
-    "treequel",
+    "greffon",
     "vite"
   ],
   "license": "MIT",
@@ -31,7 +31,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@treequel/transform": "*"
+    "@greffon/transform": "*"
   },
   "engines": {
     "node": ">=20"

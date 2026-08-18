@@ -1,5 +1,5 @@
-import { type CaptureResult, adapterOxc, capture, hasErrors } from "@treequel/capture";
-import { type Node, TreequelError } from "@treequel/core";
+import { type CaptureResult, adapterOxc, capture, hasErrors } from "@greffon/capture";
+import { type Node, GreffonError } from "@greffon/core";
 import { parseScript } from "meriyah";
 
 /**
@@ -16,7 +16,7 @@ export function parseFunctionSource(source: string): CaptureResult {
   const stmt = ast.body[0];
   const node = (stmt?.expression ?? stmt) as { type: string };
   if (node.type !== "ArrowFunctionExpression" && node.type !== "FunctionExpression") {
-    throw new TreequelError(
+    throw new GreffonError(
       "R3002",
       `Could not parse a function from source: ${trimmed.slice(0, 60)}…`,
     );
@@ -33,7 +33,7 @@ export function reifyFromSource(source: string): {
   const result = parseFunctionSource(source);
   if (hasErrors(result.diagnostics) || result.body === null) {
     const first = result.diagnostics.find((d) => d.severity === "error");
-    throw new TreequelError(
+    throw new GreffonError(
       first?.code ?? "R3002",
       first?.message ?? "Unsupported lambda in fallback.",
     );

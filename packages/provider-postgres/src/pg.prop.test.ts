@@ -1,8 +1,8 @@
 import { PGlite } from "@electric-sql/pglite";
-import { __expr, evaluate } from "@treequel/core";
-import { createContext } from "@treequel/query";
-import { memoryProvider } from "@treequel/provider-memory";
-import type { Node } from "@treequel/tree";
+import { __expr, evaluate } from "@greffon/core";
+import { createContext } from "@greffon/query";
+import { memoryProvider } from "@greffon/provider-memory";
+import type { Node } from "@greffon/tree";
 import fc from "fast-check";
 import { beforeAll, describe, expect, it } from "vitest";
 import { type SchemaMeta, type SqlExecutor, postgres } from "./index.js";

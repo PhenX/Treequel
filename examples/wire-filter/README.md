@@ -30,7 +30,7 @@ instead of producing a half-built tree.
 Run it:
 
 ```bash
-npm test -w @treequel-example/wire-filter
+npm test -w @greffon-example/wire-filter
 ```
 
 The point: client-defined filtering usually means inventing a query-parameter

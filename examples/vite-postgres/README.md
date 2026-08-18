@@ -22,14 +22,14 @@ export const namesStartingWith = (db: Context<Schema>, prefix: string) =>
 Enable reification with one line ([`vite.config.ts`](vite.config.ts)):
 
 ```ts
-import { treequel } from "@treequel/vite";
-export default { plugins: [treequel()] };
+import { greffon } from "@greffon/vite";
+export default { plugins: [greffon()] };
 ```
 
 Run it:
 
 ```bash
-npm test -w @treequel-example/vite-postgres
+npm test -w @greffon-example/vite-postgres
 ```
 
 The memory provider is the reference; the SQL provider must match it. That

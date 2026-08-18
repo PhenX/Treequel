@@ -5,8 +5,8 @@
  * env, and the small helpers ({@link finalizeSql}, {@link quoteIdent},
  * {@link shapeColumn}) the translator and compiler build on.
  */
-import { TreequelError } from "@treequel/core";
-import type { RelationsMeta } from "@treequel/query";
+import { GreffonError } from "@greffon/core";
+import type { RelationsMeta } from "@greffon/query";
 import { type SchemaMeta, type TableMeta, physicalColumn } from "./schema.js";
 import type { SqlDialect } from "./dialect.js";
 
@@ -103,7 +103,7 @@ export class TranslateContext {
   }
 
   fail(code: string, detail: string): never {
-    throw new TreequelError(code, this.located(detail));
+    throw new GreffonError(code, this.located(detail));
   }
 }
 

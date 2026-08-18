@@ -8,7 +8,7 @@ What happens **without** the build plugin (goal G6), shown in
    `db.users.filter(u => u.age >= minAge)` just works.
 
 2. **Remote providers fall back to a runtime parse.** With
-   `import "@treequel/fallback/register"` (or `enableFallback()`), a *closure-free*
+   `import "@greffon/fallback/register"` (or `enableFallback()`), a *closure-free*
    lambda is reified from `Function.prototype.toString()` and compiles to SQL.
 
 3. **Closures fail with a teachable error.** A lambda that captures a variable
@@ -23,5 +23,5 @@ cannot read closures. Enable the build plugin, or inline the value.
 Run it:
 
 ```bash
-npm test -w @treequel-example/no-plugin-fallback
+npm test -w @greffon-example/no-plugin-fallback
 ```

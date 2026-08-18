@@ -1,13 +1,13 @@
 {
-  "name": "@treequel/provider-postgres",
+  "name": "@greffon/provider-postgres",
   "version": "0.1.0",
-  "description": "Treequel Postgres provider — compiles expression trees to parameterized Postgres.",
+  "description": "Greffon Postgres provider — compiles expression trees to parameterized Postgres.",
   "keywords": [
     "linq",
     "postgres",
     "provider",
     "sql",
-    "treequel"
+    "greffon"
   ],
   "license": "MIT",
   "files": [
@@ -31,7 +31,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@treequel/sql-core": "*"
+    "@greffon/sql-core": "*"
   },
   "engines": {
     "node": ">=20"

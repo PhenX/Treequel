@@ -1,13 +1,13 @@
 {
-  "name": "@treequel/core",
+  "name": "@greffon/core",
   "version": "0.1.0",
-  "description": "Treequel runtime core: Expr, visitor/rewriter, partial evaluation, printer, WellKnown registry.",
+  "description": "Greffon runtime core: Expr, visitor/rewriter, partial evaluation, printer, WellKnown registry.",
   "keywords": [
     "code-as-data",
     "expression-tree",
     "interpreter",
     "partial-evaluation",
-    "treequel"
+    "greffon"
   ],
   "license": "MIT",
   "files": [
@@ -31,7 +31,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@treequel/tree": "*"
+    "@greffon/tree": "*"
   },
   "engines": {
     "node": ">=20"

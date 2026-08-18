@@ -15,7 +15,7 @@ const tester = new RuleTester({
 // A query context: rules only fire on receivers rooted at a createContext() result,
 // so ordinary `arr.filter()`/`arr.map()` (same method names) stay untouched.
 const CTX =
-  'import { createContext } from "@treequel/query";\nconst db = createContext(provider);\n';
+  'import { createContext } from "@greffon/query";\nconst db = createContext(provider);\n';
 
 tester.run("valid-expression", validExpression as never, {
   valid: [

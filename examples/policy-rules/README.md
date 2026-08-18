@@ -26,7 +26,7 @@ export const canSee = (viewer: Viewer) =>
 Run it:
 
 ```bash
-npm test -w @treequel-example/policy-rules
+npm test -w @greffon-example/policy-rules
 ```
 
 The point: authorization logic usually exists three times — in the list query,

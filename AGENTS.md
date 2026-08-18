@@ -1,7 +1,4 @@
-# Treequel — Agent Instructions
-
-> **Note:** Treequel is unrelated to the Ruby LDAP gem of the same name (2008, unmaintained). When searching the web,
-> search for "treequel typescript" — bare "treequel" surfaces the gem's docs first.
+# Greffon — Agent Instructions
 
 Root guide for any AI agent (Claude Code, opencode, Copilot, Cursor, …) and for human contributors. It covers the whole
 monorepo: what lives where, how to verify things, and the conventions that apply everywhere.
@@ -35,7 +32,7 @@ departure from the plan gets an ADR (`docs/adr/NNNN-*.md`) recording what change
 
 ## Repo status
 
-**M0–M7 landed, bar the 0.1 publish.** All fourteen `@treequel/*` packages are implemented, typechecked (`tsc -b`) and
+**M0–M7 landed, bar the 0.1 publish.** All fourteen `@greffon/*` packages are implemented, typechecked (`tsc -b`) and
 tested (Vitest, including fast-check property tests — serialize round-trip, partial-eval invariants, and a generative
 SQL≡memory reference on PGlite — and `tsc`-checked `F | Expr<F>` type tests under `type-tests/`).
 The toolchain (npm workspaces, tsdown, project references, oxlint + oxfmt gated in `npm run verify`), `check-graph.mjs`,
@@ -44,12 +41,12 @@ transform benchmark (`bench/`, advisory regression gate), the CI matrix + weekly
 examples are in place. The **M7** surface exists too: the VitePress docs site (`apps/docs`) with generated diagnostics +
 tree-schema pages, the playground (`apps/playground`), the manually dispatched **Release** workflow, and the community
 health files (code of conduct, issue forms, CODEOWNERS). Pulled ahead of the plan's post-0.1 backlog, the SQL providers
-split into **`@treequel/provider-postgres`** and **`@treequel/provider-sqlite`** over a shared **`@treequel/sql-core`**
-core (the `SqlDialect` seam + `makeSqlProvider`), which brought the count to thirteen `@treequel/*` packages
+split into **`@greffon/provider-postgres`** and **`@greffon/provider-sqlite`** over a shared **`@greffon/sql-core`**
+core (the `SqlDialect` seam + `makeSqlProvider`), which brought the count to thirteen `@greffon/*` packages
 (ADR-0003). Also ahead of plan: **first-class `leftJoin` and EF-style `include`/`thenInclude`** (relations declared via
 `defineRelations`, split-query batching in SQL, layered SQL compile with derived-table wrapping — ADR-0004), with the
-conformance corpus running on PGlite and sql.js, and **`@treequel/ts-transformer`** — a TypeScript-compiler emit
-transformer (ts-patch or the compiler API) for `tsc`-only builds with no bundler, a thin host over `@treequel/transform`
+conformance corpus running on PGlite and sql.js, and **`@greffon/ts-transformer`** — a TypeScript-compiler emit
+transformer (ts-patch or the compiler API) for `tsc`-only builds with no bundler, a thin host over `@greffon/transform`
 (ADR-0012) — bringing the total to fourteen. Also ahead of plan: **computed members** — `defineComputed` registers
 properties/methods derived from a row (`u.isAdult`, `o.net(0.1)`) that a query-layer pass inlines into the expression
 tree before translation, so memory and every SQL provider treat them identically (ADR-0014). **The one
@@ -68,7 +65,7 @@ mechanism. Expression trees are the product; LINQ-style querying is one applicat
 
 The split is deliberate, keep it consistent:
 
-- `packages/*` — code consumed by name (`@treequel/*`), published to npm. One public entry per package
+- `packages/*` — code consumed by name (`@greffon/*`), published to npm. One public entry per package
   (`src/index.ts`); `src/internal/**` is private plumbing.
 - `apps/*` — deployable surfaces, private: `docs` (VitePress → GitHub Pages), `playground` (Vite app dogfooding the
   transform).
@@ -93,7 +90,7 @@ M0 wires the toolchain; this is the contract for it. From the repo root:
 | `npm run verify` | Everything below in order — what CI runs, green before any release |
 | `node scripts/check-graph.mjs` | Dependency edges, duplicate-tool check, private-flag check |
 | `npx tsc -b` | Typecheck + build dist — project references, topological, incremental |
-| `npx oxlint` | Lint — the treequel rules load from the built `eslint-plugin` via `jsPlugins`, so run `npx tsc -b` first |
+| `npx oxlint` | Lint — the greffon rules load from the built `eslint-plugin` via `jsPlugins`, so run `npx tsc -b` first |
 | `npx oxfmt --check .` | Format check (`npx oxfmt .` to write) |
 | `npm run build --workspaces --if-present` | Build all packages (tsdown) |
 | `npx vitest run` | All test projects |
@@ -154,7 +151,7 @@ under `scripts/` is the source of truth once M0 lands, and CI lints the full PR 
   Optional but include the best fit; never invent one (a change to the pg dialect table is `fix(sql)`, not
   `fix(dialect)`).
 - **subject** — lower-case start, imperative mood, no trailing period, full header ≤ 100 chars.
-- Versioning is lockstep (one version for all `@treequel/*`, chosen at release time), so types don't drive bumps —
+- Versioning is lockstep (one version for all `@greffon/*`, chosen at release time), so types don't drive bumps —
   they drive the generated changelog. Pick them honestly: `feat`/`fix` are user-visible; a `!` or `BREAKING CHANGE:`
   footer marks tree-format or public-API breaks.
 - Never bypass the commit-msg hook with `--no-verify`.
@@ -183,17 +180,17 @@ scripts/*.mjs`), never bash.
 ### Documentation
 
 - Update the affected doc **in the same commit** as the code change.
-- `apps/docs/` is for people *using* Treequel. Contributor material (build steps, source layout, milestones) lives in
+- `apps/docs/` is for people *using* Greffon. Contributor material (build steps, source layout, milestones) lives in
   `CONTRIBUTING.md` and this file — never on the docs site.
 - Two docs pages are **generated — never hand-write or hand-edit them**: the diagnostics reference (from
   `packages/capture/src/diagnostics.ts`, the single source of truth) and the tree JSON-schema page (from the
-  `@treequel/tree` types). Edit the source and regenerate.
-- **Error-docs anchors are load-bearing.** Every diagnostic's docs anchor (`https://treequel.dev/errors#R1101`) is
+  `@greffon/tree` types). Edit the source and regenerate.
+- **Error-docs anchors are load-bearing.** Every diagnostic's docs anchor (`https://greffon.dev/errors#R1101`) is
   emitted in build errors, editor squiggles and lint output. Anchors are append-only, like the codes themselves.
 
 #### One canonical positioning line (MUST follow)
 
-Treequel is not a product being sold. Copy is informative, specific and honest — never promotional. The project
+Greffon is not a product being sold. Copy is informative, specific and honest — never promotional. The project
 describes itself the same way everywhere:
 
 > **Expression trees for TypeScript.** Write an ordinary lambda; it stays the function it always was, and becomes a

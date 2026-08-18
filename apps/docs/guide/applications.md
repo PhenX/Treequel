@@ -1,6 +1,6 @@
 # Applications
 
-SQL is the first thing Treequel does with an expression tree, not the only thing. Because the tree is a typed,
+SQL is the first thing Greffon does with an expression tree, not the only thing. Because the tree is a typed,
 versioned, JSON value over a closed grammar, the same lambda can filter a database, authorize an object, cross a
 process boundary, or sit in a store as data — with [the toolkit](/guide/the-tree) every pattern below uses.
 
@@ -16,7 +16,7 @@ tree can do four jobs from one definition: translate into the `WHERE` clause of 
 at the database), `evaluate` against a single object for a can-this-user-see-this check, run in the browser to show or
 hide UI, and serialize into a policy store to be audited, diffed, and versioned. The dual nature pays twice here —
 the same rule is both the filter that lists what you may see and the check on one item.
-[`examples/policy-rules`](https://github.com/PhenX/Treequel/tree/main/examples/policy-rules) runs exactly this story
+[`examples/policy-rules`](https://github.com/PhenX/Greffon/tree/main/examples/policy-rules) runs exactly this story
 as a CI test.
 
 ## Filters and saved searches over the wire
@@ -25,7 +25,7 @@ Instead of inventing query parameters or a bespoke filter DSL, a client can send
 The server re-validates it against the closed grammar and then either translates it (a provider) or interprets it
 (`evaluate`). The same shape backs a saved search stored as a column and re-run later, and "notify me when something
 matches" — where the stored tree runs as SQL for the backfill and as `evaluate` against each new event.
-[`examples/wire-filter`](https://github.com/PhenX/Treequel/tree/main/examples/wire-filter) runs this round trip as a
+[`examples/wire-filter`](https://github.com/PhenX/Greffon/tree/main/examples/wire-filter) runs this round trip as a
 CI test, tampered-payload rejection included.
 
 ## Rules as data
@@ -55,7 +55,7 @@ is a modest undertaking — the same rule evaluated by a polyglot backend.
 Not every use of an expression tree is a query. In the C# ecosystem, mocking, validation, and object-mapping
 libraries use tiny trees just to get a refactor-safe, statically typed path to a member — `x => x.profile.email` as
 both a getter and the string `"profile.email"`. TypeScript libraries fake this with string literals and `keyof`
-today; a reified selector gives form bindings, table column definitions, and patch builders the real thing. Treequel's
+today; a reified selector gives form bindings, table column definitions, and patch builders the real thing. Greffon's
 own `include(u => u.orders)` reads a navigation path exactly this way.
 
 ## Meta-tooling on your own queries

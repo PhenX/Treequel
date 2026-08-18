@@ -11,12 +11,12 @@ The `tsc` CLI does not apply custom emit transformers, and the `plugins` field i
 language-service (editor) plugins — the slot where [the editor plugin](/guide/editor-and-lint) loads — which the
 compiler ignores during emit. So there are two ways to run a transformer over
 your build: **ts-patch**, which patches the installed compiler so `tsc` picks up transformers from `tsconfig.json`, or
-the **compiler API**, where you drive `program.emit` yourself. `@treequel/ts-transformer` supports both.
+the **compiler API**, where you drive `program.emit` yourself. `@greffon/ts-transformer` supports both.
 
 ## With ts-patch
 
 ```sh
-npm i -D @treequel/ts-transformer ts-patch
+npm i -D @greffon/ts-transformer ts-patch
 ```
 
 Register the transformer in `tsconfig.json`, then let ts-patch run the compiler:
@@ -25,7 +25,7 @@ Register the transformer in `tsconfig.json`, then let ts-patch run the compiler:
 {
   "compilerOptions": {
     "module": "nodenext",
-    "plugins": [{ "transform": "@treequel/ts-transformer" }]
+    "plugins": [{ "transform": "@greffon/ts-transformer" }]
   }
 }
 ```
@@ -37,7 +37,7 @@ npx tspc          # ts-patch's tsc wrapper — or run `ts-patch install` once, t
 Any [transformer option](#options) goes on the same plugin entry:
 
 ```json
-{ "transform": "@treequel/ts-transformer", "packages": ["@treequel/query"], "diagnostics": "error" }
+{ "transform": "@greffon/ts-transformer", "packages": ["@greffon/query"], "diagnostics": "error" }
 ```
 
 ## With the compiler API
@@ -46,11 +46,11 @@ If you drive the compiler yourself, pass the factory as a `before` transformer:
 
 ```ts
 import ts from "typescript";
-import { createTransformerFactory } from "@treequel/ts-transformer";
+import { createTransformerFactory } from "@greffon/ts-transformer";
 
 const program = ts.createProgram(fileNames, compilerOptions);
 program.emit(undefined, undefined, undefined, false, {
-  before: [createTransformerFactory(program, { packages: ["@treequel/query"] })],
+  before: [createTransformerFactory(program, { packages: ["@greffon/query"] })],
 });
 ```
 
@@ -61,7 +61,7 @@ pre-scans the program for context definitions. Without a program, only `expr()` 
 
 | Option | Default | Meaning |
 |---|---|---|
-| `packages` | `["@treequel/query"]` | Import sources whose query methods are traced. |
+| `packages` | `["@greffon/query"]` | Import sources whose query methods are traced. |
 | `emitSource` | `false` | Keep the original lambda text on the tree as `src`. |
 | `diagnostics` | `"warn"` | `"error"` fails the build, `"warn"` prints, `"silent"` neither. |
 | `include` / `exclude` | `/\.[cm]?[jt]sx?$/` / `/node_modules/` | Which files to process (compiler-API usage only — `tsconfig` cannot carry a RegExp). |
@@ -71,7 +71,7 @@ pre-scans the program for context definitions. Without a program, only `expr()` 
 
 - **ES-module output is required.** The transformer injects a live ES-module import for the runtime host; set `module`
   to `esnext` or `nodenext`. CommonJS output is refused with an error, because the injected reference would be left
-  unbound. Treequel is ESM-only.
+  unbound. Greffon is ESM-only.
 - **It runs during emit.** Declaration output (`.d.ts`) and type-checking are unaffected — reification only rewrites the
   emitted JavaScript.
 - **A non-`tsc` emitter skips it.** If you type-check with `tsc` but emit with esbuild, swc, or Babel, the transformer

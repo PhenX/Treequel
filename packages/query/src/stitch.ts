@@ -5,7 +5,7 @@
  * (`attachChildren`). Every provider — memory and SQL alike — stitches through
  * these, so include results agree on shape.
  */
-import { TreequelError } from "@treequel/core";
+import { GreffonError } from "@greffon/core";
 import { canonical } from "./canon.js";
 import type { IncludeSpec } from "./plan.js";
 
@@ -31,7 +31,7 @@ export function collectKeys(rows: readonly unknown[], prop: string, nav: string)
 /** Read a stitch key strictly: a row without the property is a modeling error. */
 export function rowKey(row: unknown, prop: string, nav: string): unknown {
   if (row === null || typeof row !== "object" || !(prop in row)) {
-    throw new TreequelError(
+    throw new GreffonError(
       "R2002",
       `include('${nav}') requires the key '${prop}' to be present on the rows.`,
     );

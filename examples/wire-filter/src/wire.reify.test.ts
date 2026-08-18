@@ -1,7 +1,7 @@
-import { evaluate, makeExpr, partialEval } from "@treequel/core";
-import { memoryProvider } from "@treequel/provider-memory";
-import { createContext } from "@treequel/query";
-import { deserialize, serialize } from "@treequel/tree";
+import { evaluate, makeExpr, partialEval } from "@greffon/core";
+import { memoryProvider } from "@greffon/provider-memory";
+import { createContext } from "@greffon/query";
+import { deserialize, serialize } from "@greffon/tree";
 import { describe, expect, it } from "vitest";
 import { type AppEvent, storedEvents } from "./events.js";
 import { bigPurchases } from "./filters.js";

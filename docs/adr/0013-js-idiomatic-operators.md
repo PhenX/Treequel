@@ -27,7 +27,7 @@ projects with `Array.prototype.map` underneath.
    already means string concatenation. Naming any of these after an array method would mislead.
 4. **The executors are unchanged.** `first`/`firstOrThrow`/`single`/`count`/`sum`/`min`/`max`/`avg` stay as ADR-0005
    settled them; `some`/`every` already followed this convention. The [C# lineage](../../apps/docs/guide/lineage.md)
-   page carries the full three-column map — Treequel operator, its `Array` analog, the LINQ name — so the parallel is
+   page carries the full three-column map — Greffon operator, its `Array` analog, the LINQ name — so the parallel is
    documented rather than folklore.
 
 ## Consequences
@@ -39,5 +39,5 @@ projects with `Array.prototype.map` underneath.
 - The conformance corpus, the reify/property provider suites, the transform and ts-transformer snapshots, and the docs
   (getting-started, grouping, joins-and-includes, the boundary rule, the ORM comparison, the C# lineage, the README and
   the playground) move in the same change. The diagnostic that rejects a raw group projection now names `map`.
-- No wire-format change: `@treequel/tree` serializes `Expr` nodes, not `QueryPlan` op kinds, so `FORMAT_VERSION` is
+- No wire-format change: `@greffon/tree` serializes `Expr` nodes, not `QueryPlan` op kinds, so `FORMAT_VERSION` is
   untouched. The rename is confined to the query layer and its providers.

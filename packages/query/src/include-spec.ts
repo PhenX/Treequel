@@ -4,7 +4,7 @@
  * relations map, and `appendChild`/`chainTail`/`mergeIncludeSpecs`/`collectIncludes`
  * assemble and de-duplicate the specs a plan carries. Pure spec data — no rows.
  */
-import { TreequelError, isExpr } from "@treequel/core";
+import { GreffonError, isExpr } from "@greffon/core";
 import type { IncludeSpec, PlanOp } from "./plan.js";
 import type { Relation, RelationsMeta } from "./relations.js";
 
@@ -16,7 +16,7 @@ import type { Relation, RelationsMeta } from "./relations.js";
 export function navName(selector: unknown): string {
   const fn = isExpr(selector) ? selector.compiled : selector;
   if (typeof fn !== "function") {
-    throw new TreequelError("R2008", "include()/thenInclude() expects a navigation selector.");
+    throw new GreffonError("R2008", "include()/thenInclude() expects a navigation selector.");
   }
   const path: string[] = [];
   const probe: object = new Proxy(Object.create(null) as object, {
@@ -28,7 +28,7 @@ export function navName(selector: unknown): string {
   });
   const out = (fn as (x: unknown) => unknown)(probe);
   if (out !== probe || path.length !== 1) {
-    throw new TreequelError(
+    throw new GreffonError(
       "R2008",
       "A navigation selector must be a single property access (`u => u.orders`); " +
         "chain .thenInclude() for nested navigations.",
@@ -45,7 +45,7 @@ export function resolveRelation(
 ): Relation {
   const rel = relations?.[source]?.[nav];
   if (!rel) {
-    throw new TreequelError(
+    throw new GreffonError(
       "R2007",
       `Unknown navigation '${nav}' on source '${source}'. ` +
         "Declare it in the relations map passed to createContext(provider, { relations }).",
@@ -87,7 +87,7 @@ export function mergeIncludeSpecs(specs: readonly IncludeSpec[]): IncludeSpec[] 
       byNav.set(spec.nav, spec);
     } else {
       if (isRefined(prev) || isRefined(spec)) {
-        throw new TreequelError(
+        throw new GreffonError(
           "R2008",
           `The refined include('${spec.nav}') may be stated once; chain thenInclude() from that single statement.`,
         );

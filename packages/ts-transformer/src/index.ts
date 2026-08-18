@@ -1,7 +1,7 @@
 /**
- * `@treequel/ts-transformer` — reify Treequel query lambdas when the build runs
+ * `@greffon/ts-transformer` — reify Greffon query lambdas when the build runs
  * through the TypeScript compiler instead of a bundler. It is a thin host over
- * `@treequel/transform`: the oxc-based tracer/capture decides what to reify, and
+ * `@greffon/transform`: the oxc-based tracer/capture decides what to reify, and
  * this package applies those edits to the TypeScript AST. The one parser stays
  * oxc; TypeScript only drives emit.
  *
@@ -9,7 +9,7 @@
  *
  * 1. **ts-patch** (`plugins` in tsconfig, then `tsc`/`tsc -b`):
  *    ```json
- *    { "compilerOptions": { "plugins": [{ "transform": "@treequel/ts-transformer" }] } }
+ *    { "compilerOptions": { "plugins": [{ "transform": "@greffon/ts-transformer" }] } }
  *    ```
  * 2. **The compiler API** — pass {@link createTransformerFactory} to `program.emit`:
  *    ```ts
@@ -21,7 +21,7 @@
  * Transformers run during emit only: `.d.ts` output is unaffected, and an emitter
  * that skips the TypeScript program (esbuild, swc, Babel) skips this too. The
  * injected host import is a live ES-module binding, so the compiler must emit ES
- * modules (`module: esnext`/`nodenext`) — Treequel is ESM-only regardless.
+ * modules (`module: esnext`/`nodenext`) — Greffon is ESM-only regardless.
  */
 import ts from "typescript";
 import {
@@ -33,12 +33,12 @@ import {
   createRegistry,
   planModuleSync,
   scanModuleContexts,
-} from "@treequel/transform";
+} from "@greffon/transform";
 
 export type FilterPattern = RegExp | RegExp[];
 
-export interface TreequelTransformerOptions {
-  /** Traced import sources. Default: `["@treequel/query"]`. */
+export interface GreffonTransformerOptions {
+  /** Traced import sources. Default: `["@greffon/query"]`. */
   packages?: readonly string[];
   /** Extra globals safelist passed through to capture. */
   globals?: readonly string[];
@@ -89,7 +89,7 @@ function reportDiagnostics(
 ): void {
   if (mode === "silent") return;
   for (const d of diagnostics) {
-    const line = `[treequel] ${d.code} ${d.message}${d.hint ? ` — ${d.hint}` : ""} (${fileName})`;
+    const line = `[greffon] ${d.code} ${d.message}${d.hint ? ` — ${d.hint}` : ""} (${fileName})`;
     if (d.severity === "error" && mode === "error") throw new Error(line);
     console.warn(line);
   }
@@ -112,7 +112,7 @@ function synthesize(node: ts.Node): void {
 /** Parse an `__expr({...})` replacement string into a synthesized expression node. */
 function parseReplacement(text: string, target: ts.ScriptTarget): ts.Expression {
   const sf = ts.createSourceFile(
-    "__treequel_expr__.ts",
+    "__greffon_expr__.ts",
     `(${text})`,
     target,
     false,
@@ -142,7 +142,7 @@ function emitsCommonJs(program: ts.Program | undefined, sourceFile: ts.SourceFil
   return moduleKind < ts.ModuleKind.ES2015; // CommonJS / AMD / UMD / System
 }
 
-/** The `import { __expr as __tql_expr$ } from "@treequel/core"` the host references. */
+/** The `import { __expr as __tql_expr$ } from "@greffon/core"` the host references. */
 function hostImport(): ts.ImportDeclaration {
   return ts.factory.createImportDeclaration(
     undefined,
@@ -170,7 +170,7 @@ function hostImport(): ts.ImportDeclaration {
  */
 export function createTransformerFactory(
   program?: ts.Program,
-  options: TreequelTransformerOptions = {},
+  options: GreffonTransformerOptions = {},
 ): ts.TransformerFactory<ts.SourceFile> {
   const include = asFilter(options.include, DEFAULT_INCLUDE);
   const exclude = asFilter(options.exclude, DEFAULT_EXCLUDE);
@@ -215,7 +215,7 @@ export function createTransformerFactory(
 
     if (emitsCommonJs(program, sourceFile)) {
       throw new Error(
-        `[treequel] the TypeScript transformer needs ES module output — set "module" to ` +
+        `[greffon] the TypeScript transformer needs ES module output — set "module" to ` +
           `"esnext" or "nodenext". CommonJS emit leaves the reified host import unbound ` +
           `(${sourceFile.fileName}).`,
       );
@@ -241,12 +241,12 @@ export function createTransformerFactory(
 
 /**
  * ts-patch program-transformer entry. ts-patch calls this with the `Program` and
- * the plugin config (which carries any {@link TreequelTransformerOptions}); the
- * default export is what `{ "transform": "@treequel/ts-transformer" }` loads.
+ * the plugin config (which carries any {@link GreffonTransformerOptions}); the
+ * default export is what `{ "transform": "@greffon/ts-transformer" }` loads.
  */
-export default function treequelTransformer(
+export default function greffonTransformer(
   program: ts.Program,
-  config: TreequelTransformerOptions = {},
+  config: GreffonTransformerOptions = {},
 ): ts.TransformerFactory<ts.SourceFile> {
   return createTransformerFactory(program, config);
 }

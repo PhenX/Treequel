@@ -1,11 +1,11 @@
 {
-  "name": "@treequel/fallback",
+  "name": "@greffon/fallback",
   "version": "0.1.0",
-  "description": "Treequel runtime toString() capture fallback (dev-only, lazy-loaded).",
+  "description": "Greffon runtime toString() capture fallback (dev-only, lazy-loaded).",
   "keywords": [
     "fallback",
     "meriyah",
-    "treequel"
+    "greffon"
   ],
   "license": "MIT",
   "files": [
@@ -35,8 +35,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@treequel/capture": "*",
-    "@treequel/core": "*",
+    "@greffon/capture": "*",
+    "@greffon/core": "*",
     "meriyah": "^6.0.0"
   },
   "engines": {

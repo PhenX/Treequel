@@ -1,13 +1,13 @@
 {
-  "name": "@treequel/provider-sqlite",
+  "name": "@greffon/provider-sqlite",
   "version": "0.1.0",
-  "description": "Treequel SQLite provider — compiles expression trees to parameterized SQLite.",
+  "description": "Greffon SQLite provider — compiles expression trees to parameterized SQLite.",
   "keywords": [
     "linq",
     "provider",
     "sql",
     "sqlite",
-    "treequel"
+    "greffon"
   ],
   "license": "MIT",
   "files": [
@@ -31,7 +31,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@treequel/sql-core": "*"
+    "@greffon/sql-core": "*"
   },
   "engines": {
     "node": ">=20"

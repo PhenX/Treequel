@@ -1,4 +1,4 @@
-import { type Expr, TreequelError, expr, isExpr } from "@treequel/core";
+import { type Expr, GreffonError, expr, isExpr } from "@greffon/core";
 import { type ComputedMeta, expandComputed } from "./computed.js";
 import { appendChild, chainTail, navName, resolveRelation } from "./include-spec.js";
 import { type Grouping, applyOps } from "./memory-engine.js";
@@ -63,7 +63,7 @@ class IncludeQueryBuilder<T> implements IncludeQuery<T> {
 
   private op(op: PlanOp): IncludeQueryBuilder<T> {
     if (this.takeN !== undefined || this.skipN !== undefined) {
-      throw new TreequelError("R2008", "Refine an include before slicing it with take()/skip().");
+      throw new GreffonError("R2008", "Refine an include before slicing it with take()/skip().");
     }
     return new IncludeQueryBuilder<T>([...this.ops, op], this.takeN, this.skipN);
   }
@@ -103,7 +103,7 @@ class IncludeQueryBuilder<T> implements IncludeQuery<T> {
       (this.takeN !== undefined || this.skipN !== undefined) &&
       !this.ops.some((o) => o.op === "orderBy")
     ) {
-      throw new TreequelError(
+      throw new GreffonError(
         "R2008",
         "take()/skip() on an include requires an orderBy — per-parent slices must be deterministic.",
       );
@@ -120,7 +120,7 @@ function refineSpec(spec: IncludeSpec, refine: IncludeRefine<never> | undefined)
   if (!refine) return spec;
   const built = refine(new IncludeQueryBuilder<never>());
   if (!(built instanceof IncludeQueryBuilder)) {
-    throw new TreequelError("R2008", "An include refinement must return the builder it was given.");
+    throw new GreffonError("R2008", "An include refinement must return the builder it was given.");
   }
   const refinement = built.finish();
   return refinement ? { ...spec, ...refinement } : spec;
@@ -225,7 +225,7 @@ function precheck(provider: QueryProvider, plan: QueryPlan): void {
   const caps = provider.capabilities();
   for (const op of plan.ops) {
     if (!caps.ops.has(op.op)) {
-      throw new TreequelError(
+      throw new GreffonError(
         "R2001",
         `Provider '${provider.name}' cannot translate the '${op.op}' operation.`,
       );
@@ -235,7 +235,7 @@ function precheck(provider: QueryProvider, plan: QueryPlan): void {
 }
 
 const throwingSource = (source: string): never => {
-  throw new TreequelError(
+  throw new GreffonError(
     "R2001",
     `In-memory suffix after .inMemory() cannot resolve source '${source}' (joins and includes after the boundary are unsupported in v1).`,
   );
@@ -361,7 +361,7 @@ class QueryableImpl<T> implements Ordered<T> {
   ): Includable<T, unknown> {
     const last = this.plan.ops[this.plan.ops.length - 1];
     if (!last || last.op !== "include") {
-      throw new TreequelError("R2008", ".thenInclude() must directly follow .include().");
+      throw new GreffonError("R2008", ".thenInclude() must directly follow .include().");
     }
     const name = navName(nav);
     const parent = chainTail(last.spec);

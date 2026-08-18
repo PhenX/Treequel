@@ -1,12 +1,12 @@
 {
-  "name": "@treequel/provider-memory",
+  "name": "@greffon/provider-memory",
   "version": "0.1.0",
-  "description": "Treequel reference provider — runs queries in memory via compiled lambdas.",
+  "description": "Greffon reference provider — runs queries in memory via compiled lambdas.",
   "keywords": [
     "in-memory",
     "linq",
     "provider",
-    "treequel"
+    "greffon"
   ],
   "license": "MIT",
   "files": [
@@ -30,8 +30,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@treequel/core": "*",
-    "@treequel/query": "*"
+    "@greffon/core": "*",
+    "@greffon/query": "*"
   },
   "engines": {
     "node": ">=20"

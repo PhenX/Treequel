@@ -1,9 +1,9 @@
-import { type Context, expr } from "@treequel/query";
+import { type Context, expr } from "@greffon/query";
 import type { Schema, User } from "./schema.js";
 
 /**
  * Query definitions, written once, provider-agnostic. The lambdas are reified
- * into expression trees by the Treequel build plugin (here via `expr()`, which
+ * into expression trees by the Greffon build plugin (here via `expr()`, which
  * is reified regardless of taint). Pass any `Context` — memory or Postgres — and
  * the same definitions execute either way.
  */

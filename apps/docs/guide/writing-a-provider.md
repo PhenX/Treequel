@@ -33,7 +33,7 @@ Fetch related rows however your backend likes (the SQL core batches
 live in shared helpers so every provider agrees on the result shape:
 
 ```ts
-import { collectIncludes, collectKeys, attachChildren } from "@treequel/query";
+import { collectIncludes, collectKeys, attachChildren } from "@greffon/query";
 
 const specs = collectIncludes(plan.ops); // merged across repeated include()
 const keys = collectKeys(parents, spec.from, spec.nav); // distinct, non-null
@@ -48,7 +48,7 @@ Always fold captures before translating. `partialEval` resolves the live closure
 subtree to a `Constant`, leaving a residual tree of param-rooted data access, constants, and operations over them.
 
 ```ts
-import { partialEval } from "@treequel/core";
+import { partialEval } from "@greffon/core";
 
 const residual = partialEval({ body: op.expr.body, scope: op.expr.scope });
 ```
@@ -62,7 +62,7 @@ The in-memory provider defines correct behavior. Your provider must produce the 
 ships a conformance harness:
 
 ```ts
-import { defaultRelations, runConformance } from "@treequel/query/testing";
+import { defaultRelations, runConformance } from "@greffon/query/testing";
 
 const results = await runConformance((fixtures) => makeMyProvider(fixtures), {
   fixtures, // users / orders / items arrays
@@ -72,7 +72,7 @@ const failures = results.filter((r) => !r.equal);
 ```
 
 The corpus queries are wrapped in `expr()`, so they reify into real trees whenever the module runs under the build
-plugin — trace `@treequel/core` in the plugin's `packages` option, or `import "@treequel/fallback/register"` when no
+plugin — trace `@greffon/core` in the plugin's `packages` option, or `import "@greffon/fallback/register"` when no
 build step runs the tests. Every divergence the reference finds — LIKE escaping, null ordering, collation, null join
 keys — becomes a permanent regression fixture.
 

@@ -11,7 +11,7 @@ The sections in `.vitepress/config.ts`, in reading order:
 |---|---|---|
 | Start here | Anyone new | Concepts and the quick start. Getting started stays a quick start — setup depth belongs on the dedicated pages, not accreted here. |
 | Querying | App developers using queries | Opens with the basics page (`queries.md`), closes with `sql-providers.md`. A new query feature's page goes between them. |
-| Build & tooling | People wiring Treequel into a repo | Build paths, editor, lint. |
+| Build & tooling | People wiring Greffon into a repo | Build paths, editor, lint. |
 | Extending | Provider authors | The SPI surface. |
 | Background | Evaluators & C# arrivals | Lineage and comparisons. |
 | Reference | Everyone | Generated pages only. |
@@ -27,7 +27,7 @@ protocol to Extending.
   rather than rename.
 - **Never move `/errors`.** Its `#Rxxxx` anchors are emitted by build errors, editor squiggles, and lint output.
 - Runnable examples (`examples/*`) are linked from the page that teaches their story, as
-  `https://github.com/PhenX/Treequel/tree/main/examples/<name>`.
+  `https://github.com/PhenX/Greffon/tree/main/examples/<name>`.
 
 ## Accuracy
 

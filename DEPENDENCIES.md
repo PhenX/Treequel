@@ -10,18 +10,18 @@ Runtime packages (`tree`, `core`, `query`, `provider-memory`, `sql-core`) carry 
 
 | Package | Dependency | Why it can't reasonably be vendored |
 |---|---|---|
-| `@treequel/transform` | `oxc-parser` | TS-aware native-speed parsing; the parser the VoidZero stack shares. Dev/build-time only. |
-| `@treequel/transform` | `magic-string` | Sourcemap-correct source splicing; tiny; used by Vite itself. |
-| `@treequel/fallback` | `meriyah` | Pure-JS ESTree parser for browser-safe runtime `toString()` parsing; `oxc-parser` is a native binding. Lazy-loaded. |
-| `@treequel/ts-plugin` | `oxc-parser` | Re-parses each query lambda with the same parser as the build, for true editor/build parity. |
+| `@greffon/transform` | `oxc-parser` | TS-aware native-speed parsing; the parser the VoidZero stack shares. Dev/build-time only. |
+| `@greffon/transform` | `magic-string` | Sourcemap-correct source splicing; tiny; used by Vite itself. |
+| `@greffon/fallback` | `meriyah` | Pure-JS ESTree parser for browser-safe runtime `toString()` parsing; `oxc-parser` is a native binding. Lazy-loaded. |
+| `@greffon/ts-plugin` | `oxc-parser` | Re-parses each query lambda with the same parser as the build, for true editor/build parity. |
 
 ## Peer dependencies
 
 | Package | Peer | Why |
 |---|---|---|
-| `@treequel/ts-plugin` | `typescript` (≥ 5) | It is a TypeScript language-service plugin. |
-| `@treequel/ts-transformer` | `typescript` (≥ 5) | It is a TypeScript-compiler emit transformer; the compiler is the host, brought by the user. |
-| `@treequel/eslint-plugin` | `eslint` (≥ 8) | It is an ESLint plugin; ESLint deps stay scoped to this package. |
+| `@greffon/ts-plugin` | `typescript` (≥ 5) | It is a TypeScript language-service plugin. |
+| `@greffon/ts-transformer` | `typescript` (≥ 5) | It is a TypeScript-compiler emit transformer; the compiler is the host, brought by the user. |
+| `@greffon/eslint-plugin` | `eslint` (≥ 8) | It is an ESLint plugin; ESLint deps stay scoped to this package. |
 
 ## Repository devDependencies
 
@@ -35,17 +35,17 @@ Runtime packages (`tree`, `core`, `query`, `provider-memory`, `sql-core`) carry 
 | `@electric-sql/pglite` | Real-Postgres conformance in CI without a service container. |
 | `sql.js` | Real-SQLite conformance in tests (WASM, no native build) — the SQLite counterpart to PGlite. |
 | `tinybench` | The `bench/` transform microbenchmark and its CI regression gate. |
-| `eslint`, `@typescript-eslint/parser` | Scoped to `@treequel/eslint-plugin` tests (RuleTester). |
+| `eslint`, `@typescript-eslint/parser` | Scoped to `@greffon/eslint-plugin` tests (RuleTester). |
 
 ## App dependencies
 
 `apps/*` are private and bundled — their dependencies are compiled into the deployed site and never reach a consumer of
-`@treequel/*`. They are inventoried here all the same.
+`@greffon/*`. They are inventoried here all the same.
 
 | App | Dependency | Why |
 |---|---|---|
 | `playground` | `vite` | Dev server and bundler for the app. |
-| `playground` | `monaco-editor` | Syntax highlighting for the lambda editor, the captures editor and the read-only viewers (TypeScript / JSON / `pgsql`), plus inline squiggles that render the capture diagnostics at their exact source spans. Browser-only, code-split, and confined to the playground; no runtime `@treequel/*` package depends on it, and Treequel's own capture pipeline — not Monaco's TypeScript service — stays the source of truth for validation. |
+| `playground` | `monaco-editor` | Syntax highlighting for the lambda editor, the captures editor and the read-only viewers (TypeScript / JSON / `pgsql`), plus inline squiggles that render the capture diagnostics at their exact source spans. Browser-only, code-split, and confined to the playground; no runtime `@greffon/*` package depends on it, and Greffon's own capture pipeline — not Monaco's TypeScript service — stays the source of truth for validation. |
 
 ## Deliberately not used
 

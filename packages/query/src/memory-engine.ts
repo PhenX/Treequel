@@ -1,4 +1,4 @@
-import { TreequelError } from "@treequel/core";
+import { GreffonError } from "@greffon/core";
 import { canonical } from "./canon.js";
 import { collectIncludes } from "./include-spec.js";
 import { predicateSpecs, touchedRootProps, tryBody } from "./navpredicates.js";
@@ -53,10 +53,10 @@ function navEvalRows(cur: unknown[], e: AnyExpr, env: PlanEnv, rows: RowSource):
   if (body === null) {
     for (const prop of touchedRootProps(e.compiled)) {
       if (navs[prop]) {
-        throw new TreequelError(
+        throw new GreffonError(
           "R3001",
           `This lambda reads the navigation '${prop}', which needs an expression tree to resolve. ` +
-            'Enable the @treequel/vite build plugin or `import "@treequel/fallback/register"`.',
+            'Enable the @greffon/vite build plugin or `import "@greffon/fallback/register"`.',
         );
       }
     }
@@ -368,15 +368,15 @@ function execute(
     case "first":
       if (filtered.length === 0) {
         if (op.orNull) return null;
-        throw new Error("Treequel: firstOrThrow() found no element.");
+        throw new Error("Greffon: firstOrThrow() found no element.");
       }
       return filtered[0];
     case "single":
       if (filtered.length === 0) {
         if (op.orNull) return null;
-        throw new Error("Treequel: single() found no element.");
+        throw new Error("Greffon: single() found no element.");
       }
-      if (filtered.length > 1) throw new Error("Treequel: single() found more than one element.");
+      if (filtered.length > 1) throw new Error("Greffon: single() found more than one element.");
       return filtered[0];
     case "count":
       return filtered.length;

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Lockstep release: bump every @treequel/* package to one shared version,
+// Lockstep release: bump every @greffon/* package to one shared version,
 // rewrite internal "*" ranges to the concrete version, and prepend a changelog
 // section rendered from the Conventional-Commit history. Plain Node, zero deps.
 //
@@ -127,7 +127,7 @@ function run() {
       const deps = json[field];
       if (!deps) continue;
       for (const dep of Object.keys(deps)) {
-        if (dep.startsWith("@treequel/") && deps[dep] === "*") deps[dep] = `^${version}`;
+        if (dep.startsWith("@greffon/") && deps[dep] === "*") deps[dep] = `^${version}`;
       }
     }
     const isPublic = json.private !== true;

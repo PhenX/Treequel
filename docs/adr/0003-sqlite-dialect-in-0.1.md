@@ -4,7 +4,7 @@ Status: accepted (the shared core's package name is superseded by ADR-0010: `pro
 
 ## Context
 
-The plan (§10.2, §16) makes `@treequel/provider-sql` "Postgres first" — one package with a dialect table — and
+The plan (§10.2, §16) makes `@greffon/provider-sql` "Postgres first" — one package with a dialect table — and
 schedules `mysql`/`sqlite` for the post-0.1 backlog. Two things changed: SQLite was pulled into the 0.1 scope, and a
 second first-party target made the packaging question concrete.
 
@@ -17,14 +17,14 @@ SQL. A single package exporting `sqlProvider` (which meant Postgres) plus `sqlit
 
 Two layers:
 
-1. **A `SqlDialect` seam.** `@treequel/provider-sql` becomes the shared, dialect-agnostic core: the translator
+1. **A `SqlDialect` seam.** `@greffon/provider-sql` becomes the shared, dialect-agnostic core: the translator
    (`translate`, `TranslateContext`, `quoteIdent`), the `SqlDialect` interface + escape helpers, and the provider
    builder `makeSqlProvider`. It captures exactly the pieces that vary — placeholder rendering, string matching, array
    membership, float casts, the `OFFSET`/`LIMIT` rule, null ordering, and driver value coercion.
 
-2. **One package per dialect.** `@treequel/provider-postgres` exports `postgres(...)` + `pgDialect`;
-   `@treequel/provider-sqlite` exports `sqlite(...)` + `sqliteDialect`. Each is a thin package that supplies a
-   `SqlDialect` and calls `makeSqlProvider`, and depends **only** on `@treequel/provider-sql` (which re-exports the
+2. **One package per dialect.** `@greffon/provider-postgres` exports `postgres(...)` + `pgDialect`;
+   `@greffon/provider-sqlite` exports `sqlite(...)` + `sqliteDialect`. Each is a thin package that supplies a
+   `SqlDialect` and calls `makeSqlProvider`, and depends **only** on `@greffon/provider-sql` (which re-exports the
    `QueryProvider` type and the schema/executor types). Factory functions, not classes — consistent with
    `memoryProvider` and friendlier to tree-shaking.
 
@@ -37,7 +37,7 @@ boolean type).
 ## Consequences
 
 - The dialect seam is the extension point a future MySQL dialect — or a third-party one — slots into: publish a package
-  that depends on `@treequel/provider-sql` and calls `makeSqlProvider`. Postgres and SQLite are just the first two.
+  that depends on `@greffon/provider-sql` and calls `makeSqlProvider`. Postgres and SQLite are just the first two.
 - Three packages instead of one, and two more edges in `scripts/check-graph.mjs`. Lockstep versioning means no
   independent-version benefit, but the import surface is now symmetric and self-describing
   (`postgres` / `sqlite`), and each provider documents itself.

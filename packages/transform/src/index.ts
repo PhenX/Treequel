@@ -1,5 +1,5 @@
 /**
- * `@treequel/transform` — the pure, bundler-free build transform. Reifies
+ * `@greffon/transform` — the pure, bundler-free build transform. Reifies
  * lambda literals at traced query call sites (or wrapped in `expr()`) into
  * `__expr({...})`, preserving the original lambda as `compiled`. Driven by any
  * bundler through a tiny host interface.

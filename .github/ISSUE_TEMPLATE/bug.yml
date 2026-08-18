@@ -46,13 +46,13 @@ body:
     id: diagnostic
     attributes:
       label: Diagnostic code
-      description: If a treequel error was raised, its code (e.g. R2001). See the error reference.
+      description: If a greffon error was raised, its code (e.g. R2001). See the error reference.
       placeholder: R____
   - type: input
     id: versions
     attributes:
       label: Versions
-      description: Treequel version, Node version, and bundler (Vite/Rollup/Rolldown) + version.
+      description: Greffon version, Node version, and bundler (Vite/Rollup/Rolldown) + version.
     validations:
       required: true
   - type: dropdown
@@ -60,7 +60,7 @@ body:
     attributes:
       label: Was the build plugin configured?
       options:
-        - "Yes — @treequel/vite is in the config"
+        - "Yes — @greffon/vite is in the config"
         - "No — running without the plugin (fallback path)"
         - "Not sure"
     validations:

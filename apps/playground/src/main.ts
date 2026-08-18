@@ -1,9 +1,9 @@
-import { __expr, evaluate, type Node, print } from "@treequel/core";
-import { parseFunctionSource } from "@treequel/fallback";
-import { createContext, defineRelations } from "@treequel/query";
-import { type SchemaMeta, postgres } from "@treequel/provider-postgres";
-import { emitNode } from "@treequel/transform/emit";
-import { serialize } from "@treequel/tree";
+import { __expr, evaluate, type Node, print } from "@greffon/core";
+import { parseFunctionSource } from "@greffon/fallback";
+import { createContext, defineRelations } from "@greffon/query";
+import { type SchemaMeta, postgres } from "@greffon/provider-postgres";
+import { emitNode } from "@greffon/transform/emit";
+import { serialize } from "@greffon/tree";
 import {
   diagnosticMarkers,
   parseErrorInfo,
@@ -241,7 +241,7 @@ function renderDiagnostics(diags: readonly SpanDiagnostic[]): void {
   diagnosticsEl.innerHTML = diags
     .map(
       (d) =>
-        `<div class="diag ${d.severity}"><a href="/Treequel/errors#${d.code}">${d.code}</a> ${escapeHtml(
+        `<div class="diag ${d.severity}"><a href="/Greffon/errors#${d.code}">${d.code}</a> ${escapeHtml(
           d.message,
         )}${d.hint ? `<span class="diag-hint">${escapeHtml(d.hint)}</span>` : ""}</div>`,
     )
@@ -335,7 +335,7 @@ async function render(): Promise<void> {
       body,
       scope: () => capturedValues,
     });
-    // oxlint-disable-next-line treequel/no-opaque-callback -- `expr` holds a reified Expr value, not a function reference
+    // oxlint-disable-next-line greffon/no-opaque-callback -- `expr` holds a reified Expr value, not a function reference
     const query = body.kind === "ObjectLit" ? db.users.map(expr) : db.users.filter(expr);
     sqlViewer.setValue(await query.explain(), "pgsql");
     sqlPanel.classList.remove("error");

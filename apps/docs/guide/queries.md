@@ -12,7 +12,7 @@ options carry [relations](/guide/joins-and-includes#includes) for `include`/`fla
 [computed members](/guide/computed-members):
 
 ```ts
-import { createContext } from "@treequel/query";
+import { createContext } from "@greffon/query";
 
 const db = createContext<{ users: User; orders: Order }>(provider, { relations, computed });
 ```

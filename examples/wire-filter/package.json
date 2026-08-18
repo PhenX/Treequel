@@ -1,5 +1,5 @@
 {
-  "name": "@treequel-example/wire-filter",
+  "name": "@greffon-example/wire-filter",
   "version": "0.1.0",
   "private": true,
   "description": "A saved-search predicate crossing a process boundary as JSON: serialize, re-validate, evaluate live events, and backfill as a query.",
@@ -8,12 +8,12 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@treequel/core": "*",
-    "@treequel/provider-memory": "*",
-    "@treequel/query": "*",
-    "@treequel/tree": "*"
+    "@greffon/core": "*",
+    "@greffon/provider-memory": "*",
+    "@greffon/query": "*",
+    "@greffon/tree": "*"
   },
   "devDependencies": {
-    "@treequel/vite": "*"
+    "@greffon/vite": "*"
   }
 }

@@ -1,12 +1,12 @@
 # Contributing
 
-Thanks for your interest in Treequel! This file covers setup, quality checks and commit conventions. See
+Thanks for your interest in Greffon! This file covers setup, quality checks and commit conventions. See
 [AGENTS.md](AGENTS.md) for repository structure and the conventions that apply to every change.
 
 ## Status
 
 Pre-0.1: the repository is under initial construction and nothing is published to npm yet. Check the
-[open issues](https://github.com/PhenX/Treequel/issues) for direction; for anything non-trivial, open an issue first
+[open issues](https://github.com/PhenX/Greffon/issues) for direction; for anything non-trivial, open an issue first
 so we can agree on the approach before you invest time.
 
 ## Getting set up
@@ -14,8 +14,8 @@ so we can agree on the approach before you invest time.
 Prerequisites: **Node.js 20+**, npm, Git.
 
 ```bash
-git clone https://github.com/PhenX/Treequel.git
-cd Treequel
+git clone https://github.com/PhenX/Greffon.git
+cd Greffon
 npm ci
 npm run verify
 ```
@@ -53,7 +53,7 @@ baseline with `node bench/transform.bench.mjs --update` when an intentional chan
 ## Commit messages & PR titles
 
 This repo uses [Conventional Commits](https://www.conventionalcommits.org/), enforced by a commit-msg check locally
-and in CI. Versioning is lockstep — every `@treequel/*` package shares one version, chosen at release time — so the
+and in CI. Versioning is lockstep — every `@greffon/*` package shares one version, chosen at release time — so the
 type doesn't decide the bump; it decides where the change appears in the generated changelog.
 
 ### Format
@@ -98,7 +98,7 @@ BREAKING CHANGE: serialized trees containing bigint constants require format ver
 ## Dependencies
 
 Every third-party dependency needs a justified row in `DEPENDENCIES.md` in the same PR that adds it. Runtime packages
-(`@treequel/tree`, `core`, `query`, providers) accept **no** production dependencies at all.
+(`@greffon/tree`, `core`, `query`, providers) accept **no** production dependencies at all.
 
 ## Releases
 

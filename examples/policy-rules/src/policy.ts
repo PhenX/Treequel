@@ -1,4 +1,4 @@
-import { type Expr, expr } from "@treequel/core";
+import { type Expr, expr } from "@greffon/core";
 import type { Doc, Viewer } from "./schema.js";
 
 /**

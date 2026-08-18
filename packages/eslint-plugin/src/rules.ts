@@ -1,4 +1,4 @@
-import { QUERY_METHODS, adapterTsestree, capture } from "@treequel/capture";
+import { QUERY_METHODS, adapterTsestree, capture } from "@greffon/capture";
 
 /* eslint-env node */
 // Minimal structural typings — we avoid a hard dep on @typescript-eslint/utils.
@@ -26,7 +26,7 @@ export interface Rule {
 }
 
 /** Import sources whose `createContext` roots a query context. */
-const TRACED_PACKAGES: ReadonlySet<string> = new Set(["@treequel/query"]);
+const TRACED_PACKAGES: ReadonlySet<string> = new Set(["@greffon/query"]);
 
 /** Global namespaces whose static methods share query-operator names (`Math.min`, `Object.groupBy`). */
 const GLOBAL_NAMESPACES: ReadonlySet<string> = new Set([
@@ -184,11 +184,11 @@ function hasQueryLambdaAncestor(node: AstNode, set: WeakSet<AstNode>): boolean {
   return false;
 }
 
-/** `treequel/valid-expression` — reports subset violations from the shared validator. */
+/** `greffon/valid-expression` — reports subset violations from the shared validator. */
 export const validExpression: Rule = {
   meta: {
     type: "problem",
-    docs: { description: "Enforce the Treequel expression-lambda subset." },
+    docs: { description: "Enforce the Greffon expression-lambda subset." },
     fixable: "code",
     schema: [],
   },
@@ -232,7 +232,7 @@ export const validExpression: Rule = {
   },
 };
 
-/** `treequel/no-opaque-callback` — flags function *references* passed to query methods (the boundary rule). */
+/** `greffon/no-opaque-callback` — flags function *references* passed to query methods (the boundary rule). */
 export const noOpaqueCallback: Rule = {
   meta: {
     type: "problem",

@@ -6,16 +6,16 @@ failure in CI, and a build diagnostic. This page wires up the first two hosts th
 
 ## Editor squiggles
 
-`@treequel/ts-plugin` is a TypeScript language-service plugin. Install it and list it in `tsconfig.json`:
+`@greffon/ts-plugin` is a TypeScript language-service plugin. Install it and list it in `tsconfig.json`:
 
 ```sh
-npm i -D @treequel/ts-plugin
+npm i -D @greffon/ts-plugin
 ```
 
 ```json
 {
   "compilerOptions": {
-    "plugins": [{ "name": "@treequel/ts-plugin" }]
+    "plugins": [{ "name": "@greffon/ts-plugin" }]
   }
 }
 ```
@@ -33,32 +33,32 @@ Two things to know:
 
 ## Lint
 
-`@treequel/eslint-plugin` runs the same validator at lint time. It is an ESLint plugin, and oxlint loads ESLint
+`@greffon/eslint-plugin` runs the same validator at lint time. It is an ESLint plugin, and oxlint loads ESLint
 plugins through `jsPlugins` (alpha, not semver-guarded) — one package covers both linters.
 
 ::: code-group
 
 ```js [eslint.config.js]
-import treequel from "@treequel/eslint-plugin";
+import greffon from "@greffon/eslint-plugin";
 
-export default [treequel.configs.recommended];
+export default [greffon.configs.recommended];
 ```
 
 ```json [.oxlintrc.json]
 {
-  "jsPlugins": [{ "name": "treequel", "specifier": "@treequel/eslint-plugin" }],
+  "jsPlugins": [{ "name": "greffon", "specifier": "@greffon/eslint-plugin" }],
   "rules": {
-    "treequel/valid-expression": "error",
-    "treequel/no-opaque-callback": "warn"
+    "greffon/valid-expression": "error",
+    "greffon/no-opaque-callback": "warn"
   }
 }
 ```
 
 :::
 
-- **`treequel/valid-expression`** rejects out-of-subset syntax with the shared codes, and autofixes `==`/`!=` to
+- **`greffon/valid-expression`** rejects out-of-subset syntax with the shared codes, and autofixes `==`/`!=` to
   `===`/`!==` ([R1103](/errors#R1103)).
-- **`treequel/no-opaque-callback`** flags a function passed by reference where a provider would need a tree — the
+- **`greffon/no-opaque-callback`** flags a function passed by reference where a provider would need a tree — the
   lint-time face of [the boundary rule](/guide/the-boundary-rule).
 
 The rules match query methods by name, without type information — `no-opaque-callback` is a warning because a bare

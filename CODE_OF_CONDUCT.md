@@ -46,7 +46,7 @@ via an official social media account, or acting as an appointed representative a
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leaders responsible
-for enforcement privately through a [GitHub security advisory](https://github.com/PhenX/Treequel/security/advisories/new),
+for enforcement privately through a [GitHub security advisory](https://github.com/PhenX/Greffon/security/advisories/new),
 which is confidential to the maintainers. All complaints will be reviewed and investigated promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the reporter of any incident.

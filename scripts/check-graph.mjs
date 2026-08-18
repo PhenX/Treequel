@@ -20,7 +20,7 @@ const RUNTIME = new Set([
   "provider-sqlite",
 ]);
 
-// Allowed runtime dependencies per package: internal @treequel/* names + external pkgs.
+// Allowed runtime dependencies per package: internal @greffon/* names + external pkgs.
 const ALLOWED = {
   tree: { internal: [], external: [] },
   core: { internal: ["tree"], external: [] },
@@ -46,7 +46,7 @@ for (const name of readdirSync(pkgDir)) {
   const pj = join(pkgDir, name, "package.json");
   if (!existsSync(pj)) continue;
   const json = JSON.parse(readFileSync(pj, "utf8"));
-  const short = json.name.replace("@treequel/", "");
+  const short = json.name.replace("@greffon/", "");
   const spec = ALLOWED[short];
   if (!spec) {
     errors.push(`Unknown package '${short}' — add it to check-graph ALLOWED.`);
@@ -56,8 +56,8 @@ for (const name of readdirSync(pkgDir)) {
   const deps = Object.keys(json.dependencies ?? {});
   const internal = [];
   for (const dep of deps) {
-    if (dep.startsWith("@treequel/")) {
-      const target = dep.replace("@treequel/", "");
+    if (dep.startsWith("@greffon/")) {
+      const target = dep.replace("@greffon/", "");
       internal.push(target);
       if (!spec.internal.includes(target)) {
         errors.push(

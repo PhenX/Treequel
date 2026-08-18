@@ -1,12 +1,12 @@
 /**
- * `@treequel/ts-plugin` — a TypeScript language-service plugin that surfaces the
+ * `@greffon/ts-plugin` — a TypeScript language-service plugin that surfaces the
  * subset diagnostics in-editor (red squiggles), using the *same* capture
  * validator as the build and ESLint via {@link diagnoseLambdaSource}.
  *
  * Configure in tsconfig.json:
- *   { "compilerOptions": { "plugins": [{ "name": "@treequel/ts-plugin" }] } }
+ *   { "compilerOptions": { "plugins": [{ "name": "@greffon/ts-plugin" }] } }
  */
-import { QUERY_METHODS } from "@treequel/capture";
+import { QUERY_METHODS } from "@greffon/capture";
 import type ts from "typescript";
 import { diagnoseLambdaSource } from "./diagnose.js";
 
@@ -79,7 +79,7 @@ function init(modules: { typescript: typeof ts }): ts.server.PluginModule {
                       ? tsm.DiagnosticCategory.Warning
                       : tsm.DiagnosticCategory.Suggestion,
                 code: d.code,
-                source: "treequel",
+                source: "greffon",
               });
             }
           }

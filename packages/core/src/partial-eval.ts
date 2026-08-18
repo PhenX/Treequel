@@ -1,4 +1,4 @@
-import type { Node } from "@treequel/tree";
+import type { Node } from "@greffon/tree";
 import { evaluate } from "./evaluate.js";
 import { mapChildren, children } from "./visitor.js";
 

@@ -1,5 +1,5 @@
 {
-  "name": "@treequel-example/policy-rules",
+  "name": "@greffon-example/policy-rules",
   "version": "0.1.0",
   "private": true,
   "description": "Policy-as-expression: one visibility rule as a list-query WHERE, a single-object check, and a stored, auditable artifact.",
@@ -8,13 +8,13 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@treequel/core": "*",
-    "@treequel/provider-memory": "*",
-    "@treequel/provider-postgres": "*",
-    "@treequel/query": "*",
-    "@treequel/tree": "*"
+    "@greffon/core": "*",
+    "@greffon/provider-memory": "*",
+    "@greffon/provider-postgres": "*",
+    "@greffon/query": "*",
+    "@greffon/tree": "*"
   },
   "devDependencies": {
-    "@treequel/vite": "*"
+    "@greffon/vite": "*"
   }
 }

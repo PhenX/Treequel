@@ -14,13 +14,13 @@ Func<User, bool>             f = u => u.Age > 18; // compiled code
 Expression<Func<User, bool>> e = u => u.Age > 18; // an expression tree
 ```
 
-TypeScript's compiler has no such seam, so Treequel adds one with a build transform: the Vite plugin finds lambdas at
-traced call sites and rewrites each into a literal carrying **both** forms — the original function, untouched, and
-the tree as plain data:
+TypeScript's compiler has no such seam, so Treequel adds one with a build transform: it finds lambdas at traced call
+sites and rewrites each into a literal carrying **both** forms — the original function, untouched, and the tree as
+plain data:
 
 ```ts
 db.users.filter((u) => u.age > minAge);
-// ⇣ what the plugin emits
+// ⇣ what the transform emits
 db.users.filter(
   __tql_expr$({
     v: 1,
@@ -36,6 +36,11 @@ db.users.filter(
   }),
 );
 ```
+
+That transform runs in one of two build hosts: a [bundler plugin](/guide/getting-started) (`@treequel/vite`,
+covering Vite, Rollup, and Rolldown) for a bundled build, or a
+[TypeScript-compiler transformer](/guide/compiling-with-tsc) (`@treequel/ts-transformer`) for a `tsc`-only backend
+with no bundler. Both emit the same literal.
 
 `Expr<(u: User) => boolean>` is the counterpart of `Expression<Func<User, bool>>`, and every operator accepts
 `F | Expr<F>` — the same pairing C# expresses with the `Func` / `Expression<Func>` overload sets of `Enumerable` and
@@ -83,10 +88,10 @@ EF Core is the reference implementation for "LINQ over a real database", and Tre
 
 ## Where TypeScript forced different answers
 
-- **A build step instead of a compiler feature.** The C# compiler builds trees; Treequel's are built by the Vite
-  plugin — or, without one, by a runtime `toString()` fallback that is closure-blind and says so
-  ([R3002](/errors#R3002)). What C# gets from the compiler being the single validator, Treequel rebuilds by sharing
-  one validator package across the build, the editor plugin, and the ESLint rule.
+- **A build step instead of a compiler feature.** The C# compiler builds trees; Treequel's are built by a bundler
+  plugin or the `tsc` transformer — or, without either, by a runtime `toString()` fallback that is closure-blind and
+  says so ([R3002](/errors#R3002)). What C# gets from the compiler being the single validator, Treequel rebuilds by
+  sharing one validator package across the build, the editor plugin, and the ESLint rule.
 - **A closed, serializable grammar instead of an open one.** A C# expression tree can reference any .NET method, and
   it does not serialize — it lives and dies in-process. Treequel's tree is a small closed algebra with a versioned
   JSON wire format, because these trees are meant to leave the process: cross to a server, sit in a policy store, be
@@ -99,15 +104,15 @@ EF Core is the reference implementation for "LINQ over a real database", and Tre
 
 The types and architecture carry across one-to-one:
 
-| C# / .NET                                | Treequel                                   |
-| ---------------------------------------- | ------------------------------------------ |
-| `Expression<Func<User, bool>>`           | `Expr<(u: User) => boolean>`               |
-| Compiler-built expression trees          | Build-time reification (`@treequel/vite`)  |
-| `IQueryable<T>`                          | `Queryable<T>`                             |
-| `IQueryProvider`                         | `QueryProvider`                            |
-| LINQ to Objects                          | `@treequel/provider-memory`                |
-| `ExpressionVisitor`                      | The visitor / rewriter in `@treequel/core` |
-| `Include` / `ThenInclude`, `AsSplitQuery` | `include` / `thenInclude` (always split)  |
+| C# / .NET                                 | Treequel                                                              |
+| ----------------------------------------- | --------------------------------------------------------------------- |
+| `Expression<Func<User, bool>>`            | `Expr<(u: User) => boolean>`                                          |
+| Compiler-built expression trees           | Build-time reification (`@treequel/vite`, `@treequel/ts-transformer`) |
+| `IQueryable<T>`                           | `Queryable<T>`                                                        |
+| `IQueryProvider`                          | `QueryProvider`                                                       |
+| LINQ to Objects                           | `@treequel/provider-memory`                                           |
+| `ExpressionVisitor`                       | The visitor / rewriter in `@treequel/core`                            |
+| `Include` / `ThenInclude`, `AsSplitQuery` | `include` / `thenInclude` (always split)                              |
 
 ## Operators, three ways
 

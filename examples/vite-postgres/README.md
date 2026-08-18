@@ -32,5 +32,19 @@ Run it:
 npm test -w @greffon-example/vite-postgres
 ```
 
+Lint the query lambdas the way a consumer would. [`eslint.config.js`](eslint.config.js)
+wires the subset rules (`greffon/valid-expression`, `greffon/no-opaque-callback`)
+into ESLint — the setup most editors pick up on their own — and
+[`.oxlintrc.json`](.oxlintrc.json) does the same for oxlint; test files opt out of
+both:
+
+```bash
+npm run lint -w @greffon-example/vite-postgres         # eslint
+npm run lint:oxlint -w @greffon-example/vite-postgres  # oxlint
+```
+
+The Vite plugin is the gate a build cannot skip; these lint rules run the same
+subset check earlier, as editor and CI feedback.
+
 The memory provider is the reference; the SQL provider must match it. That
 equality — over reified trees, on real Postgres semantics — is the whole point.

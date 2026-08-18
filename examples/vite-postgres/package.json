@@ -5,7 +5,9 @@
   "description": "Headline demo: identical query definitions run in-memory (Vitest) and on Postgres (PGlite), property-equal.",
   "type": "module",
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint": "eslint .",
+    "lint:oxlint": "oxlint"
   },
   "dependencies": {
     "@greffon/provider-memory": "*",
@@ -13,6 +15,9 @@
     "@greffon/query": "*"
   },
   "devDependencies": {
-    "@greffon/vite": "*"
+    "@greffon/eslint-plugin": "*",
+    "@greffon/vite": "*",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.0.0"
   }
 }

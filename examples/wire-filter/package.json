@@ -5,7 +5,9 @@
   "description": "A saved-search predicate crossing a process boundary as JSON: serialize, re-validate, evaluate live events, and backfill as a query.",
   "type": "module",
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint": "eslint .",
+    "lint:oxlint": "oxlint"
   },
   "dependencies": {
     "@greffon/core": "*",
@@ -14,6 +16,9 @@
     "@greffon/tree": "*"
   },
   "devDependencies": {
-    "@greffon/vite": "*"
+    "@greffon/eslint-plugin": "*",
+    "@greffon/vite": "*",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.0.0"
   }
 }

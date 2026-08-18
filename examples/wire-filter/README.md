@@ -33,6 +33,20 @@ Run it:
 npm test -w @greffon-example/wire-filter
 ```
 
+Lint the filter lambdas the way a consumer would. [`eslint.config.js`](eslint.config.js)
+wires the subset rules (`greffon/valid-expression`, `greffon/no-opaque-callback`)
+into ESLint — the setup most editors pick up on their own — and
+[`.oxlintrc.json`](.oxlintrc.json) does the same for oxlint; test files opt out of
+both:
+
+```bash
+npm run lint -w @greffon-example/wire-filter         # eslint
+npm run lint:oxlint -w @greffon-example/wire-filter  # oxlint
+```
+
+The Vite plugin is the gate a build cannot skip; these lint rules run the same
+subset check earlier, as editor and CI feedback.
+
 The point: client-defined filtering usually means inventing a query-parameter
 DSL and writing two implementations. A serialized tree is one definition,
 validated on arrival, translated or interpreted at will.

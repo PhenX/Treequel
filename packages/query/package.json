@@ -10,7 +10,14 @@
     "query",
     "queryable"
   ],
+  "homepage": "https://phenx.github.io/Greffon/",
+  "bugs": "https://github.com/PhenX/Greffon/issues",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PhenX/Greffon.git",
+    "directory": "packages/query"
+  },
   "files": [
     "dist"
   ],

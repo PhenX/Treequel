@@ -1,7 +1,7 @@
 /**
  * Shared vocabularies:
- *  - {@link REALM}: the fixed global table that resolves `Capture{global:true}`
- *, keeping `scope()` minimal and SSR-safe.
+ *  - {@link REALM}: the fixed global table that resolves
+ *    `Capture{global:true}`, keeping `scope()` minimal and SSR-safe.
  *  - {@link GLOBALS_SAFELIST}: identifiers that capture treats as globals, not
  *    free variables.
  *  - {@link WellKnown}: the calls all first-party providers commit to, so they

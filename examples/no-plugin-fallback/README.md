@@ -1,6 +1,6 @@
 # Example: no-plugin-fallback (graceful degradation)
 
-What happens **without** the build plugin (goal G6), shown in
+What happens **without** the build plugin, shown in
 [`src/degradation.test.ts`](src/degradation.test.ts):
 
 1. **In-memory works fully — even with closures.** The memory provider calls the

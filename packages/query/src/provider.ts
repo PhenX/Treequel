@@ -6,7 +6,7 @@ import type { QueryPlan } from "./plan.js";
  * with a located error before any I/O.
  */
 export interface Capabilities {
-  /** Plan op kinds the provider can honor (`where`, `orderBy`, `join`, …). */
+  /** Plan op kinds the provider can honor (`filter`, `orderBy`, `join`, …). */
   readonly ops: ReadonlySet<string>;
   /** WellKnown call names the provider translates; omit for "everything (memory)". */
   readonly calls?: ReadonlySet<string>;

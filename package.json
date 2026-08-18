@@ -3,8 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "description": "Expression trees for TypeScript — ordinary lambdas become typed, serializable trees you can evaluate, ship, or compile to SQL.",
+  "homepage": "https://phenx.github.io/Greffon/",
+  "bugs": "https://github.com/PhenX/Greffon/issues",
   "license": "MIT",
   "author": "Fabien Ménager",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PhenX/Greffon.git"
+  },
   "workspaces": [
     "packages/*",
     "apps/*",

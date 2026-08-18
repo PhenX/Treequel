@@ -61,10 +61,10 @@ export default [greffon.configs.recommended];
 - **`greffon/no-opaque-callback`** flags a function passed by reference where a provider would need a tree — the
   lint-time face of [the boundary rule](/guide/the-boundary-rule).
 
-The rules match query methods by name, without type information — `no-opaque-callback` is a warning because a bare
-identifier can also hold an `expr()`-built tree, and an unrelated API can share an operator name. Scope the rules to
-your query modules with overrides if that happens; the build transform and the editor plugin are not affected, since
-they trace your context imports instead of matching names.
+The rules run without type information: they check `expr()` calls and query calls whose receiver roots at a
+`createContext()` result in the same file, so a plain `array.filter()` is left alone. A context imported from another
+module is not checked at lint time; the build transform and the editor plugin resolve receivers across modules and
+catch it. `no-opaque-callback` stays a warning because a bare identifier can also hold an `expr()`-built tree.
 
 ## Where to go next
 

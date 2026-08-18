@@ -30,7 +30,7 @@ const ALLOWED = {
   "sql-core": { internal: ["core", "query"], external: [] },
   "provider-postgres": { internal: ["sql-core"], external: [] },
   "provider-sqlite": { internal: ["sql-core"], external: [] },
-  transform: { internal: ["capture"], external: ["oxc-parser", "magic-string"] },
+  transform: { internal: ["capture", "tree"], external: ["oxc-parser", "magic-string"] },
   vite: { internal: ["transform"], external: [] },
   "ts-transformer": { internal: ["transform"], external: [] },
   fallback: { internal: ["core", "capture"], external: ["meriyah"] },

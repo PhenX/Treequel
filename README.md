@@ -89,11 +89,11 @@ Capturing lambdas at build time, and keeping the editor honest:
 
 | Package | Purpose | Runtime deps |
 |---|---|---|
-| [`@greffon/transform`](packages/transform) | Pure per-module build transform | `capture`, `oxc-parser`, `magic-string` |
+| [`@greffon/transform`](packages/transform) | Pure per-module build transform | `tree`, `capture`, `oxc-parser`, `magic-string` |
 | [`@greffon/vite`](packages/vite) | Thin Vite / Rollup / Rolldown plugin | `transform` |
 | [`@greffon/ts-transformer`](packages/ts-transformer) | TypeScript-compiler transformer for `tsc`-only builds | `transform` |
 | [`@greffon/fallback`](packages/fallback) | Runtime `toString()` capture (dev-only, lazy) | `core`, `capture`, `meriyah` |
-| [`@greffon/ts-plugin`](packages/ts-plugin) | In-editor subset diagnostics | `capture` |
+| [`@greffon/ts-plugin`](packages/ts-plugin) | In-editor subset diagnostics | `capture`, `oxc-parser` |
 | [`@greffon/eslint-plugin`](packages/eslint-plugin) | The same rules, lint-gated | `capture` |
 
 Querying:
@@ -101,14 +101,14 @@ Querying:
 | Package | Purpose | Runtime deps |
 |---|---|---|
 | [`@greffon/query`](packages/query) | `Queryable`, `QueryPlan`, provider protocol, `createContext` | `core` |
-| [`@greffon/provider-memory`](packages/provider-memory) | Reference provider (defines the semantics) | `query` |
-| [`@greffon/sql-core`](packages/sql-core) | Shared SQL-translation core (dialect seam, translator, builder) | `query` |
+| [`@greffon/provider-memory`](packages/provider-memory) | Reference provider (defines the semantics) | `core`, `query` |
+| [`@greffon/sql-core`](packages/sql-core) | Shared SQL-translation core (dialect seam, translator, builder) | `core`, `query` |
 | [`@greffon/provider-postgres`](packages/provider-postgres) | Tree → parameterized Postgres | `sql-core` |
 | [`@greffon/provider-sqlite`](packages/provider-sqlite) | Tree → parameterized SQLite | `sql-core` |
 
 The subset validator, free-variable analysis, and tree serializer live once in `@greffon/capture` and are reused by
 the build transform, the runtime fallback, the language-service plugin, and the ESLint rule, so the editor, the build,
-and the fallback agree on what is legal.
+the lint, and the fallback agree on what is legal.
 
 ## The subset
 

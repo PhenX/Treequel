@@ -1,8 +1,9 @@
 /**
- * `@greffon/provider-memory` — the reference provider. It applies each
- * op with the native JS equivalent via `expr.compiled`, never the tree. This is
- * the semantics every other provider's conformance suite is asserted against
- *. It is a thin wrapper over the shared engine in `@greffon/query`.
+ * `@greffon/provider-memory` — the reference provider. It applies each op with
+ * the native JS equivalent, calling `expr.compiled` directly; only navigation
+ * predicates read the tree. This is the semantics every other provider's
+ * conformance suite is asserted against. It is a thin wrapper over the shared
+ * engine in `@greffon/query`.
  */
 import {
   type Capabilities,

@@ -8,7 +8,14 @@
     "oxc",
     "transform"
   ],
+  "homepage": "https://phenx.github.io/Greffon/",
+  "bugs": "https://github.com/PhenX/Greffon/issues",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PhenX/Greffon.git",
+    "directory": "packages/transform"
+  },
   "files": [
     "dist"
   ],
@@ -35,6 +42,7 @@
   },
   "dependencies": {
     "@greffon/capture": "*",
+    "@greffon/tree": "*",
     "magic-string": "^0.30.0",
     "oxc-parser": "^0.144.0"
   },

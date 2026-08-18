@@ -1,8 +1,8 @@
 import type { Span } from "@greffon/tree";
 
 /**
- * The diagnostics catalog — the single source of truth for every `Rxxxx` code
- *. Each entry fixes a code's severity and canonical summary; call
+ * The diagnostics catalog — the single source of truth for every `Rxxxx`
+ * code. Each entry fixes a code's severity and canonical summary; call
  * sites add contextual `detail`. The docs reference and error pages are
  * generated from this table.
  */

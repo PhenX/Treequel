@@ -217,6 +217,9 @@ invariant.
   trust is the point, not a caveat to bury. State each limit where it is the topic (the comparison page owns the ORM
   question); don't append it as a refrain elsewhere. Docs lead with "expression trees for TypeScript", never "a new
   way to talk to Postgres". Querying is one application among the others, not the headline.
+- **Address the reader, not an imagined crowd.** Pre-1.0 there is no user base to cite, so don't write as if one
+  exists: "what you can build on it", not "what people build on it". Use second-person "you" for what the reader can
+  do with a tree, not "people", "teams", or "everyone".
 - **EF Core and LINQ are background, not adjectives.** Name them where lineage is the topic (the lineage and
   comparison pages, ADRs); everywhere else state the rule itself ("`include`/`thenInclude` over declared relations",
   not "EF-style `include`"). A guide page should read without knowing what EF Core is.

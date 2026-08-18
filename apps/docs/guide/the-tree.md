@@ -3,7 +3,7 @@
 The tree is the product: a typed, versioned, JSON-serializable value with a [public schema](/reference/tree-schema).
 Once a lambda is a tree, you can run it without its function, ship it across a process boundary, rewrite it, print
 it, store it — or hand it to a provider for translation. This page is the toolkit;
-[Applications](/guide/applications) is what people build with it.
+[Applications](/guide/applications) is what you build on it.
 
 ## The toolkit
 

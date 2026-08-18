@@ -29,5 +29,16 @@ Run it:
 npm test -w @greffon-example/policy-rules
 ```
 
+Lint the policy lambdas the way a consumer would — [`.oxlintrc.json`](.oxlintrc.json)
+turns on the shared subset rules (`greffon/valid-expression`,
+`greffon/no-opaque-callback`), test files opted out:
+
+```bash
+npm run lint -w @greffon-example/policy-rules
+```
+
+The Vite plugin is the gate a build cannot skip; these lint rules run the same
+subset check earlier, as editor and CI feedback.
+
 The point: authorization logic usually exists three times — in the list query,
 in the object check, in the audit trail. As an expression tree it exists once.

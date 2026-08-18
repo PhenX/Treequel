@@ -5,7 +5,8 @@
   "description": "Policy-as-expression: one visibility rule as a list-query WHERE, a single-object check, and a stored, auditable artifact.",
   "type": "module",
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint": "oxlint"
   },
   "dependencies": {
     "@greffon/core": "*",
@@ -15,6 +16,7 @@
     "@greffon/tree": "*"
   },
   "devDependencies": {
+    "@greffon/eslint-plugin": "*",
     "@greffon/vite": "*"
   }
 }

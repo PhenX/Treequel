@@ -4,6 +4,7 @@
   "compilerOptions": {
     "composite": false,
     "declaration": false,
+    "declarationMap": false,
     "noEmit": true
   }
 }

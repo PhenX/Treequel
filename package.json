@@ -19,6 +19,7 @@
   ],
   "type": "module",
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks || true",
     "build": "npm run build --workspaces --if-present",
     "typecheck": "tsc -b",
     "test": "vitest run",

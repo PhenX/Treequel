@@ -4,10 +4,10 @@
   "description": "Greffon SQL-translation core — the dialect seam, translator, and provider builder shared by the Postgres and SQLite providers.",
   "keywords": [
     "dialect",
+    "greffon",
     "linq",
     "provider",
-    "sql",
-    "greffon"
+    "sql"
   ],
   "license": "MIT",
   "files": [

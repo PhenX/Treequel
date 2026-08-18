@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "description": "TypeScript language-service plugin: in-editor Greffon subset diagnostics (shares the capture validator).",
   "keywords": [
-    "language-service",
     "greffon",
+    "language-service",
     "tsserver",
     "typescript"
   ],

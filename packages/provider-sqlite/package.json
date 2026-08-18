@@ -3,11 +3,11 @@
   "version": "0.1.0",
   "description": "Greffon SQLite provider — compiles expression trees to parameterized SQLite.",
   "keywords": [
+    "greffon",
     "linq",
     "provider",
     "sql",
-    "sqlite",
-    "greffon"
+    "sqlite"
   ],
   "license": "MIT",
   "files": [

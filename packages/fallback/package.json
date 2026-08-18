@@ -4,8 +4,8 @@
   "description": "Greffon runtime toString() capture fallback (dev-only, lazy-loaded).",
   "keywords": [
     "fallback",
-    "meriyah",
-    "greffon"
+    "greffon",
+    "meriyah"
   ],
   "license": "MIT",
   "files": [

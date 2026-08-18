@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "description": "Vite/Rollup/Rolldown plugin that reifies Greffon query lambdas into expression trees.",
   "keywords": [
+    "greffon",
     "plugin",
     "rolldown",
     "rollup",
-    "greffon",
     "vite"
   ],
   "license": "MIT",

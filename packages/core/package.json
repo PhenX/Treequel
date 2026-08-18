@@ -5,9 +5,9 @@
   "keywords": [
     "code-as-data",
     "expression-tree",
+    "greffon",
     "interpreter",
-    "partial-evaluation",
-    "greffon"
+    "partial-evaluation"
   ],
   "license": "MIT",
   "files": [

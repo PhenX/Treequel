@@ -4,11 +4,11 @@
   "description": "Greffon query layer: Queryable, QueryPlan, provider protocol, createContext, and the in-memory reference engine.",
   "keywords": [
     "expression-tree",
+    "greffon",
     "iqueryable",
     "linq",
     "query",
-    "queryable",
-    "greffon"
+    "queryable"
   ],
   "license": "MIT",
   "files": [

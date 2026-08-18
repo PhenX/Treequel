@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "description": "TypeScript-compiler transformer (ts-patch or the compiler API) that reifies Greffon query lambdas into expression trees.",
   "keywords": [
-    "transformer",
     "greffon",
+    "transformer",
     "ts-patch",
     "typescript"
   ],

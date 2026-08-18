@@ -6,8 +6,8 @@
     "ast",
     "code-as-data",
     "expression-tree",
-    "serialization",
-    "greffon"
+    "greffon",
+    "serialization"
   ],
   "license": "MIT",
   "files": [

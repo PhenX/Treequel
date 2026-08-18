@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "description": "Greffon's pure per-module build transform: import tracing, expression-position detection, tree splicing.",
   "keywords": [
+    "greffon",
     "magic-string",
     "oxc",
-    "transform",
-    "greffon"
+    "transform"
   ],
   "license": "MIT",
   "files": [

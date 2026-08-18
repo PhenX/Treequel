@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "description": "Greffon reference provider — runs queries in memory via compiled lambdas.",
   "keywords": [
+    "greffon",
     "in-memory",
     "linq",
-    "provider",
-    "greffon"
+    "provider"
   ],
   "license": "MIT",
   "files": [

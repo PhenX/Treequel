@@ -38,7 +38,7 @@ in-memory provider is the reference semantics, and the SQL providers are propert
 split-query `include`/`thenInclude`, grouping, and computed members are covered in the
 [querying guide](https://phenx.github.io/Greffon/guide/getting-started).
 
-## What people build on it
+## What you can build on it
 
 One definition, because it is both a function and data, does several jobs:
 

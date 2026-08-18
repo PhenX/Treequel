@@ -89,7 +89,7 @@ Capturing lambdas at build time, and keeping the editor honest:
 
 | Package | Purpose | Runtime deps |
 |---|---|---|
-| [`@greffon/transform`](packages/transform) | Pure per-module build transform | `capture`, `oxc-parser`, `magic-string` |
+| [`@greffon/transform`](packages/transform) | Pure per-module build transform | `tree`, `capture`, `oxc-parser`, `magic-string` |
 | [`@greffon/vite`](packages/vite) | Thin Vite / Rollup / Rolldown plugin | `transform` |
 | [`@greffon/ts-transformer`](packages/ts-transformer) | TypeScript-compiler transformer for `tsc`-only builds | `transform` |
 | [`@greffon/fallback`](packages/fallback) | Runtime `toString()` capture (dev-only, lazy) | `core`, `capture`, `meriyah` |

@@ -42,6 +42,7 @@
   },
   "dependencies": {
     "@greffon/capture": "*",
+    "@greffon/tree": "*",
     "magic-string": "^0.30.0",
     "oxc-parser": "^0.144.0"
   },

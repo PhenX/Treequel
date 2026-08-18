@@ -16,3 +16,4 @@ export {
   hasErrors,
   makeDiagnostic,
 } from "./diagnostics.js";
+export { QUERY_METHODS } from "./methods.js";

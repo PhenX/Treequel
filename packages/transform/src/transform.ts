@@ -1,31 +1,7 @@
-import { type Diagnostic, adapterOxc, capture } from "@treequel/capture";
+import { type Diagnostic, QUERY_METHODS, adapterOxc, capture } from "@treequel/capture";
 import MagicString from "magic-string";
 import { parseSync } from "oxc-parser";
 import { emitNode, offsetToLineCol } from "./emit.js";
-
-/** Query methods whose lambda-literal arguments are expression positions. */
-const QUERY_METHODS = new Set([
-  "filter",
-  "map",
-  "orderBy",
-  "orderByDescending",
-  "thenBy",
-  "thenByDescending",
-  "groupBy",
-  "count",
-  "some",
-  "every",
-  "first",
-  "firstOrThrow",
-  "single",
-  "sum",
-  "min",
-  "max",
-  "avg",
-  "join",
-  "leftJoin",
-  "flatMap",
-]);
 
 const HOST_ALIAS = "__tql_expr$";
 

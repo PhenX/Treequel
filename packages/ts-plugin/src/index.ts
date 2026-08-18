@@ -6,9 +6,9 @@
  * Configure in tsconfig.json:
  *   { "compilerOptions": { "plugins": [{ "name": "@treequel/ts-plugin" }] } }
  */
+import { QUERY_METHODS } from "@treequel/capture";
 import type ts from "typescript";
 import { diagnoseLambdaSource } from "./diagnose.js";
-import { QUERY_METHODS } from "./methods.js";
 
 export { diagnoseLambdaSource } from "./diagnose.js";
 export type { LambdaDiagnostic } from "./diagnose.js";

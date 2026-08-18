@@ -24,8 +24,9 @@ you rename or add a surface method, the op kind moves with it — and four lists
 
 - `PlanOp` union + `PLAN_OP_KINDS` (`plan.ts`), the memory engine switch (`memory-engine.ts`), `elementSource`.
 - `SUPPORTED_OPS` in `@treequel/sql-core` and the `foldOp` switch; the include-refinement op check.
-- The traced-method sets (`QUERY_METHODS`) duplicated in `@treequel/transform`, `@treequel/eslint-plugin` and
-  `@treequel/ts-plugin` — a lambda argument is only reified at a call whose method name is in these sets.
+- The traced-method set `QUERY_METHODS`, defined once in `@treequel/capture` and read by `@treequel/transform`,
+  `@treequel/eslint-plugin` and `@treequel/ts-plugin` (all three depend on capture) — a lambda argument is only reified
+  at a call whose method name is in this set.
 
 Miss one and the failure is silent-ish: an unlisted method's lambda never becomes an `Expr` (it stays an opaque
 function), or a provider rejects a plan op it should translate. The conformance corpus (`testing.ts`) is the backstop —

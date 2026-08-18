@@ -209,6 +209,10 @@ invariant.
   and more than ~8 feature bullets on any one page.
 - **Prefer the concrete over the categorical:** "compiles to one parameterized `WHERE` clause" beats "powerful query
   engine". Name a number, a behavior, or a limit.
+- **Be concise; use plain words.** Short sentences, everyday vocabulary. Drop a word when the sentence survives without
+  it, and don't reach for a fancy term when a common one is exact.
+- **Em-dashes are rare, and each earns its place.** Prefer a comma, colon, or period. Reach for an em-dash only when it
+  does a job the others cannot, not as default punctuation.
 - **State limits plainly.** Expression-only subset, the boundary rule, what a provider rejects, pre-1.0 status —
   trust is the point, not a caveat to bury. State each limit where it is the topic (the comparison page owns the ORM
   question); don't append it as a refrain elsewhere. Docs lead with "expression trees for TypeScript", never "a new

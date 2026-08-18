@@ -1,12 +1,12 @@
 # SQL providers
 
-Two SQL providers ship with Treequel — `@treequel/provider-postgres` and `@treequel/provider-sqlite` — over one shared
-translator (`@treequel/sql-core`). Both are driver-agnostic: you hand them an `executor` function over whatever client
+Two SQL providers ship with Greffon — `@greffon/provider-postgres` and `@greffon/provider-sqlite` — over one shared
+translator (`@greffon/sql-core`). Both are driver-agnostic: you hand them an `executor` function over whatever client
 your app already uses, plus explicit schema metadata. Neither owns connections, pooling, transactions, or migrations —
-that stays with your driver ([the deliberate non-goals](/guide/comparison#what-treequel-deliberately-does-not-do)).
+that stays with your driver ([the deliberate non-goals](/guide/comparison#what-greffon-deliberately-does-not-do)).
 
 Both providers are property-tested against the memory reference, so a query means the same thing in your tests and in
-production. [`examples/vite-postgres`](https://github.com/PhenX/Treequel/tree/main/examples/vite-postgres) runs that
+production. [`examples/vite-postgres`](https://github.com/PhenX/Greffon/tree/main/examples/vite-postgres) runs that
 same-query story end to end as a CI test.
 
 ## The executor
@@ -33,12 +33,12 @@ Clients that return a bare row array wrap in one line — postgres.js:
 ## Postgres
 
 ```sh
-npm i @treequel/provider-postgres
+npm i @greffon/provider-postgres
 ```
 
 ```ts
-import { createContext } from "@treequel/query";
-import { postgres } from "@treequel/provider-postgres";
+import { createContext } from "@greffon/query";
+import { postgres } from "@greffon/provider-postgres";
 
 const db = createContext<{ users: User }>(
   postgres(executor, { users: { table: "users" } }),
@@ -55,11 +55,11 @@ Constants bind as `$n` parameters — values are never interpolated into the SQL
 ## SQLite
 
 ```sh
-npm i @treequel/provider-sqlite
+npm i @greffon/provider-sqlite
 ```
 
 ```ts
-import { sqlite } from "@treequel/provider-sqlite";
+import { sqlite } from "@greffon/provider-sqlite";
 
 const db = createContext<{ users: User }>(
   sqlite(executor, { users: { table: "users" } }),

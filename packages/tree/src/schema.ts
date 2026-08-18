@@ -8,8 +8,8 @@ import { FORMAT_VERSION } from "./version.js";
  */
 export const treeJsonSchema: Readonly<Record<string, unknown>> = Object.freeze({
   $schema: "https://json-schema.org/draft/2020-12/schema",
-  $id: "https://treequel.dev/tree.schema.json",
-  title: "Treequel expression tree",
+  $id: "https://greffon.dev/tree.schema.json",
+  title: "Greffon expression tree",
   type: "object",
   required: ["v", "root"],
   properties: {

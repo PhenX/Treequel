@@ -6,10 +6,10 @@
     "perf": "warn"
   },
   "ignorePatterns": ["**/dist/**", "**/node_modules/**", "plans/**"],
-  "jsPlugins": [{ "name": "treequel", "specifier": "@treequel/eslint-plugin" }],
+  "jsPlugins": [{ "name": "greffon", "specifier": "@greffon/eslint-plugin" }],
   "rules": {
-    "treequel/valid-expression": "error",
-    "treequel/no-opaque-callback": "warn",
+    "greffon/valid-expression": "error",
+    "greffon/no-opaque-callback": "warn",
     "no-console": "off",
     "no-underscore-dangle": "off",
     "no-await-in-loop": "off",
@@ -22,8 +22,8 @@
     {
       "files": ["**/*.test.ts", "type-tests/**"],
       "rules": {
-        "treequel/valid-expression": "off",
-        "treequel/no-opaque-callback": "off"
+        "greffon/valid-expression": "off",
+        "greffon/no-opaque-callback": "off"
       }
     }
   ]

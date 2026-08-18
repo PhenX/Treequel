@@ -1,4 +1,4 @@
-import { expr } from "@treequel/core";
+import { expr } from "@greffon/core";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { enableFallback, parseFunctionSource } from "./index.js";
 

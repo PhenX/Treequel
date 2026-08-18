@@ -1,7 +1,7 @@
 import * as monaco from "monaco-editor/editor/editor.api";
 
 /**
- * Turning Treequel's diagnostics into Monaco squiggles is the whole point of the
+ * Turning Greffon's diagnostics into Monaco squiggles is the whole point of the
  * error surface, so the offsets have to line up exactly. The fallback parser
  * wraps the lambda as `(${source.trim()})` before parsing, so every span and
  * every parser offset is measured against that wrapped string — one code unit of
@@ -17,7 +17,7 @@ export interface SpanDiagnostic {
   readonly span?: { readonly start: number; readonly end: number };
 }
 
-const OWNER = "treequel";
+const OWNER = "greffon";
 
 function severityFor(severity: string): monaco.MarkerSeverity {
   if (severity === "warn") return monaco.MarkerSeverity.Warning;
@@ -26,7 +26,7 @@ function severityFor(severity: string): monaco.MarkerSeverity {
 }
 
 function codeLink(code: string): { value: string; target: monaco.Uri } {
-  return { value: code, target: monaco.Uri.parse(`https://treequel.dev/errors#${code}`) };
+  return { value: code, target: monaco.Uri.parse(`https://greffon.dev/errors#${code}`) };
 }
 
 /** Map an offset in the wrapped `(…)` source back to one in the editor's text. */

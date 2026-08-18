@@ -1,14 +1,14 @@
 {
-  "name": "@treequel/query",
+  "name": "@greffon/query",
   "version": "0.1.0",
-  "description": "Treequel query layer: Queryable, QueryPlan, provider protocol, createContext, and the in-memory reference engine.",
+  "description": "Greffon query layer: Queryable, QueryPlan, provider protocol, createContext, and the in-memory reference engine.",
   "keywords": [
     "expression-tree",
+    "greffon",
     "iqueryable",
     "linq",
     "query",
-    "queryable",
-    "treequel"
+    "queryable"
   ],
   "license": "MIT",
   "files": [
@@ -36,7 +36,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@treequel/core": "*"
+    "@greffon/core": "*"
   },
   "engines": {
     "node": ">=20"

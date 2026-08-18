@@ -1,5 +1,5 @@
 /**
- * `@treequel/sql-core` — the shared SQL-translation core. It holds the
+ * `@greffon/sql-core` — the shared SQL-translation core. It holds the
  * dialect-agnostic translator, the `SqlDialect` seam, and the provider builder
  * `makeSqlProvider`; the concrete Postgres and SQLite providers (and any
  * third-party dialect) are thin packages that supply a `SqlDialect` and call it.
@@ -34,4 +34,4 @@ export {
 export type { SqlExecutor } from "./include-sql.js";
 export { type SqlProviderOptions, makeSqlProvider } from "./provider.js";
 // Re-exported so dialect packages depend only on this core.
-export type { QueryProvider } from "@treequel/query";
+export type { QueryProvider } from "@greffon/query";

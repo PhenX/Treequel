@@ -1,13 +1,13 @@
 {
-  "name": "@treequel/sql-core",
+  "name": "@greffon/sql-core",
   "version": "0.1.0",
-  "description": "Treequel SQL-translation core — the dialect seam, translator, and provider builder shared by the Postgres and SQLite providers.",
+  "description": "Greffon SQL-translation core — the dialect seam, translator, and provider builder shared by the Postgres and SQLite providers.",
   "keywords": [
     "dialect",
+    "greffon",
     "linq",
     "provider",
-    "sql",
-    "treequel"
+    "sql"
   ],
   "license": "MIT",
   "files": [
@@ -31,8 +31,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@treequel/core": "*",
-    "@treequel/query": "*"
+    "@greffon/core": "*",
+    "@greffon/query": "*"
   },
   "engines": {
     "node": ">=20"

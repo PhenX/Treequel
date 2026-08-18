@@ -5,8 +5,8 @@
  * {@link TranslateContext} scope; none emit SQL — the translator turns a match
  * into a subquery or aggregate.
  */
-import type { Node } from "@treequel/core";
-import type { Relation } from "@treequel/query";
+import type { Node } from "@greffon/core";
+import type { Relation } from "@greffon/query";
 import type { ColumnShape, TranslateContext } from "./context.js";
 
 /**

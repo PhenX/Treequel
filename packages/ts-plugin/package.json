@@ -1,10 +1,10 @@
 {
-  "name": "@treequel/ts-plugin",
+  "name": "@greffon/ts-plugin",
   "version": "0.1.0",
-  "description": "TypeScript language-service plugin: in-editor Treequel subset diagnostics (shares the capture validator).",
+  "description": "TypeScript language-service plugin: in-editor Greffon subset diagnostics (shares the capture validator).",
   "keywords": [
+    "greffon",
     "language-service",
-    "treequel",
     "tsserver",
     "typescript"
   ],
@@ -30,7 +30,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@treequel/capture": "*",
+    "@greffon/capture": "*",
     "oxc-parser": "^0.144.0"
   },
   "peerDependencies": {

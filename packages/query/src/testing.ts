@@ -1,12 +1,12 @@
 /**
- * `@treequel/query/testing` — the provider-author kit. `runConformance` runs a
+ * `@greffon/query/testing` — the provider-author kit. `runConformance` runs a
  * battery of queries against a provider and the in-memory reference and reports any
  * divergence. The corpus lambdas are wrapped in `expr()` so providers under test
  * receive real `Expr` trees whenever this module runs under the build plugin
- * (trace `@treequel/core` in the plugin's `packages`) — or, without a build
- * step, under `import "@treequel/fallback/register"`.
+ * (trace `@greffon/core` in the plugin's `packages`) — or, without a build
+ * step, under `import "@greffon/fallback/register"`.
  */
-import { b, expr, makeExpr } from "@treequel/core";
+import { b, expr, makeExpr } from "@greffon/core";
 import { canonical } from "./canon.js";
 import { type ComputedMeta, defineComputed } from "./computed.js";
 import { type Capabilities, capabilities } from "./provider.js";

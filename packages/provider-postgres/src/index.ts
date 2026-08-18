@@ -1,6 +1,6 @@
 /**
- * `@treequel/provider-postgres` — compiles a query plan to parameterized
- * Postgres over the shared `@treequel/sql-core` translator. Driver-agnostic:
+ * `@greffon/provider-postgres` — compiles a query plan to parameterized
+ * Postgres over the shared `@greffon/sql-core` translator. Driver-agnostic:
  * supply an `executor` over `pg`, `postgres.js`, Neon, or PGlite.
  */
 import {
@@ -9,11 +9,11 @@ import {
   type SqlExecutor,
   type SqlProviderOptions,
   makeSqlProvider,
-} from "@treequel/sql-core";
+} from "@greffon/sql-core";
 import { pgDialect } from "./dialect.js";
 
 export { pgDialect } from "./dialect.js";
-export type { SchemaMeta, TableMeta, SqlExecutor, SqlProviderOptions } from "@treequel/sql-core";
+export type { SchemaMeta, TableMeta, SqlExecutor, SqlProviderOptions } from "@greffon/sql-core";
 
 /** Build a Postgres provider from a driver executor and schema metadata. */
 export function postgres(

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Microbenchmark for the per-module build transform (§ the transform perf
 // budget). Requires the packages to be built (`npm run build --workspaces`)
-// because it imports the published `@treequel/transform` entry.
+// because it imports the published `@greffon/transform` entry.
 //
 //   node bench/transform.bench.mjs            # run and print a table
 //   node bench/transform.bench.mjs --update   # rewrite bench/baseline.json
@@ -19,7 +19,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Bench } from "tinybench";
-import { transformModule } from "@treequel/transform";
+import { transformModule } from "@greffon/transform";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const baselinePath = join(here, "baseline.json");
@@ -28,7 +28,7 @@ const THRESHOLD = 0.3; // fail a --check when the ratio is > 30% above baseline.
 // A realistic query module: a traced chain with several inline lambdas — nested
 // lambdas, captures, method calls, an object projection — i.e. the work-heavy
 // reify path. `db` is a traced root created in-module, so no host is needed.
-const HIT = `import { createContext } from "@treequel/query";
+const HIT = `import { createContext } from "@greffon/query";
 const db = createContext(provider);
 const prefix = "a";
 const minAge = 18;

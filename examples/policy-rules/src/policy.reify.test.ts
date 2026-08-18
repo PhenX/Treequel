@@ -1,9 +1,9 @@
 import { PGlite } from "@electric-sql/pglite";
-import { evaluate, partialEval, print } from "@treequel/core";
-import { memoryProvider } from "@treequel/provider-memory";
-import { type SqlExecutor, postgres } from "@treequel/provider-postgres";
-import { type Context, createContext } from "@treequel/query";
-import { deserialize, serialize } from "@treequel/tree";
+import { evaluate, partialEval, print } from "@greffon/core";
+import { memoryProvider } from "@greffon/provider-memory";
+import { type SqlExecutor, postgres } from "@greffon/provider-postgres";
+import { type Context, createContext } from "@greffon/query";
+import { deserialize, serialize } from "@greffon/tree";
 import { beforeAll, describe, expect, it } from "vitest";
 import { canSee } from "./policy.js";
 import { type Schema, type Viewer, docs, schemaMeta } from "./schema.js";

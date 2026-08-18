@@ -4,7 +4,7 @@
  * group counts), operators, string/array/template calls, and the correlated
  * subqueries and aggregates that navigations and groups compile to.
  */
-import type { Node } from "@treequel/core";
+import type { Node } from "@greffon/core";
 import {
   type ColumnShape,
   SCALAR_COLUMN,

@@ -1,7 +1,7 @@
 /**
- * `@treequel/core` — the runtime heart: `Expr`, tree traversal, partial
+ * `@greffon/core` — the runtime heart: `Expr`, tree traversal, partial
  * evaluation, printing, and the shared WellKnown/globals vocabularies.
- * Depends only on `@treequel/tree`.
+ * Depends only on `@greffon/tree`.
  */
 export {
   type Expr,
@@ -34,4 +34,4 @@ export {
 } from "./wellknown.js";
 
 // Re-export the tree algebra so consumers have one import for the common case.
-export * from "@treequel/tree";
+export * from "@greffon/tree";

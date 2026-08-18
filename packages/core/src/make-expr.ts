@@ -1,4 +1,4 @@
-import { type Node, FORMAT_VERSION } from "@treequel/tree";
+import { type Node, FORMAT_VERSION } from "@greffon/tree";
 import { evaluate } from "./evaluate.js";
 import { type Expr, __expr } from "./expr.js";
 

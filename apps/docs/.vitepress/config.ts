@@ -4,10 +4,10 @@ import { defineConfig } from "vitepress";
 // the README subtitle and the homepage hero).
 export default defineConfig({
   lang: "en-US",
-  title: "Treequel",
+  title: "Greffon",
   description:
     "Expression trees for TypeScript. Write an ordinary lambda; it stays the function it always was, and becomes a typed, serializable tree you can evaluate, rewrite, print, store, send over the wire — or hand to a provider that translates it: a policy check, a remote filter, parameterized SQL.",
-  base: "/Treequel/",
+  base: "/Greffon/",
   cleanUrls: true,
   lastUpdated: true,
   // The area guide is contributor material, not a site page.
@@ -28,7 +28,7 @@ export default defineConfig({
         ],
       },
       { text: "Playground", link: "/playground/", target: "_self" },
-      { text: "GitHub", link: "https://github.com/PhenX/Treequel" },
+      { text: "GitHub", link: "https://github.com/PhenX/Greffon" },
     ],
     // Sections are reader tasks, in reading order: concepts first (the tree is
     // the product), then querying opened by its basics page and closed by the
@@ -85,7 +85,7 @@ export default defineConfig({
         },
       ],
     },
-    socialLinks: [{ icon: "github", link: "https://github.com/PhenX/Treequel" }],
+    socialLinks: [{ icon: "github", link: "https://github.com/PhenX/Greffon" }],
     footer: {
       message: "MIT licensed. Expression trees for TypeScript.",
       copyright: "© Fabien Ménager",

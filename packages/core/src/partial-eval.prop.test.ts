@@ -1,4 +1,4 @@
-import type { Node } from "@treequel/tree";
+import type { Node } from "@greffon/tree";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { evaluate, partialEval } from "./index.js";

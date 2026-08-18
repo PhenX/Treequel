@@ -1,4 +1,4 @@
-import { type Node, TreequelError, isSpread } from "@treequel/tree";
+import { type Node, GreffonError, isSpread } from "@greffon/tree";
 import { REALM } from "./wellknown.js";
 
 /** Bindings a tree is evaluated against. */
@@ -46,14 +46,14 @@ export function evaluate(n: Node, env: EvalEnv = {}): unknown {
         const fn = (recv as Record<string, unknown>)?.[n.callee.prop];
         if (n.optional && fn == null) return undefined;
         if (typeof fn !== "function") {
-          throw new TreequelError("R2001", `${n.callee.prop} is not a function on the receiver.`);
+          throw new GreffonError("R2001", `${n.callee.prop} is not a function on the receiver.`);
         }
         return (fn as (...a: unknown[]) => unknown).apply(recv, n.args.map(ev));
       }
       const fn = ev(n.callee);
       if (n.optional && fn == null) return undefined;
       if (typeof fn !== "function") {
-        throw new TreequelError("R2001", `Callee is not a function.`);
+        throw new GreffonError("R2001", `Callee is not a function.`);
       }
       return (fn as (...a: unknown[]) => unknown)(...n.args.map(ev));
     }
@@ -166,6 +166,6 @@ function binary(op: string, l: unknown, r: unknown): unknown {
     case "in":
       return (l as PropertyKey) in (r as object);
     default:
-      throw new TreequelError("R2001", `Unknown binary operator ${op}.`);
+      throw new GreffonError("R2001", `Unknown binary operator ${op}.`);
   }
 }

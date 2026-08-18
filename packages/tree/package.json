@@ -1,13 +1,13 @@
 {
-  "name": "@treequel/tree",
+  "name": "@greffon/tree",
   "version": "0.1.0",
-  "description": "The Treequel expression-tree wire format: node types, (de)serialization, JSON schema. Zero dependencies.",
+  "description": "The Greffon expression-tree wire format: node types, (de)serialization, JSON schema. Zero dependencies.",
   "keywords": [
     "ast",
     "code-as-data",
     "expression-tree",
-    "serialization",
-    "treequel"
+    "greffon",
+    "serialization"
   ],
   "license": "MIT",
   "files": [

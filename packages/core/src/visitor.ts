@@ -1,4 +1,4 @@
-import { type Node, type NodeKind, isSpread } from "@treequel/tree";
+import { type Node, type NodeKind, isSpread } from "@greffon/tree";
 
 /**
  * The three traversal primitives. Everything downstream — partial eval,

@@ -4,14 +4,14 @@
  * `first`/`single`, `count`, `some`/`every`, `sum`/`min`/`max`/`avg`) around it,
  * returning the SQL text, its values, and a `post` step that shapes the rows.
  */
-import { TreequelError } from "@treequel/core";
+import { GreffonError } from "@greffon/core";
 import {
   type AnyExpr,
   type IncludeSpec,
   type PlanOp,
   type QueryPlan,
   collectIncludes,
-} from "@treequel/query";
+} from "@greffon/query";
 import { Compiler } from "./compiler.js";
 import { SCALAR_COLUMN, finalizeSql, quoteIdent } from "./context.js";
 import type { SqlDialect } from "./dialect.js";
@@ -45,7 +45,7 @@ export function compile(plan: QueryPlan, schema: SchemaMeta, dialect: SqlDialect
 
   const kind = exec?.kind ?? "toArray";
   if (layer.pendingGroup && (kind === "toArray" || kind === "first" || kind === "single")) {
-    throw new TreequelError(
+    throw new GreffonError(
       "R2001",
       "Materializing raw groups is memory-only (v1) — project them with select(g => …) first.",
     );
@@ -93,11 +93,11 @@ export function compile(plan: QueryPlan, schema: SchemaMeta, dialect: SqlDialect
         compiler.render(layer),
         (rows) => {
           if (kind === "single" && rows.length > 1) {
-            throw new Error("Treequel: single() found more than one element.");
+            throw new Error("Greffon: single() found more than one element.");
           }
           if (rows.length === 0) {
             if (orNull) return null;
-            throw new Error(`Treequel: ${kind}() found no element.`);
+            throw new Error(`Greffon: ${kind}() found no element.`);
           }
           return mapRow(rows[0] as Record<string, unknown>);
         },

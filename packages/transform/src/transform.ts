@@ -1,4 +1,4 @@
-import { type Diagnostic, QUERY_METHODS, adapterOxc, capture } from "@treequel/capture";
+import { type Diagnostic, QUERY_METHODS, adapterOxc, capture } from "@greffon/capture";
 import MagicString from "magic-string";
 import { parseSync } from "oxc-parser";
 import { emitNode, offsetToLineCol } from "./emit.js";
@@ -10,10 +10,10 @@ export const HOST_IMPORT: {
   readonly source: string;
   readonly imported: string;
   readonly local: string;
-} = { source: "@treequel/core", imported: "__expr", local: HOST_ALIAS };
+} = { source: "@greffon/core", imported: "__expr", local: HOST_ALIAS };
 
 export interface TransformOptions {
-  /** Traced import sources. Default: `["@treequel/query"]`. */
+  /** Traced import sources. Default: `["@greffon/query"]`. */
   readonly packages?: readonly string[];
   /** Extra globals safelist passed through to capture. */
   readonly globals?: readonly string[];
@@ -534,7 +534,7 @@ export async function transformModule(
   options: TransformOptions = {},
   host?: TransformHost,
 ): Promise<TransformResult | null> {
-  const packages = options.packages ?? ["@treequel/query"];
+  const packages = options.packages ?? ["@greffon/query"];
   const analysis = analyze(code, id, packages);
   if (!analysis) return null;
 
@@ -575,7 +575,7 @@ export function transformModuleSync(
   options: TransformOptions = {},
   host?: SyncTransformHost,
 ): TransformResult | null {
-  const packages = options.packages ?? ["@treequel/query"];
+  const packages = options.packages ?? ["@greffon/query"];
   const analysis = analyze(code, id, packages);
   if (!analysis) return null;
 
@@ -602,7 +602,7 @@ export function planModuleSync(
   options: TransformOptions = {},
   host?: SyncTransformHost,
 ): ReifyPlan | null {
-  const packages = options.packages ?? ["@treequel/query"];
+  const packages = options.packages ?? ["@greffon/query"];
   const analysis = analyze(code, id, packages);
   if (!analysis) return null;
 
@@ -626,7 +626,7 @@ export function scanModuleContexts(
   id: string,
   options: TransformOptions = {},
 ): readonly string[] {
-  const packages = options.packages ?? ["@treequel/query"];
+  const packages = options.packages ?? ["@greffon/query"];
   const analysis = analyze(code, id, packages);
   if (!analysis) return [];
   return [...collectModuleContexts(analysis.program, analysis.isCreateContextCall)];

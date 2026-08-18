@@ -1,4 +1,4 @@
-import { type Node, FORMAT_VERSION, TreequelError } from "@treequel/tree";
+import { type Node, FORMAT_VERSION, GreffonError } from "@greffon/tree";
 import { print } from "./printer.js";
 
 declare const brand: unique symbol;
@@ -21,7 +21,7 @@ export interface Expr<F extends (...a: never[]) => unknown> {
   readonly loc?: string;
 }
 
-const IS_EXPR: unique symbol = Symbol.for("treequel.isExpr") as never;
+const IS_EXPR: unique symbol = Symbol.for("greffon.isExpr") as never;
 const INSPECT = Symbol.for("nodejs.util.inspect.custom");
 
 /** Runtime guard: was `x` produced by `__expr`/`expr`? */
@@ -63,9 +63,9 @@ function brandExpr<F extends (...a: never[]) => unknown>(e: Record<string, unkno
  */
 export function __expr<F extends (...a: never[]) => unknown>(init: ExprInit<F>): Expr<F> {
   if (init.v !== FORMAT_VERSION) {
-    throw new TreequelError(
+    throw new GreffonError(
       "R1901",
-      `Emitted expression has format v${init.v}; this runtime is v${FORMAT_VERSION}. Align @treequel/core and the build plugin versions.`,
+      `Emitted expression has format v${init.v}; this runtime is v${FORMAT_VERSION}. Align @greffon/core and the build plugin versions.`,
     );
   }
   const e = brandExpr<F>({
@@ -79,7 +79,7 @@ export function __expr<F extends (...a: never[]) => unknown>(init: ExprInit<F>):
   return Object.freeze(e);
 }
 
-// --- Runtime fallback wiring (no static edge to @treequel/fallback) ---------
+// --- Runtime fallback wiring (no static edge to @greffon/fallback) ---------
 
 /** What the fallback package produces from `f.toString()`. */
 export type FallbackHost = (f: (...a: never[]) => unknown) => {
@@ -90,7 +90,7 @@ export type FallbackHost = (f: (...a: never[]) => unknown) => {
 
 let fallbackHost: FallbackHost | undefined;
 
-/** Called by `@treequel/fallback` on import to enable runtime `toString()` capture. */
+/** Called by `@greffon/fallback` on import to enable runtime `toString()` capture. */
 export function __setFallbackHost(host: FallbackHost): void {
   fallbackHost = host;
 }
@@ -109,10 +109,10 @@ export function expr<F extends (...a: never[]) => unknown>(f: F): Expr<F> {
   const derive = (): NonNullable<typeof cache> => {
     if (cache) return cache;
     if (!fallbackHost) {
-      throw new TreequelError(
+      throw new GreffonError(
         "R3001",
-        "No expression tree is available for this lambda. Enable the @treequel/vite build plugin, " +
-          'or `import "@treequel/fallback/register"` to allow runtime toString() parsing. ' +
+        "No expression tree is available for this lambda. Enable the @greffon/vite build plugin, " +
+          'or `import "@greffon/fallback/register"` to allow runtime toString() parsing. ' +
           "(The in-memory provider does not need either.)",
       );
     }

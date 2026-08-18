@@ -1,4 +1,4 @@
-# `@treequel/query` — area guide
+# `@greffon/query` — area guide
 
 Read `plans/DESIGN.md` §9 with this file. The query layer: `Queryable`, the `QueryPlan` providers receive, the
 provider protocol, and the reference in-memory engine.
@@ -14,7 +14,7 @@ same transform over a plain array reads, which is exactly what the memory provid
   concatenation). Don't rename these to array methods.
 - The executors are settled (ADR-0005): `first` returns `T | null`, `firstOrThrow` throws, `single` asserts one;
   `count`/`sum`/`min`/`max`/`avg` are the aggregates. Adding an operator with a faithful array twin? Use that name.
-- The `apps/docs/guide/lineage.md` three-column table (Treequel · `Array` · LINQ) is the reference for the parallel —
+- The `apps/docs/guide/lineage.md` three-column table (Greffon · `Array` · LINQ) is the reference for the parallel —
   update it in the same change when the surface changes.
 
 ## The plan-op kind matches the surface name
@@ -23,9 +23,9 @@ A surface method appends a plan op whose `op` string **is** the method name (`fi
 you rename or add a surface method, the op kind moves with it — and four lists plus every provider must stay in sync:
 
 - `PlanOp` union + `PLAN_OP_KINDS` (`plan.ts`), the memory engine switch (`memory-engine.ts`), `elementSource`.
-- `SUPPORTED_OPS` in `@treequel/sql-core` and the `foldOp` switch; the include-refinement op check.
-- The traced-method set `QUERY_METHODS`, defined once in `@treequel/capture` and read by `@treequel/transform`,
-  `@treequel/eslint-plugin` and `@treequel/ts-plugin` (all three depend on capture) — a lambda argument is only reified
+- `SUPPORTED_OPS` in `@greffon/sql-core` and the `foldOp` switch; the include-refinement op check.
+- The traced-method set `QUERY_METHODS`, defined once in `@greffon/capture` and read by `@greffon/transform`,
+  `@greffon/eslint-plugin` and `@greffon/ts-plugin` (all three depend on capture) — a lambda argument is only reified
   at a call whose method name is in this set.
 
 Miss one and the failure is silent-ish: an unlisted method's lambda never becomes an `Expr` (it stays an opaque

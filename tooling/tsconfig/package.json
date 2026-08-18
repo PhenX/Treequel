@@ -1,5 +1,5 @@
 {
-  "name": "@treequel/tsconfig",
+  "name": "@greffon/tsconfig",
   "version": "0.1.0",
   "private": true,
   "files": [

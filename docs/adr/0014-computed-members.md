@@ -10,7 +10,7 @@ memory, but they are invisible to a query — `db.users.filter((u) => u.isAdult)
 column a provider can translate.
 
 C#'s [`EntityFrameworkCore.Projectables`](https://github.com/koenbeuk/EntityFrameworkCore.Projectables) solves this by
-inlining a member's definition into the query's expression tree before translation. Treequel already has every piece
+inlining a member's definition into the query's expression tree before translation. Greffon already has every piece
 that needs: a closed tree algebra, `partialEval`, `rewrite`/`mapChildren`, `makeExpr` to turn a tree back into an
 executable `Expr`, and the reference memory engine. This ADR is how they fit together.
 
@@ -52,7 +52,7 @@ executable `Expr`, and the reference memory engine. This ADR is how they fit tog
 
 ## Consequences
 
-- New public surface in `@treequel/linq`: `defineComputed`, `SchemaComputed<S>`, `ComputedMeta`, and the
+- New public surface in `@greffon/linq`: `defineComputed`, `SchemaComputed<S>`, `ComputedMeta`, and the
   `ContextOptions.computed` option. The registry rides the context but never the `QueryPlan` — providers only see the
   inlined result — so no wire format changes and `FORMAT_VERSION` is untouched.
 - Two appended diagnostics, R2009 (cycle) and R2010 (method arity). Codes are append-only; each has a throwing test.

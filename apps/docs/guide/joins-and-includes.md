@@ -134,7 +134,7 @@ const allPaid = await db.users
   (`u.orders?.some(o => o.items?.some(…))`) both translate.
 - The memory provider resolves the same predicates by attaching the navigations before evaluating, so results match
   SQL row for row. This path reads the expression tree: without the build plugin, add
-  `import "@treequel/fallback/register"` — a navigation predicate with no tree available is refused with a
+  `import "@greffon/fallback/register"` — a navigation predicate with no tree available is refused with a
   teachable error, never evaluated against absent data.
 - `include` **loads** related rows; `some`/`every` **filter** by them. An `include` is never visible to `filter` in
   the same query.

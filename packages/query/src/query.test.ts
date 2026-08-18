@@ -1,5 +1,5 @@
-import { b, makeExpr, print } from "@treequel/core";
-import { memoryProvider } from "@treequel/provider-memory";
+import { b, makeExpr, print } from "@greffon/core";
+import { memoryProvider } from "@greffon/provider-memory";
 import { describe, expect, it } from "vitest";
 import {
   type Context,

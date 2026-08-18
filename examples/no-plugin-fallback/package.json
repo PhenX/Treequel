@@ -1,5 +1,5 @@
 {
-  "name": "@treequel-example/no-plugin-fallback",
+  "name": "@greffon-example/no-plugin-fallback",
   "version": "0.1.0",
   "private": true,
   "description": "Graceful degradation: in-memory works fully without the plugin; remote providers fall back to runtime parse with teachable closure errors.",
@@ -8,9 +8,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@treequel/fallback": "*",
-    "@treequel/provider-memory": "*",
-    "@treequel/provider-postgres": "*",
-    "@treequel/query": "*"
+    "@greffon/fallback": "*",
+    "@greffon/provider-memory": "*",
+    "@greffon/provider-postgres": "*",
+    "@greffon/query": "*"
   }
 }

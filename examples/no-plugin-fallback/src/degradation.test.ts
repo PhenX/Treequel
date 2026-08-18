@@ -4,10 +4,10 @@
  * functions; the in-memory provider uses them directly, while a remote provider
  * relies on the lazily-registered runtime fallback.
  */
-import { enableFallback } from "@treequel/fallback";
-import { type SchemaMeta, type SqlExecutor, postgres } from "@treequel/provider-postgres";
-import { createContext } from "@treequel/query";
-import { memoryProvider } from "@treequel/provider-memory";
+import { enableFallback } from "@greffon/fallback";
+import { type SchemaMeta, type SqlExecutor, postgres } from "@greffon/provider-postgres";
+import { createContext } from "@greffon/query";
+import { memoryProvider } from "@greffon/provider-memory";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
 interface User {

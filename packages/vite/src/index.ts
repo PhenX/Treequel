@@ -1,5 +1,5 @@
 /**
- * `@treequel/vite` — a thin Vite plugin over `@treequel/transform`. It uses only
+ * `@greffon/vite` — a thin Vite plugin over `@greffon/transform`. It uses only
  * Rollup-compatible hooks (`enforce: "pre"` + `transform`, with `this.resolve` /
  * `this.load` for the cross-module context manifest), so the same export runs
  * unchanged in Vite, Rollup and Rolldown.
@@ -9,14 +9,14 @@ import {
   type TransformHost,
   createRegistry,
   transformModule,
-} from "@treequel/transform";
+} from "@greffon/transform";
 
 export type FilterPattern = RegExp | RegExp[];
 
-export interface TreequelPluginOptions {
+export interface GreffonPluginOptions {
   include?: FilterPattern;
   exclude?: FilterPattern;
-  /** Traced import sources. Default: `["@treequel/query"]`. */
+  /** Traced import sources. Default: `["@greffon/query"]`. */
   packages?: string[];
   /** How to surface subset diagnostics. Default: `error` in build, `warn` in dev. */
   diagnostics?: "error" | "warn";
@@ -55,15 +55,15 @@ function matches(patterns: FilterPattern, id: string): boolean {
   return Array.isArray(patterns) ? patterns.some((p) => p.test(id)) : patterns.test(id);
 }
 
-/** Create the Treequel build plugin. */
-export function treequel(options: TreequelPluginOptions = {}): VitePlugin {
+/** Create the Greffon build plugin. */
+export function greffon(options: GreffonPluginOptions = {}): VitePlugin {
   const include = options.include ?? DEFAULT_INCLUDE;
   const exclude = options.exclude ?? DEFAULT_EXCLUDE;
   const registry: ContextRegistry = createRegistry();
   let command = "build";
 
   return {
-    name: "treequel",
+    name: "greffon",
     enforce: "pre",
     configResolved(config): void {
       command = config.command;
@@ -108,4 +108,4 @@ export function treequel(options: TreequelPluginOptions = {}): VitePlugin {
   };
 }
 
-export default treequel;
+export default greffon;

@@ -1,18 +1,18 @@
-# ADR 0001 — The in-memory execution engine lives in `@treequel/linq`
+# ADR 0001 — The in-memory execution engine lives in `@greffon/linq`
 
 Status: accepted
 
 ## Context
 
-The plan describes `@treequel/provider-memory` as the reference provider that owns the in-memory execution
+The plan describes `@greffon/provider-memory` as the reference provider that owns the in-memory execution
 semantics. Separately, the `.inMemory()` boundary operator must run the suffix of a plan in memory over rows a remote
-provider has already materialized. If the semantics lived only in `provider-memory`, the query layer (`@treequel/linq`)
+provider has already materialized. If the semantics lived only in `provider-memory`, the query layer (`@greffon/linq`)
 would need to depend on `provider-memory` to implement `.inMemory()` — but `provider-memory` already depends on `linq`,
 which would create a dependency cycle.
 
 ## Decision
 
-The op-application engine (`applyOps` / `runPlanInMemory`) lives in `@treequel/linq`. `@treequel/provider-memory` is a
+The op-application engine (`applyOps` / `runPlanInMemory`) lives in `@greffon/linq`. `@greffon/provider-memory` is a
 thin wrapper that adapts it to the `QueryProvider` interface, and the `.inMemory()` boundary reuses the same engine for
 the client-evaluated suffix.
 

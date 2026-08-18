@@ -1,7 +1,7 @@
 import { PGlite } from "@electric-sql/pglite";
-import { type Context, createContext } from "@treequel/query";
-import { memoryProvider } from "@treequel/provider-memory";
-import { type SqlExecutor, postgres } from "@treequel/provider-postgres";
+import { type Context, createContext } from "@greffon/query";
+import { memoryProvider } from "@greffon/provider-memory";
+import { type SqlExecutor, postgres } from "@greffon/provider-postgres";
 import { beforeAll, describe, expect, it } from "vitest";
 import * as q from "./queries.js";
 import { type Schema, orders, schemaMeta, users } from "./schema.js";

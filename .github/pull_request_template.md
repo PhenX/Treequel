@@ -1,4 +1,4 @@
-<!-- Thanks for contributing to Treequel! -->
+<!-- Thanks for contributing to Greffon! -->
 
 ## What & why
 

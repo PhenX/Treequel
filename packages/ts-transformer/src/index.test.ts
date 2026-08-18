@@ -1,17 +1,17 @@
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 import { createTransformerFactory } from "./index.js";
-import type { TreequelTransformerOptions } from "./index.js";
+import type { GreffonTransformerOptions } from "./index.js";
 
 /**
  * Compile a set of virtual files through a real `ts.Program`, running the
- * Treequel transformer as a `before` transformer during emit. Returns the
+ * Greffon transformer as a `before` transformer during emit. Returns the
  * emitted `.js` text per input file. This exercises the whole path: our splice,
  * the re-parse, then TypeScript's own type-stripping and module lowering.
  */
 function compile(
   files: Record<string, string>,
-  options: TreequelTransformerOptions = {},
+  options: GreffonTransformerOptions = {},
   compilerOptions: ts.CompilerOptions = {},
 ): Record<string, string> {
   const opts: ts.CompilerOptions = {
@@ -50,7 +50,7 @@ describe("ts transformer — emit", () => {
   it("reifies a lambda at a traced filter() call site", () => {
     const js = compile({
       "/q.ts": [
-        'import { createContext } from "@treequel/query";',
+        'import { createContext } from "@greffon/query";',
         "const db = createContext(provider);",
         "export const q = db.users.filter((u) => u.age > minAge);",
       ].join("\n"),
@@ -61,13 +61,13 @@ describe("ts transformer — emit", () => {
     // the original lambda is preserved as `compiled`, the tree body is inlined
     expect(js).toContain("compiled:");
     expect(js).toContain('"Member"');
-    expect(js).toContain('import { __expr as __tql_expr$ } from "@treequel/core"');
+    expect(js).toContain('import { __expr as __tql_expr$ } from "@greffon/core"');
   });
 
   it("strips the type annotations around a reified lambda", () => {
     const js = compile({
       "/q.ts": [
-        'import { createContext } from "@treequel/query";',
+        'import { createContext } from "@greffon/query";',
         "interface User { age: number }",
         "const db = createContext(provider);",
         "export const q = db.users.filter((u: User): boolean => u.age > 18);",
@@ -83,7 +83,7 @@ describe("ts transformer — emit", () => {
   it("reifies expr() wrappers without a context", () => {
     const js = compile({
       "/q.ts": [
-        'import { expr } from "@treequel/query";',
+        'import { expr } from "@greffon/query";',
         "export const p = expr((u) => u.age > 18);",
       ].join("\n"),
     })["/q.js"];
@@ -95,11 +95,11 @@ describe("ts transformer — emit", () => {
   it("resolves a context imported from another module", () => {
     const outputs = compile({
       "/db.ts": [
-        'import { createContext } from "@treequel/query";',
+        'import { createContext } from "@greffon/query";',
         "export const db = createContext(provider);",
       ].join("\n"),
       "/q.ts": [
-        'import type { Context } from "@treequel/query";',
+        'import type { Context } from "@greffon/query";',
         'import { db } from "./db.js";',
         "export const q = db.users.filter((u) => u.active);",
       ].join("\n"),
@@ -111,7 +111,7 @@ describe("ts transformer — emit", () => {
 
   it("is idempotent — running twice changes nothing more", () => {
     const src = [
-      'import { createContext } from "@treequel/query";',
+      'import { createContext } from "@greffon/query";',
       "const db = createContext(provider);",
       "export const q = db.users.filter((u) => u.age > 1);",
     ].join("\n");
@@ -135,7 +135,7 @@ describe("ts transformer — emit", () => {
     const js = compile(
       {
         "/q.ts": [
-          'import { createContext } from "@treequel/query";',
+          'import { createContext } from "@greffon/query";',
           "const db = createContext(provider);",
           "export const q = db.users.filter((u) => u.id == 1);",
         ].join("\n"),
@@ -153,7 +153,7 @@ describe("ts transformer — emit", () => {
       compile(
         {
           "/q.ts": [
-            'import { createContext } from "@treequel/query";',
+            'import { createContext } from "@greffon/query";',
             "const db = createContext(provider);",
             "export const q = db.users.filter((u) => u.age > 1);",
           ].join("\n"),
@@ -169,7 +169,7 @@ describe("ts transformer — emit", () => {
       compile(
         {
           "/q.ts": [
-            'import { createContext } from "@treequel/query";',
+            'import { createContext } from "@greffon/query";',
             "const db = createContext(provider);",
             "export const q = db.users.filter((u) => u.id == 1);",
           ].join("\n"),
@@ -181,7 +181,7 @@ describe("ts transformer — emit", () => {
 });
 
 describe("ts transformer — single-file transform (no program)", () => {
-  const printed = (code: string, options: TreequelTransformerOptions = {}): string => {
+  const printed = (code: string, options: GreffonTransformerOptions = {}): string => {
     const sf = ts.createSourceFile("/q.ts", code, ts.ScriptTarget.ES2022, true);
     const result = ts.transform(sf, [createTransformerFactory(undefined, options)]);
     const out = ts.createPrinter().printFile(result.transformed[0]);
@@ -191,7 +191,7 @@ describe("ts transformer — single-file transform (no program)", () => {
 
   it("reifies expr() with no program supplied", () => {
     const out = printed(
-      ['import { expr } from "@treequel/query";', "const p = expr((u) => u.age > 18);"].join("\n"),
+      ['import { expr } from "@greffon/query";', "const p = expr((u) => u.age > 18);"].join("\n"),
     );
     expect(out).toContain("__tql_expr$");
   });

@@ -1,4 +1,4 @@
-import type { Expr } from "@treequel/core";
+import type { Expr } from "@greffon/core";
 import type { RelationsMeta } from "./relations.js";
 
 /** An `Expr` of any function shape — plan ops are heterogeneous. */

@@ -1,4 +1,4 @@
-import { type Node, isSpread } from "@treequel/tree";
+import { type Node, isSpread } from "@greffon/tree";
 
 /**
  * Render a tree back to readable, source-like text. Used by `Expr#toString`

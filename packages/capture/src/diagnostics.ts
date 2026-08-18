@@ -1,4 +1,4 @@
-import type { Span } from "@treequel/tree";
+import type { Span } from "@greffon/tree";
 
 /**
  * The diagnostics catalog — the single source of truth for every `Rxxxx` code
@@ -108,13 +108,13 @@ export const DIAGNOSTICS: Readonly<Record<string, DiagnosticSpec>> = Object.free
   R4001: {
     severity: "warn",
     summary: "Traced context import could not be resolved",
-    hint: "Wrap the lambda with expr(), or annotate the import with /* @treequel-context */.",
+    hint: "Wrap the lambda with expr(), or annotate the import with /* @greffon-context */.",
   },
   R4002: { severity: "info", summary: "Double transform detected; skipped" },
 });
 
 export function docsAnchor(code: string): string {
-  return `https://treequel.dev/errors#${code}`;
+  return `https://greffon.dev/errors#${code}`;
 }
 
 const FALLBACK_SPEC: DiagnosticSpec = { severity: "error", summary: "Unsupported syntax" };

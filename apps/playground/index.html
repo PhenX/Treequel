@@ -3,19 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Treequel Playground</title>
+    <title>Greffon Playground</title>
     <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
     <header>
-      <h1>Treequel Playground</h1>
+      <h1>Greffon Playground</h1>
       <p>
         Pick a sample or paste a lambda. It is parsed with the same subset validator the build and
         editor use, then shown as an expression tree, evaluated against the sample row right here —
         no SQL involved — and translated to the SQL a Postgres provider would run. The demo schema
         is <code>users → orders → items</code> with declared relations, so navigation predicates and
         correlated counts translate too.
-        <a href="/Treequel/">Docs</a>
+        <a href="/Greffon/">Docs</a>
       </p>
     </header>
 
@@ -50,7 +50,7 @@
           <div id="evaluated" class="viewer"></div>
         </div>
         <div class="panel">
-          <h2>SQL <span class="hint">via @treequel/sql-core</span></h2>
+          <h2>SQL <span class="hint">via @greffon/sql-core</span></h2>
           <div id="sql" class="viewer"></div>
         </div>
         <div class="panel">

@@ -1,7 +1,7 @@
 /**
- * `@treequel/query` — the query layer: `Queryable`, the `QueryPlan` a provider
+ * `@greffon/query` — the query layer: `Queryable`, the `QueryPlan` a provider
  * receives, the provider protocol, and `createContext`. Depends only on
- * `@treequel/core`. The in-memory engine lives here too so it is the single
+ * `@greffon/core`. The in-memory engine lives here too so it is the single
  * shared reference semantics.
  */
 export {
@@ -43,4 +43,4 @@ export {
 } from "./queryable.js";
 
 // The Expr host + tree algebra, re-exported for the common single import.
-export { type Expr, expr, isExpr } from "@treequel/core";
+export { type Expr, expr, isExpr } from "@greffon/core";

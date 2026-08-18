@@ -1,8 +1,8 @@
 {
-  "name": "@treequel-playground/app",
+  "name": "@greffon-playground/app",
   "version": "0.1.0",
   "private": true,
-  "description": "Treequel playground — paste a query lambda, see the tree, the emitted host, and the SQL.",
+  "description": "Greffon playground — paste a query lambda, see the tree, the emitted host, and the SQL.",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,12 +10,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@treequel/core": "*",
-    "@treequel/fallback": "*",
-    "@treequel/provider-postgres": "*",
-    "@treequel/query": "*",
-    "@treequel/transform": "*",
-    "@treequel/tree": "*",
+    "@greffon/core": "*",
+    "@greffon/fallback": "*",
+    "@greffon/provider-postgres": "*",
+    "@greffon/query": "*",
+    "@greffon/transform": "*",
+    "@greffon/tree": "*",
     "monaco-editor": "0.56.0"
   },
   "devDependencies": {

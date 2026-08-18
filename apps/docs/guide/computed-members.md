@@ -7,7 +7,7 @@ were a real column:
 db.users.filter((u) => u.isAdult).map((u) => ({ name: u.fullName }));
 ```
 
-`isAdult` and `fullName` are not columns. Before a provider translates the query, Treequel inlines each member's
+`isAdult` and `fullName` are not columns. Before a provider translates the query, Greffon inlines each member's
 definition into the expression tree — `u.isAdult` becomes `(u.age >= 18)`, `u.fullName` becomes
 `` `${u.first} ${u.last}` `` — so the inlined tree flows through the ordinary column and operator translation. The same
 inlining runs for the memory provider, so a computed member means the same thing in your tests and in SQL.
@@ -18,7 +18,7 @@ Register computed members per context, next to the schema, and pass them to `cre
 definition is a **property** (`u.isAdult`); an extra parameter makes it a **method** (`o.net(0.1)`).
 
 ```ts
-import { createContext, defineComputed } from "@treequel/query";
+import { createContext, defineComputed } from "@greffon/query";
 
 const computed = defineComputed<{ users: User; orders: Order }>({
   users: {
@@ -79,7 +79,7 @@ in `expr()`, or build the tree directly with `makeExpr` — handy for a shared l
 assuming the consumer's build:
 
 ```ts
-import { b, makeExpr } from "@treequel/core";
+import { b, makeExpr } from "@greffon/core";
 
 const computed = defineComputed<{ users: User }>({
   users: {

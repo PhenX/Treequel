@@ -1,8 +1,8 @@
 /**
- * `@treequel/tree` — the wire-format contract of the whole system.
+ * `@greffon/tree` — the wire-format contract of the whole system.
  *
  * A small, closed, versioned, JSON-serializable expression-tree algebra with
- * ZERO runtime dependencies (forever). Everything else in Treequel is a
+ * ZERO runtime dependencies (forever). Everything else in Greffon is a
  * producer or consumer of these nodes.
  */
 export * from "./nodes.js";

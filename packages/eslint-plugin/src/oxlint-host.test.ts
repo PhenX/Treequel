@@ -57,12 +57,12 @@ describe.skipIf(!fs.existsSync(distEntry))(
     let dir: string;
 
     beforeAll(() => {
-      dir = fs.mkdtempSync(path.join(os.tmpdir(), "treequel-oxlint-"));
+      dir = fs.mkdtempSync(path.join(os.tmpdir(), "greffon-oxlint-"));
       fs.writeFileSync(
         path.join(dir, ".oxlintrc.json"),
         JSON.stringify({
-          jsPlugins: [{ name: "treequel", specifier: distEntry }],
-          rules: { "treequel/valid-expression": "error", "treequel/no-opaque-callback": "warn" },
+          jsPlugins: [{ name: "greffon", specifier: distEntry }],
+          rules: { "greffon/valid-expression": "error", "greffon/no-opaque-callback": "warn" },
         }),
       );
     });
@@ -74,7 +74,7 @@ describe.skipIf(!fs.existsSync(distEntry))(
       fs.writeFileSync(
         path.join(dir, "queries.ts"),
         [
-          'import { createContext } from "@treequel/query";',
+          'import { createContext } from "@greffon/query";',
           "declare const provider: unknown;",
           "declare const myPredicate: (u: { id: number }) => boolean;",
           "const db = createContext(provider);",
@@ -87,24 +87,24 @@ describe.skipIf(!fs.existsSync(distEntry))(
       );
       const { diagnostics, status } = runOxlint(dir, ["queries.ts"]);
       expect(status).toBe(1);
-      const treequel = diagnostics.filter((d) => d.code.startsWith("treequel("));
-      const byCode = (code: string) => treequel.filter((d) => d.message.startsWith(code));
+      const greffon = diagnostics.filter((d) => d.code.startsWith("greffon("));
+      const byCode = (code: string) => greffon.filter((d) => d.message.startsWith(code));
       expect(byCode("R1103")).toMatchObject([
-        { code: "treequel(valid-expression)", severity: "error" },
+        { code: "greffon(valid-expression)", severity: "error" },
       ]);
       expect(byCode("R1101")).toMatchObject([
-        { code: "treequel(valid-expression)", severity: "error" },
+        { code: "greffon(valid-expression)", severity: "error" },
       ]);
       expect(byCode("R2003")).toMatchObject([
-        { code: "treequel(no-opaque-callback)", severity: "warning" },
+        { code: "greffon(no-opaque-callback)", severity: "warning" },
       ]);
-      expect(treequel).toHaveLength(3);
+      expect(greffon).toHaveLength(3);
     });
 
     it("applies the R1103 autofix (== to ===)", () => {
       fs.writeFileSync(
         path.join(dir, "fixable.ts"),
-        'import { createContext } from "@treequel/query";\ndeclare const provider: unknown;\nconst db = createContext(provider);\ndb.users.filter((u: { id: number }) => u.id == 1);\n',
+        'import { createContext } from "@greffon/query";\ndeclare const provider: unknown;\nconst db = createContext(provider);\ndb.users.filter((u: { id: number }) => u.id == 1);\n',
       );
       runOxlint(dir, ["--fix", "fixable.ts"]);
       expect(fs.readFileSync(path.join(dir, "fixable.ts"), "utf8")).toContain("u.id === 1");

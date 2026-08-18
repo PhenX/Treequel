@@ -1,8 +1,8 @@
 /**
- * `@treequel/provider-memory` — the reference provider. It applies each
+ * `@greffon/provider-memory` — the reference provider. It applies each
  * op with the native JS equivalent via `expr.compiled`, never the tree. This is
  * the semantics every other provider's conformance suite is asserted against
- *. It is a thin wrapper over the shared engine in `@treequel/query`.
+ *. It is a thin wrapper over the shared engine in `@greffon/query`.
  */
 import {
   type Capabilities,
@@ -11,8 +11,8 @@ import {
   PLAN_OP_KINDS,
   capabilities,
   runPlanInMemory,
-} from "@treequel/query";
-import { TreequelError } from "@treequel/core";
+} from "@greffon/query";
+import { GreffonError } from "@greffon/core";
 
 export interface MemoryData {
   readonly [source: string]: readonly unknown[];
@@ -23,7 +23,7 @@ export function memoryProvider(data: MemoryData): QueryProvider {
   const rows = (source: string): readonly unknown[] => {
     const arr = data[source];
     if (!arr) {
-      throw new TreequelError("R2002", `Unknown source '${source}' in the in-memory provider.`);
+      throw new GreffonError("R2002", `Unknown source '${source}' in the in-memory provider.`);
     }
     return arr;
   };

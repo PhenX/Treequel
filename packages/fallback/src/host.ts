@@ -1,4 +1,4 @@
-import { type FallbackHost, type Node, TreequelError } from "@treequel/core";
+import { type FallbackHost, type Node, GreffonError } from "@greffon/core";
 import { reifyFromSource } from "./parse.js";
 
 // Minimal ambient — we only read NODE_ENV, and guard with `typeof process`.
@@ -25,9 +25,9 @@ function isProduction(): boolean {
  */
 export const fallbackHost: FallbackHost = (f) => {
   if (isProduction()) {
-    throw new TreequelError(
+    throw new GreffonError(
       "R3003",
-      "The runtime fallback is refused in production builds (minified source can't be reparsed reliably). Enable the @treequel/vite plugin.",
+      "The runtime fallback is refused in production builds (minified source can't be reparsed reliably). Enable the @greffon/vite plugin.",
     );
   }
 
@@ -35,9 +35,9 @@ export const fallbackHost: FallbackHost = (f) => {
     warned = true;
     // eslint-disable-next-line no-console
     console.warn(
-      "[treequel] R3001: runtime fallback active — parsing a lambda via toString(). " +
-        "Enable the @treequel/vite build plugin for robust, closure-aware reification. " +
-        "See https://treequel.dev/errors#R3001",
+      "[greffon] R3001: runtime fallback active — parsing a lambda via toString(). " +
+        "Enable the @greffon/vite build plugin for robust, closure-aware reification. " +
+        "See https://greffon.dev/errors#R3001",
     );
   }
 
@@ -45,7 +45,7 @@ export const fallbackHost: FallbackHost = (f) => {
   const { params, body, freeVars } = reifyFromSource(source);
 
   if (freeVars.length > 0) {
-    throw new TreequelError(
+    throw new GreffonError(
       "R3002",
       `${freeVars.map((v) => `'${v}'`).join(", ")} ${freeVars.length === 1 ? "is" : "are"} captured from the enclosing scope; ` +
         "the runtime fallback cannot read closures. Enable the build plugin, or inline the value(s).",

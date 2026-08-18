@@ -1,5 +1,5 @@
 {
-  "name": "@treequel-example/vite-postgres",
+  "name": "@greffon-example/vite-postgres",
   "version": "0.1.0",
   "private": true,
   "description": "Headline demo: identical query definitions run in-memory (Vitest) and on Postgres (PGlite), property-equal.",
@@ -8,11 +8,11 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@treequel/provider-memory": "*",
-    "@treequel/provider-postgres": "*",
-    "@treequel/query": "*"
+    "@greffon/provider-memory": "*",
+    "@greffon/provider-postgres": "*",
+    "@greffon/query": "*"
   },
   "devDependencies": {
-    "@treequel/vite": "*"
+    "@greffon/vite": "*"
   }
 }

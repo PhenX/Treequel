@@ -1,24 +1,24 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
-import { treequel } from "./packages/vite/src/index.js";
+import { greffon } from "./packages/vite/src/index.js";
 
 const pkg = (name: string, entry = "src/index.ts"): string =>
   fileURLToPath(new URL(`./packages/${name}/${entry}`, import.meta.url));
 
 /**
- * Alias every `@treequel/*` specifier to its TypeScript source so the test
+ * Alias every `@greffon/*` specifier to its TypeScript source so the test
  * suite runs against `src/` directly — no build step required in dev/CI.
  */
 export default defineConfig({
-  // The Treequel plugin reifies query lambdas into real Expr trees for:
+  // The Greffon plugin reifies query lambdas into real Expr trees for:
   //  - `*.reify.test.ts` provider tests (exercise the true build-time path),
   //  - the conformance corpus in `query/src/testing.ts` (its expr() calls), and
   //  - example source modules under `examples/**/src` (they ship real queries),
   // while ordinary unit tests stay plain (opaque lambdas / memory path).
-  // `@treequel/core` is traced so the corpus can import `expr` from it.
+  // `@greffon/core` is traced so the corpus can import `expr` from it.
   plugins: [
-    treequel({
-      packages: ["@treequel/query", "@treequel/core"],
+    greffon({
+      packages: ["@greffon/query", "@greffon/core"],
       include: [
         /\.reify\.test\.ts$/,
         /packages[\\/]query[\\/]src[\\/]testing\.ts$/,
@@ -29,19 +29,19 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      "@treequel/tree": pkg("tree"),
-      "@treequel/core": pkg("core"),
-      "@treequel/capture": pkg("capture"),
-      "@treequel/fallback": pkg("fallback"),
-      "@treequel/transform": pkg("transform"),
-      "@treequel/vite": pkg("vite"),
-      "@treequel/ts-transformer": pkg("ts-transformer"),
-      "@treequel/query/testing": pkg("query", "src/testing.ts"),
-      "@treequel/query": pkg("query"),
-      "@treequel/provider-memory": pkg("provider-memory"),
-      "@treequel/sql-core": pkg("sql-core"),
-      "@treequel/provider-postgres": pkg("provider-postgres"),
-      "@treequel/provider-sqlite": pkg("provider-sqlite"),
+      "@greffon/tree": pkg("tree"),
+      "@greffon/core": pkg("core"),
+      "@greffon/capture": pkg("capture"),
+      "@greffon/fallback": pkg("fallback"),
+      "@greffon/transform": pkg("transform"),
+      "@greffon/vite": pkg("vite"),
+      "@greffon/ts-transformer": pkg("ts-transformer"),
+      "@greffon/query/testing": pkg("query", "src/testing.ts"),
+      "@greffon/query": pkg("query"),
+      "@greffon/provider-memory": pkg("provider-memory"),
+      "@greffon/sql-core": pkg("sql-core"),
+      "@greffon/provider-postgres": pkg("provider-postgres"),
+      "@greffon/provider-sqlite": pkg("provider-sqlite"),
     },
   },
   test: {

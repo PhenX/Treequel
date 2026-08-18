@@ -1,11 +1,11 @@
 {
-  "name": "@treequel/capture",
+  "name": "@greffon/capture",
   "version": "0.1.0",
-  "description": "Treequel's shared subset validator, free-variable analysis and tree serializer (the one shared brain).",
+  "description": "Greffon's shared subset validator, free-variable analysis and tree serializer (the one shared brain).",
   "keywords": [
     "estree",
     "expression-tree",
-    "treequel",
+    "greffon",
     "validator"
   ],
   "license": "MIT",
@@ -30,7 +30,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@treequel/tree": "*"
+    "@greffon/tree": "*"
   },
   "devDependencies": {
     "oxc-parser": "^0.144.0"

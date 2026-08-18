@@ -2,11 +2,11 @@
  * Split-query loading for `include`. Each navigation is one batched fetch —
  * `= ANY($n)` on Postgres or chunked `IN (…)` on SQLite, with an optional
  * per-parent `ROW_NUMBER()` slice — stitched onto the parent rows by the shared
- * engine in `@treequel/query`, so no join duplication ever inflates the parent
+ * engine in `@greffon/query`, so no join duplication ever inflates the parent
  * set. {@link explainIncludes} renders the same plan as comment lines.
  */
-import { TreequelError } from "@treequel/core";
-import { type IncludeSpec, type RelationsMeta, attachChildren, collectKeys } from "@treequel/query";
+import { GreffonError } from "@greffon/core";
+import { type IncludeSpec, type RelationsMeta, attachChildren, collectKeys } from "@greffon/query";
 import { Compiler } from "./compiler.js";
 import { finalizeSql, quoteIdent, shapeColumn } from "./context.js";
 import type { SqlDialect } from "./dialect.js";
@@ -38,7 +38,7 @@ async function fetchRefinedChunk(
         `${compiler.translateWith(op.expr, layer.shape)} ${op.desc ? "DESC" : "ASC"}${dialect.nullsSuffix(op.desc)}`,
       );
     } else {
-      throw new TreequelError(
+      throw new GreffonError(
         "R2001",
         `An include refinement supports filter/orderBy only (got '${op.op}').`,
       );
@@ -52,7 +52,7 @@ async function fetchRefinedChunk(
   let raw: string;
   if (spec.take !== undefined || spec.skip !== undefined) {
     if (dialect.windowFunctions === false) {
-      throw new TreequelError(
+      throw new GreffonError(
         "R2001",
         `Per-parent include slices need window functions, which the ${dialect.name} dialect disables.`,
       );
@@ -106,7 +106,7 @@ export async function stitchIncludes(
     if (cur.length === 0) break;
     const parentProp = keyProp(spec.from);
     const meta = schema[spec.target];
-    if (!meta) throw new TreequelError("R2002", `No schema meta for source '${spec.target}'.`);
+    if (!meta) throw new GreffonError("R2002", `No schema meta for source '${spec.target}'.`);
     const childProp = physicalColumn(meta, spec.to);
     const keys = collectKeys(cur, parentProp, spec.nav);
     let children: unknown[] = [];

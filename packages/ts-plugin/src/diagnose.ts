@@ -1,4 +1,4 @@
-import { type Severity, adapterOxc, capture } from "@treequel/capture";
+import { type Severity, adapterOxc, capture } from "@greffon/capture";
 import { parseSync } from "oxc-parser";
 
 export interface LambdaDiagnostic {

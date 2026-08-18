@@ -4,7 +4,8 @@ Root guide for any AI agent (Claude Code, opencode, Copilot, Cursor, …) and fo
 monorepo: what lives where, how to verify things, and the conventions that apply everywhere.
 
 **The build follows a design & implementation plan at `plans/DESIGN.md`** — committed to the repository so a later
-agent can pick the work up (the rest of `plans/`, e.g. roadmap and exploration notes, stays local and gitignored).
+agent can pick the work up, as is `plans/exploration-findings.md` (so findings survive across sessions); the rest of
+`plans/`, e.g. the roadmap, stays local and gitignored.
 Read the section covering the area you are editing, in addition to this file:
 
 | Editing… | Read first |
@@ -73,7 +74,8 @@ The split is deliberate, keep it consistent:
   disguise.
 - `tooling/*` — shared tsconfig and Vitest presets, private workspace packages.
 - `scripts/*` — plain Node `.mjs`, zero dependencies (`release.mjs`, `check-graph.mjs`).
-- `plans/*` — working docs, gitignored, except `plans/DESIGN.md` which is committed for agent handoff.
+- `plans/*` — working docs, gitignored, except `plans/DESIGN.md` and `plans/exploration-findings.md`, committed for
+  agent handoff.
 - `docs/adr/*` — committed ADRs: one numbered file per significant decision or departure from the plan.
 
 The dependency graph is law and enforced by `scripts/check-graph.mjs` in CI: `tree` has zero runtime deps forever,
@@ -238,7 +240,7 @@ invariant.
 - **Capture global change requests:** when asked to apply a change across many files ("update all X to Y"), add the
   resulting convention as a rule to the relevant `AGENTS.md` so future edits follow it — narrowest file that covers it.
 - **Log what you find:** bugs, inconsistencies and tech debt discovered while exploring go to
-  `plans/exploration-findings.md` (local, gitignored, never committed) as:
+  `plans/exploration-findings.md` (committed, so findings survive across sessions) as:
 
   ```markdown
   ## [Date] — [Exploration type/area]
@@ -250,8 +252,9 @@ invariant.
   - **Suggested fix**: recommended action (omit if obvious)
   ```
 
-- `plans/` also holds `plans/DESIGN.md` (the implementation plan) and `plans/roadmap.md` (working priorities) — all
-  local-only. Public direction and open design questions are tracked as GitHub issues from day one.
+- `plans/` also holds `plans/roadmap.md` (working priorities), which stays local; `plans/DESIGN.md` and
+  `plans/exploration-findings.md` are committed. Public direction and open design questions are tracked as GitHub
+  issues from day one.
 
 ## Troubleshooting
 

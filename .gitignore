@@ -143,9 +143,11 @@ vite.config.ts.timestamp-*
 .vite/
 
 # Local working docs — design plan, roadmap, exploration findings (see AGENTS.md)
-# Local working docs stay local — except the design plan, committed for agent handoff.
+# Local working docs stay local — except the design plan and the exploration
+# findings, committed for agent handoff.
 plans/*
 !plans/DESIGN.md
+!plans/exploration-findings.md
 
 # Generated docs pages (from scripts/gen-docs.mjs)
 apps/docs/errors.md

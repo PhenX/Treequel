@@ -29,12 +29,15 @@ Run it:
 npm test -w @greffon-example/policy-rules
 ```
 
-Lint the policy lambdas the way a consumer would — [`.oxlintrc.json`](.oxlintrc.json)
-turns on the shared subset rules (`greffon/valid-expression`,
-`greffon/no-opaque-callback`), test files opted out:
+Lint the policy lambdas the way a consumer would. [`eslint.config.js`](eslint.config.js)
+wires the subset rules (`greffon/valid-expression`, `greffon/no-opaque-callback`)
+into ESLint — the setup most editors pick up on their own — and
+[`.oxlintrc.json`](.oxlintrc.json) does the same for oxlint; test files opt out of
+both:
 
 ```bash
-npm run lint -w @greffon-example/policy-rules
+npm run lint -w @greffon-example/policy-rules         # eslint
+npm run lint:oxlint -w @greffon-example/policy-rules  # oxlint
 ```
 
 The Vite plugin is the gate a build cannot skip; these lint rules run the same

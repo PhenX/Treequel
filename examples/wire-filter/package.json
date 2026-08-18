@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "lint": "oxlint"
+    "lint": "eslint .",
+    "lint:oxlint": "oxlint"
   },
   "dependencies": {
     "@greffon/core": "*",
@@ -16,6 +17,8 @@
   },
   "devDependencies": {
     "@greffon/eslint-plugin": "*",
-    "@greffon/vite": "*"
+    "@greffon/vite": "*",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.0.0"
   }
 }

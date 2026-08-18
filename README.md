@@ -108,7 +108,7 @@ Querying:
 
 The subset validator, free-variable analysis, and tree serializer live once in `@greffon/capture` and are reused by
 the build transform, the runtime fallback, the language-service plugin, and the ESLint rule, so the editor, the build,
-and the fallback agree on what is legal.
+the lint, and the fallback agree on what is legal.
 
 ## The subset
 

@@ -38,3 +38,7 @@
 
 ### Finding: ts-plugin is not dogfooded in this repo
 - **File/Component**: no `tsconfig*.json` lists `@greffon/ts-plugin` under `compilerOptions.plugins`, unlike the eslint-plugin consumed via `.oxlintrc.json`.
+### Finding: query engine plumbing sits at src/ top level, not src/internal/
+- **File/Component**: `packages/query/src/{canon,navpredicates}.ts` (and neighbors)
+- **Issue**: AGENTS.md's layout rule puts non-public plumbing under `src/internal/**`; these modules are at the top of `src/`. Some engine internals are deliberately re-exported for provider authors, so this is a judgment call, but the two named files read as private.
+- **Suggested fix**: Move genuinely-private modules under `src/internal/`, or note the intentional exception in the query area guide.

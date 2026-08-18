@@ -40,8 +40,18 @@ plugins through `jsPlugins` (alpha, not semver-guarded) — one package covers b
 
 ```js [eslint.config.js]
 import greffon from "@greffon/eslint-plugin";
+import tsParser from "@typescript-eslint/parser";
 
-export default [greffon.configs.recommended];
+// The rules read a TypeScript AST, so set the TypeScript parser on the files
+// you want checked; then apply the recommended rules there.
+export default [
+  {
+    files: ["src/**/*.ts"],
+    languageOptions: { parser: tsParser, sourceType: "module" },
+    plugins: greffon.configs.recommended.plugins,
+    rules: greffon.configs.recommended.rules,
+  },
+];
 ```
 
 ```json [.oxlintrc.json]
@@ -85,7 +95,7 @@ ESLint rule or a language-service plugin. They are fast feedback, not a gate. Th
 
 For CI specifically: you do not inject a rule into someone else's pipeline; you make their build fail, and their
 pipeline already runs their build. The [`examples/`](https://github.com/PhenX/Greffon/tree/main/examples) projects wire
-up both halves — the plugin in `vite.config.ts` and the rules in `.oxlintrc.json`.
+up both halves — the plugin in `vite.config.ts` and the rules in `eslint.config.js` (and `.oxlintrc.json` for oxlint).
 
 ### Why not a type error?
 

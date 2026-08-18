@@ -46,8 +46,8 @@ describe("one rule, list filtering: the policy is the WHERE clause", () => {
 describe("the same rule, one object: a can-this-viewer-see-this check", () => {
   it("compiled runs the original closure", () => {
     const rule = canSee(member);
-    expect(rule.compiled(docs[0])).toBe(true); // own org, not archived
-    expect(rule.compiled(docs[1])).toBe(false); // archived, not admin
+    expect(rule.compiled(docs[0]!)).toBe(true); // own org, not archived
+    expect(rule.compiled(docs[1]!)).toBe(false); // archived, not admin
   });
 
   it("evaluate needs no function at all once captures are folded", () => {

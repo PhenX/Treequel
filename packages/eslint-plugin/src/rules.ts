@@ -1,5 +1,4 @@
-import { adapterTsestree, capture } from "@treequel/capture";
-import { QUERY_METHODS } from "./methods.js";
+import { QUERY_METHODS, adapterTsestree, capture } from "@treequel/capture";
 
 /* eslint-env node */
 // Minimal structural typings — we avoid a hard dep on @typescript-eslint/utils.

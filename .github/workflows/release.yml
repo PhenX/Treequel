@@ -29,6 +29,12 @@ permissions:
   contents: write # push the release commit + tag, create the Release
   id-token: write # npm provenance via OIDC
 
+# One release at a time. A second dispatch waits for the first to finish rather
+# than racing it to push the release commit; a running publish is never cancelled.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -59,7 +65,18 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -m "chore(release): v${{ steps.ver.outputs.version }}"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+          # The verify + build steps take minutes, during which the branch may
+          # advance. Rebase the release commit onto the latest tip and retry
+          # rather than failing the push; a version conflict stops the rebase and
+          # surfaces loudly instead of double-releasing.
+          for attempt in 1 2 3 4 5; do
+            git push origin "HEAD:${GITHUB_REF_NAME}" && exit 0
+            echo "push rejected; rebasing onto ${GITHUB_REF_NAME} (attempt ${attempt})"
+            git fetch origin "${GITHUB_REF_NAME}"
+            git rebase "origin/${GITHUB_REF_NAME}"
+          done
+          echo "::error::could not push the release commit after 5 attempts"
+          exit 1
       - name: Publish public packages with provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

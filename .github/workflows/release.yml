@@ -1,17 +1,29 @@
 name: Release
 
 # Manual, lockstep release. Pick a bump; the job verifies, bumps every package
-# to one version, renders the changelog, tags, publishes with provenance, and
-# cuts a GitHub Release. Pushing the release commit to the default branch also
-# triggers docs.yml, which redeploys the docs site — so no docs step here.
+# to one version, renders the changelog, commits, publishes with provenance,
+# tags, and cuts a GitHub Release. Pushing the release commit to the default
+# branch also triggers docs.yml, which redeploys the docs site — so no docs step
+# here.
+#
+# publish_only republishes the version already on the branch without bumping. It
+# finishes a release whose version bump landed on the branch but whose publish,
+# tag, or GitHub Release did not — the case a plain job re-run cannot fix,
+# because a re-run checks out the original pre-bump commit and its push can never
+# fast-forward. Every publishing step below is idempotent, so publish_only (and
+# the tail of a normal run) is safe to re-run.
 on:
   workflow_dispatch:
     inputs:
       bump:
-        description: Semver bump
+        description: Semver bump (ignored when publish_only is set)
         type: choice
         options: [patch, minor, major]
         default: patch
+      publish_only:
+        description: Publish the version already on the branch, without bumping
+        type: boolean
+        default: false
 
 permissions:
   contents: write # push the release commit + tag, create the Release
@@ -35,30 +47,54 @@ jobs:
       - name: Build all packages
         run: npm run build --workspaces --if-present
       - name: Bump versions and render the changelog
+        if: ${{ !inputs.publish_only }}
         run: node scripts/release.mjs ${{ inputs.bump }}
-      - name: Read the new version
+      - name: Read the version
         id: ver
         run: echo "version=$(node -p "require('./packages/tree/package.json').version")" >> "$GITHUB_OUTPUT"
-      - name: Commit and tag
+      - name: Commit and push the release commit
+        if: ${{ !inputs.publish_only }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -m "chore(release): v${{ steps.ver.outputs.version }}"
-          git tag "v${{ steps.ver.outputs.version }}"
-          git push origin "HEAD:${GITHUB_REF_NAME}" --follow-tags
+          git push origin "HEAD:${GITHUB_REF_NAME}"
       - name: Publish public packages with provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           for dir in packages/*/; do
-            if [ -f "$dir/package.json" ] && ! grep -q '"private": true' "$dir/package.json"; then
+            [ -f "${dir}package.json" ] || continue
+            grep -q '"private": true' "${dir}package.json" && continue
+            name=$(node -p "require('./${dir}package.json').name")
+            version=$(node -p "require('./${dir}package.json').version")
+            if npm view "$name@$version" version >/dev/null 2>&1; then
+              echo "already published, skipping: $name@$version"
+            else
               (cd "$dir" && npm publish --provenance --access public)
             fi
           done
+      - name: Tag the release and push the tag
+        run: |
+          V="v${{ steps.ver.outputs.version }}"
+          if git ls-remote --exit-code --tags origin "refs/tags/$V" >/dev/null 2>&1; then
+            echo "tag already on remote, skipping: $V"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "$V" -m "$V"
+            git push origin "refs/tags/$V"
+          fi
       - name: Extract the latest changelog section
         run: node -e "const fs=require('node:fs');const after=(fs.readFileSync('CHANGELOG.md','utf8').split('<!-- releases -->')[1]||'');const first=after.split(/\n(?=## )/).map(s=>s.trim()).filter(Boolean)[0]||'';fs.writeFileSync('RELEASE_NOTES.md',first+'\n')"
       - name: Create the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "v${{ steps.ver.outputs.version }}" --title "v${{ steps.ver.outputs.version }}" --notes-file RELEASE_NOTES.md
+        run: |
+          V="v${{ steps.ver.outputs.version }}"
+          if gh release view "$V" >/dev/null 2>&1; then
+            echo "release already exists, skipping: $V"
+          else
+            gh release create "$V" --title "$V" --notes-file RELEASE_NOTES.md
+          fi

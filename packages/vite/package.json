@@ -1,6 +1,6 @@
 {
   "name": "@greffon/vite",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Vite/Rollup/Rolldown plugin that reifies Greffon query lambdas into expression trees.",
   "keywords": [
     "greffon",
@@ -38,7 +38,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@greffon/transform": "*"
+    "@greffon/transform": "^0.1.1"
   },
   "engines": {
     "node": ">=20"

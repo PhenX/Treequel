@@ -1,6 +1,6 @@
 {
   "name": "@greffon/tree",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "The Greffon expression-tree wire format: node types, (de)serialization, JSON schema. Zero dependencies.",
   "keywords": [
     "ast",

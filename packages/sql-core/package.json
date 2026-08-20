@@ -1,6 +1,6 @@
 {
   "name": "@greffon/sql-core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Greffon SQL-translation core — the dialect seam, translator, and provider builder shared by the Postgres and SQLite providers.",
   "keywords": [
     "dialect",
@@ -38,8 +38,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@greffon/core": "*",
-    "@greffon/query": "*"
+    "@greffon/core": "^0.1.1",
+    "@greffon/query": "^0.1.1"
   },
   "engines": {
     "node": ">=20"

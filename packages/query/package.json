@@ -1,6 +1,6 @@
 {
   "name": "@greffon/query",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Greffon query layer: Queryable, QueryPlan, provider protocol, createContext, and the in-memory reference engine.",
   "keywords": [
     "expression-tree",
@@ -43,7 +43,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@greffon/core": "*"
+    "@greffon/core": "^0.1.1"
   },
   "engines": {
     "node": ">=20"

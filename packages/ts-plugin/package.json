@@ -1,6 +1,6 @@
 {
   "name": "@greffon/ts-plugin",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "TypeScript language-service plugin: in-editor Greffon subset diagnostics (shares the capture validator).",
   "keywords": [
     "greffon",
@@ -37,7 +37,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@greffon/capture": "*",
+    "@greffon/capture": "^0.1.1",
     "oxc-parser": "^0.144.0"
   },
   "peerDependencies": {

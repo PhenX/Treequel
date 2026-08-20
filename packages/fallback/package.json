@@ -1,6 +1,6 @@
 {
   "name": "@greffon/fallback",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Greffon runtime toString() capture fallback (dev-only, lazy-loaded).",
   "keywords": [
     "fallback",
@@ -42,8 +42,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@greffon/capture": "*",
-    "@greffon/core": "*",
+    "@greffon/capture": "^0.1.1",
+    "@greffon/core": "^0.1.1",
     "meriyah": "^6.0.0"
   },
   "engines": {

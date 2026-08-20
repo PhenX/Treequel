@@ -1,6 +1,6 @@
 {
   "name": "@greffon/provider-memory",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Greffon reference provider — runs queries in memory via compiled lambdas.",
   "keywords": [
     "greffon",
@@ -37,8 +37,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@greffon/core": "*",
-    "@greffon/query": "*"
+    "@greffon/core": "^0.1.1",
+    "@greffon/query": "^0.1.1"
   },
   "engines": {
     "node": ">=20"

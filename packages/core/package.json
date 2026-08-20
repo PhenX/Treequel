@@ -1,6 +1,6 @@
 {
   "name": "@greffon/core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Greffon runtime core: Expr, visitor/rewriter, partial evaluation, printer, WellKnown registry.",
   "keywords": [
     "code-as-data",
@@ -38,7 +38,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@greffon/tree": "*"
+    "@greffon/tree": "^0.1.1"
   },
   "engines": {
     "node": ">=20"

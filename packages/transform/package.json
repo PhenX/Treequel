@@ -1,6 +1,6 @@
 {
   "name": "@greffon/transform",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Greffon's pure per-module build transform: import tracing, expression-position detection, tree splicing.",
   "keywords": [
     "greffon",
@@ -41,8 +41,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@greffon/capture": "*",
-    "@greffon/tree": "*",
+    "@greffon/capture": "^0.1.1",
+    "@greffon/tree": "^0.1.1",
     "magic-string": "^0.30.0",
     "oxc-parser": "^0.144.0"
   },

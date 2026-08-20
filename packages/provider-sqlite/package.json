@@ -1,6 +1,6 @@
 {
   "name": "@greffon/provider-sqlite",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Greffon SQLite provider — compiles expression trees to parameterized SQLite.",
   "keywords": [
     "greffon",
@@ -38,7 +38,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@greffon/sql-core": "*"
+    "@greffon/sql-core": "^0.1.1"
   },
   "engines": {
     "node": ">=20"

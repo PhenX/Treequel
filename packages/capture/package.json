@@ -1,6 +1,6 @@
 {
   "name": "@greffon/capture",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Greffon's shared subset validator, free-variable analysis and tree serializer (the one shared brain).",
   "keywords": [
     "estree",
@@ -37,7 +37,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@greffon/tree": "*"
+    "@greffon/tree": "^0.1.1"
   },
   "devDependencies": {
     "oxc-parser": "^0.144.0"

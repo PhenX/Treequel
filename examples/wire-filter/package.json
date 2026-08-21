@@ -19,6 +19,6 @@
     "@greffon/eslint-plugin": "*",
     "@greffon/vite": "*",
     "@typescript-eslint/parser": "^8.0.0",
-    "eslint": "^9.0.0"
+    "eslint": "^10.8.1"
   }
 }

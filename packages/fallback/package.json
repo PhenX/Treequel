@@ -44,7 +44,7 @@
   "dependencies": {
     "@greffon/capture": "^0.1.1",
     "@greffon/core": "^0.1.1",
-    "meriyah": "^6.0.0"
+    "meriyah": "^7.3.2"
   },
   "engines": {
     "node": ">=20"
